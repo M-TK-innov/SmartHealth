@@ -1,0 +1,11 @@
+node_modules/
+.next/
+out/
+data/*.db
+data/*.db-*
+data/audio/
+.env
+.env.local
+.tmp/
+*.tsbuildinfo
+next-env.d.ts
