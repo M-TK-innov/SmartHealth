@@ -62,7 +62,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
       {entries.length === 0 ? (
         <p className="p-5 text-sm text-ink-soft">Aucune entree.</p>
       ) : (
-        <table className="w-full text-sm">
+        <table className="table-responsive">
           <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft">
             <tr>
               <th className="px-5 py-2">Horodatage</th>
@@ -76,13 +76,13 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
             {entries.map((e) => (
               <tr key={e.id} className="align-top">
                 <td className="whitespace-nowrap px-5 py-2 text-xs text-ink-soft">{formatDate(e.at)}</td>
-                <td className="px-5 py-2 text-xs">{e.actor_label ?? 'systeme'}</td>
-                <td className="px-5 py-2">
+                <td data-label="Acteur" className="px-5 py-2 text-xs">{e.actor_label ?? 'systeme'}</td>
+                <td data-label="Action" className="px-5 py-2">
                   <span className={`chip ${ACTION_STYLE[e.action] ?? 'bg-paper text-ink-soft'}`}>
                     {ACTION_LABEL[e.action] ?? e.action}
                   </span>
                 </td>
-                <td className="px-5 py-2 text-xs">
+                <td data-label="Objet" className="px-5 py-2 text-xs">
                   {e.entity}
                   {e.patient_id && (
                     <Link href={`/patients/${e.patient_id}`} className="ml-2 text-brand-dark hover:underline">
@@ -90,7 +90,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
                     </Link>
                   )}
                 </td>
-                <td className="max-w-md px-5 py-2 text-xs text-ink-soft">
+                <td data-label="Detail" className="max-w-md px-5 py-2 text-xs text-ink-soft">
                   <span className="line-clamp-3 break-words">{e.detail}</span>
                 </td>
               </tr>

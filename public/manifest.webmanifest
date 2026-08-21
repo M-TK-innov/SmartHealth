@@ -1,0 +1,38 @@
+{
+  "id": "/",
+  "name": "ParleDocteur — scribe médical IA",
+  "short_name": "ParleDocteur",
+  "description": "Écoute la consultation, structure les données cliniques, enrichit le dossier médical et prépare une ordonnance validée par le médecin. Interopérable FHIR R4 / HL7 v2 / DHIS2.",
+  "lang": "fr",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#f7f9fb",
+  "theme_color": "#0f6f5c",
+  "categories": ["medical", "health", "productivity"],
+  "icons": [
+    { "src": "/icons/icon-64.png", "sizes": "64x64", "type": "image/png" },
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Nouveau patient",
+      "short_name": "Patient",
+      "description": "Créer un dossier et ouvrir une consultation",
+      "url": "/patients",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Consultations à signer",
+      "short_name": "À signer",
+      "description": "Comptes rendus analysés en attente de signature",
+      "url": "/consultations?status=analyzed",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
