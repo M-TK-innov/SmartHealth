@@ -33,6 +33,39 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  /* la rotation d'une tablette ne doit pas regrossir le texte */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* pas de rebond elastique facon page web dans la coque installee */
+  overscroll-behavior-y: none;
+}
+
+/* Cible tactile confortable : 44px est le minimum recommande par Apple et
+   Google. Applique uniquement aux pointeurs grossiers, pour ne pas gonfler
+   l'interface au clavier-souris. */
+@media (pointer: coarse) {
+  .btn,
+  .btn-primary,
+  .btn-ghost,
+  .btn-danger,
+  select.input,
+  input[type='checkbox'],
+  input[type='radio'] {
+    min-height: 2.75rem;
+  }
+  .btn-sm {
+    min-height: 2.25rem;
+  }
+  input[type='checkbox'],
+  input[type='radio'] {
+    min-width: 1.15rem;
+    min-height: 1.15rem;
+  }
+  a,
+  button,
+  label {
+    -webkit-tap-highlight-color: rgba(15, 111, 92, 0.12);
+  }
 }
 
 /* ------------------------------------------------------------------ blocs */
@@ -112,8 +145,15 @@ body {
   border: 1px solid var(--color-line);
   background: #fff;
   padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
+  /* 16px sous 640px : en deca, iOS Safari zoome automatiquement a la prise de
+     focus et decale toute la mise en page en pleine consultation */
+  font-size: 1rem;
   outline: none;
+}
+@media (min-width: 640px) {
+  .input {
+    font-size: 0.875rem;
+  }
 }
 .input:focus {
   border-color: var(--color-brand);
@@ -148,6 +188,68 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--color-ink-soft);
+}
+
+/* --------------------------------------------------- tableaux adaptatifs
+
+   Sous 768px, un tableau de donnees devient une pile de fiches : chaque
+   cellule affiche son intitule via l'attribut data-label. C'est preferable a
+   un defilement horizontal, qui masque des colonnes entieres sur telephone. */
+
+.table-responsive {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+@media (max-width: 767px) {
+  .table-responsive thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .table-responsive,
+  .table-responsive tbody,
+  .table-responsive tr,
+  .table-responsive td {
+    display: block;
+    width: 100%;
+  }
+  .table-responsive tr {
+    border-bottom: 1px solid var(--color-line);
+    padding: 0.75rem 1rem;
+  }
+  .table-responsive tr:last-child {
+    border-bottom: 0;
+  }
+  .table-responsive td {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    padding: 0.15rem 0;
+    border: 0;
+  }
+  .table-responsive td[data-label]::before {
+    content: attr(data-label);
+    flex: 0 0 7.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-ink-soft);
+  }
+  /* la premiere cellule sert de titre de fiche */
+  .table-responsive td:first-child {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.9375rem;
+  }
+  .table-responsive td:first-child::before {
+    display: none;
+  }
 }
 
 /* ----------------------------------------------- rendu du compte rendu */

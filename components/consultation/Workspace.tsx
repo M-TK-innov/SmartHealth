@@ -376,18 +376,23 @@ export function Workspace(props: Props) {
 
   return (
     <div className="space-y-4">
-      <nav className="no-print flex flex-wrap gap-1 rounded-xl border border-line bg-white p-1">
-        {STEPS.map((s) => (
-          <button
-            key={s.key}
-            onClick={() => setStep(s.key)}
-            className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition ${
-              step === s.key ? 'bg-brand text-white' : 'text-ink-soft hover:bg-paper'
-            }`}
-          >
-            {s.label}
-          </button>
-        ))}
+      {/* Sur telephone les 5 etapes ne tiennent pas cote a cote : la barre
+          defile horizontalement plutot que d'ecraser les libelles. */}
+      <nav className="no-print -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <div className="flex min-w-max gap-1 rounded-xl border border-line bg-white p-1 sm:min-w-0">
+          {STEPS.map((s) => (
+            <button
+              key={s.key}
+              onClick={() => setStep(s.key)}
+              aria-current={step === s.key ? 'step' : undefined}
+              className={`shrink-0 rounded-lg px-3 py-2 text-sm font-medium transition sm:flex-1 sm:shrink ${
+                step === s.key ? 'bg-brand text-white' : 'text-ink-soft hover:bg-paper'
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
       </nav>
 
       {message && (
@@ -549,7 +554,7 @@ export function Workspace(props: Props) {
 
               <ReviewPanel extraction={extraction} selection={selection} onSelectionChange={setSelection} />
 
-              <div className="sticky bottom-4 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-white p-3 shadow-lg">
+              <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-white p-3 shadow-lg md:bottom-4">
                 <button className="btn-primary" onClick={commit} disabled={busy !== null || signed}>
                   {busy === 'commit' ? 'Enregistrement...' : 'Enregistrer dans le dossier medical'}
                 </button>

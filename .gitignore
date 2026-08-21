@@ -9,3 +9,12 @@ data/audio/
 .tmp/
 *.tsbuildinfo
 next-env.d.ts
+
+# Sorties de construction desktop
+dist-desktop/
+dist-desktop2/
+
+# Icones generees par scripts/gen-icons.mjs : reproductibles, hors depot
+public/icons/
+electron/icon.png
+electron/icon.ico

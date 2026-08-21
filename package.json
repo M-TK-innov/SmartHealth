@@ -1,15 +1,23 @@
 {
   "name": "parledocteur",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "Scribe medical IA - synthese de consultation, dossier medical, ordonnance numerique, interoperabilite FHIR R4 / HL7 v2 / DHIS2",
+  "description": "Scribe medical IA multiplateforme - synthese de consultation, dossier medical, ordonnance numerique, interoperabilite FHIR R4 / HL7 v2 / DHIS2",
+  "main": "electron/main.js",
   "scripts": {
     "dev": "next dev -p 3000",
+    "predev": "node scripts/gen-icons.mjs",
     "build": "next build",
+    "prebuild": "node scripts/gen-icons.mjs",
     "start": "next start -p 3000",
     "lint": "next lint",
+    "typecheck": "tsc --noEmit",
     "seed": "node scripts/seed.mjs",
-    "typecheck": "tsc --noEmit"
+    "icons": "node scripts/gen-icons.mjs",
+    "desktop:dev": "electron .",
+    "desktop:prepare": "node scripts/prepare-desktop.mjs",
+    "desktop:build": "npm run desktop:prepare && electron-builder --win --publish never",
+    "desktop:dir": "npm run desktop:prepare && electron-builder --win --dir --publish never"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.72.0",
@@ -22,7 +30,70 @@
     "@types/node": "^22.10.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
+    "electron": "^43.4.1",
+    "electron-builder": "^26.15.3",
     "tailwindcss": "^4.1.13",
     "typescript": "^5.7.0"
+  },
+  "build": {
+    "appId": "bj.semecity.parledocteur",
+    "productName": "ParleDocteur",
+    "copyright": "ParleDocteur",
+    "directories": {
+      "output": "dist-desktop",
+      "buildResources": "electron"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": ".next/standalone",
+        "to": "app"
+      },
+      {
+        "from": ".next/standalone/node_modules",
+        "to": "app/node_modules"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "electron/icon.ico",
+      "artifactName": "ParleDocteur-${version}-installateur.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "ParleDocteur",
+      "installerLanguages": [
+        "fr_FR"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Office",
+      "icon": "electron/icon.png"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.medical",
+      "icon": "electron/icon.png"
+    }
   }
 }

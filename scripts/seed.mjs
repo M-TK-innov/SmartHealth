@@ -10,9 +10,10 @@
  */
 
 import { DatabaseSync } from 'node:sqlite';
-import { readFileSync, mkdirSync, existsSync, rmSync } from 'node:fs';
+import { mkdirSync, existsSync, rmSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
+import { SCHEMA_SQL } from '../lib/schema.ts';
 
 const DB_PATH = process.env.PARLEDOCTEUR_DB || path.join(process.cwd(), 'data', 'parledocteur.db');
 const reset = process.argv.includes('--reset');
@@ -27,7 +28,7 @@ if (reset) {
 
 mkdirSync(path.dirname(DB_PATH), { recursive: true });
 const db = new DatabaseSync(DB_PATH);
-db.exec(readFileSync(path.join(process.cwd(), 'lib', 'schema.sql'), 'utf8'));
+db.exec(SCHEMA_SQL);
 
 const now = () => new Date().toISOString().replace('T', ' ').slice(0, 19);
 const daysAgo = (n) => new Date(Date.now() - n * 86400000).toISOString().replace('T', ' ').slice(0, 19);
