@@ -65,7 +65,7 @@ export default async function ConsultationsPage({ searchParams }: { searchParams
       {rows.length === 0 ? (
         <p className="p-5 text-sm text-ink-soft">Aucune consultation dans cette vue.</p>
       ) : (
-        <table className="w-full text-sm">
+        <table className="table-responsive">
           <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft">
             <tr>
               <th className="px-5 py-2">Patient</th>
@@ -84,9 +84,9 @@ export default async function ConsultationsPage({ searchParams }: { searchParams
                   </Link>
                   <div className="text-xs text-ink-soft">{r.mrn}</div>
                 </td>
-                <td className="px-5 py-2.5 text-xs text-ink-soft">{formatDate(r.started_at)}</td>
-                <td className="px-5 py-2.5">{r.n_diag}</td>
-                <td className="px-5 py-2.5">
+                <td data-label="Date" className="px-5 py-2.5 text-xs text-ink-soft">{formatDate(r.started_at)}</td>
+                <td data-label="Diagnostics" className="px-5 py-2.5">{r.n_diag}</td>
+                <td data-label="Statut" className="px-5 py-2.5">
                   <span className="chip bg-paper text-ink-soft">
                     {STATUS_LABEL[r.status] ?? r.status}
                   </span>
@@ -94,7 +94,7 @@ export default async function ConsultationsPage({ searchParams }: { searchParams
                     <span className="chip ml-1 bg-warn-soft text-warn">ordonnance a valider</span>
                   )}
                 </td>
-                <td className="px-5 py-2.5">
+                <td data-label="Export" className="px-5 py-2.5">
                   <a
                     className="text-xs text-brand-dark hover:underline"
                     href={`/api/export/${r.id}?format=fhir-document`}

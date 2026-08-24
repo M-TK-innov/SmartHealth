@@ -6,6 +6,63 @@ ordonnance numérique — que le médecin doit valider avant qu'elle n'existe.
 
 Tout ce qui sort de l'application est interopérable : **HL7 FHIR R4**, **HL7 v2.5.1** et **DHIS2**.
 
+**Une base de code, quatre supports** : navigateur, téléphone, tablette et poste de travail.
+
+---
+
+## Plateformes
+
+| Support | Livraison | Fonctionnement |
+|---|---|---|
+| **Web** | serveur Next.js (`npm start`) | poste fixe du cabinet, accès navigateur |
+| **Mobile** | PWA installable depuis le navigateur | icône, plein écran, barre d'onglets au pouce |
+| **Tablette** | PWA installable | mise en page en colonnes, cibles tactiles 44 px |
+| **Desktop** | installateur Windows (`.exe`) | serveur Next et base SQLite **embarqués**, aucun réseau requis |
+
+L'interface s'adapte sans code dupliqué : navigation haute sur grand écran, barre d'onglets basse
+sur téléphone, tableaux de données transformés en fiches empilées sous 768 px, barre d'étapes de
+consultation à défilement horizontal. Les champs de saisie passent à 16 px sous 640 px pour éviter
+le zoom automatique d'iOS en pleine consultation.
+
+### PWA — mobile, tablette et navigateur
+
+Installable depuis Chrome, Edge et Safari (« Ajouter à l'écran d'accueil »). Le service worker est
+volontairement prudent pour une application médicale :
+
+- ressources statiques mises en cache (noms à empreinte, donc immuables) ;
+- navigations en **réseau d'abord**, avec repli sur une page hors-ligne dédiée ;
+- **aucune page de dossier ni réponse d'API n'est jamais mise en cache** — un dossier médical périmé
+  affiché comme actuel serait un risque clinique.
+
+Ces deux invariants sont couverts par `npm test` (11 tests, exécutés sur un environnement de
+service worker simulé). Chacun a été vérifié en cassant volontairement le code : retirer le
+garde-fou `/api/` ou mettre les navigations en cache fait échouer le test correspondant.
+
+Un bandeau signale la perte de réseau pendant la consultation : la transcription continue d'être
+capturée côté navigateur et repart vers le serveur au rétablissement.
+
+### Desktop — Windows, macOS, Linux
+
+L'application desktop n'est pas une fenêtre pointant vers un site : elle **embarque le serveur Next
+et la base SQLite**. Un centre de santé sans connexion installe l'exécutable et travaille.
+
+- serveur lancé sur un port libre, en local uniquement (`127.0.0.1`) ;
+- base stockée dans le dossier de données utilisateur (`%APPDATA%\ParleDocteur\donnees`), donc
+  préservée lors des mises à jour ;
+- instance unique : deux serveurs sur la même base ne peuvent pas coexister ;
+- liens externes ouverts dans le navigateur du système, jamais dans la fenêtre du dossier.
+
+```bash
+npm run desktop:build
+```
+
+L'installateur est produit dans `dist-desktop/`. `npm run desktop:dev` ouvre la fenêtre sur le
+serveur de développement ; `npm run desktop:dir` produit l'application décompressée sans installateur.
+
+> Le script de préparation **refuse de construire** si une base de données ou un fichier `.env`
+> se trouve encore dans le paquet. Le traceur de fichiers de Next recopie sinon `data/*.db` dans la
+> sortie : un installateur distribuerait alors de vrais dossiers médicaux.
+
 ---
 
 ## Le principe
@@ -225,14 +282,26 @@ lib/
   terminology/                 CIM-10, LOINC, SNOMED, formulaire ATC
 components/
   Recorder · consultation/Workspace · ReviewPanel · PrescriptionPanel
+  Nav (haute / onglets bas) · Pwa (service worker, installation, état réseau)
+electron/
+  main.js      serveur embarqué, fenêtre, menu, isolation du contexte
+  preload.js   pont minimal : un marqueur de plateforme, rien d'autre
+scripts/
+  gen-icons.mjs       encodeur PNG et ICO sans dépendance
+  prepare-desktop.mjs build standalone + purge des données de santé
 ```
 
 | Commande | Effet |
 |---|---|
 | `npm run dev` | serveur de développement |
-| `npm run build` / `npm start` | production |
+| `npm run build` / `npm start` | production web |
 | `npm run typecheck` | vérification TypeScript |
+| `npm test` | tests de la politique de cache du service worker |
 | `npm run seed -- --reset` | réinitialise la base de démonstration |
+| `npm run icons` | régénère les icônes PNG et ICO (aucune dépendance graphique) |
+| `npm run desktop:dev` | fenêtre Electron sur le serveur de développement |
+| `npm run desktop:prepare` | build `standalone` + assemblage, avec purge des données |
+| `npm run desktop:build` | installateur Windows dans `dist-desktop/` |
 
 ---
 

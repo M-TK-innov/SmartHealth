@@ -161,8 +161,8 @@ export function PrescriptionPanel({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                <div className="col-span-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
+                <div className="sm:col-span-2">
                   <label className="label">Denomination (DCI)</label>
                   <input
                     className="input"
@@ -253,7 +253,7 @@ export function PrescriptionPanel({
                     )}
                   </select>
                 </div>
-                <div className="col-span-2 md:col-span-4">
+                <div className="sm:col-span-2 md:col-span-4">
                   <label className="label">Instructions au patient</label>
                   <input
                     className="input"

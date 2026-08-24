@@ -1,4 +1,12 @@
--- ParleDocteur - Schema du dossier medical electronique
+/**
+ * Schema du dossier medical, embarque dans le bundle.
+ *
+ * Le SQL est une constante TypeScript et non un fichier lu au demarrage : dans
+ * l application desktop empaquetee le repertoire courant n est pas celui des
+ * sources, et un chemin relatif casserait l ouverture de la base.
+ */
+
+export const SCHEMA_SQL = `-- ParleDocteur - Schema du dossier medical electronique
 -- Aligne sur les ressources FHIR R4 : Patient, Practitioner, Encounter, Condition,
 -- Observation, AllergyIntolerance, MedicationRequest, ServiceRequest, Composition.
 
@@ -268,3 +276,4 @@ CREATE TABLE IF NOT EXISTS interop_export (
   created_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_export_consult ON interop_export(consultation_id);
+`;

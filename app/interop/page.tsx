@@ -116,7 +116,7 @@ export default function InteropPage() {
             Aucun export genere pour le moment. Ouvrez une consultation, onglet « Interoperabilite ».
           </p>
         ) : (
-          <table className="w-full text-sm">
+          <table className="table-responsive">
             <thead className="bg-paper text-left text-xs uppercase tracking-wide text-ink-soft">
               <tr>
                 <th className="px-5 py-2">Date</th>
@@ -130,7 +130,7 @@ export default function InteropPage() {
               {exports.map((e) => (
                 <tr key={e.id}>
                   <td className="px-5 py-2 text-xs text-ink-soft">{formatDate(e.created_at)}</td>
-                  <td className="px-5 py-2">
+                  <td data-label="Patient" className="px-5 py-2">
                     {e.consultation_id ? (
                       <Link href={`/consultations/${e.consultation_id}`} className="hover:underline">
                         {e.given_name} {e.family_name}
@@ -139,11 +139,11 @@ export default function InteropPage() {
                       <span className="text-ink-soft">—</span>
                     )}
                   </td>
-                  <td className="px-5 py-2 text-xs">
+                  <td data-label="Format" className="px-5 py-2 text-xs">
                     {EXPORT_LABELS[e.format as keyof typeof EXPORT_LABELS] ?? e.format}
                   </td>
-                  <td className="px-5 py-2 text-xs text-ink-soft">{e.target ?? 'telechargement local'}</td>
-                  <td className="px-5 py-2">
+                  <td data-label="Destination" className="px-5 py-2 text-xs text-ink-soft">{e.target ?? 'telechargement local'}</td>
+                  <td data-label="Statut" className="px-5 py-2">
                     <span
                       className={`chip ${
                         e.status === 'sent'
