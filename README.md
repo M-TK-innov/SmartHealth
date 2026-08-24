@@ -34,6 +34,10 @@ volontairement prudent pour une application médicale :
 - **aucune page de dossier ni réponse d'API n'est jamais mise en cache** — un dossier médical périmé
   affiché comme actuel serait un risque clinique.
 
+Ces deux invariants sont couverts par `npm test` (11 tests, exécutés sur un environnement de
+service worker simulé). Chacun a été vérifié en cassant volontairement le code : retirer le
+garde-fou `/api/` ou mettre les navigations en cache fait échouer le test correspondant.
+
 Un bandeau signale la perte de réseau pendant la consultation : la transcription continue d'être
 capturée côté navigateur et repart vers le serveur au rétablissement.
 
@@ -292,6 +296,7 @@ scripts/
 | `npm run dev` | serveur de développement |
 | `npm run build` / `npm start` | production web |
 | `npm run typecheck` | vérification TypeScript |
+| `npm test` | tests de la politique de cache du service worker |
 | `npm run seed -- --reset` | réinitialise la base de démonstration |
 | `npm run icons` | régénère les icônes PNG et ICO (aucune dépendance graphique) |
 | `npm run desktop:dev` | fenêtre Electron sur le serveur de développement |
