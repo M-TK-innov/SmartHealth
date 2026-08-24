@@ -147,6 +147,9 @@ CREATE TABLE IF NOT EXISTS transcript_segment (
   confidence      REAL,
   language        TEXT,
   is_final        INTEGER NOT NULL DEFAULT 1,
+  speaker_source     TEXT DEFAULT 'auto',   -- auto | manual : « manual » fait autorite
+  speaker_confidence REAL,                  -- 0..1, confiance de la detection
+  pitch_hz           REAL,                  -- hauteur mediane de la voix sur le tour
   created_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_segment_consult ON transcript_segment(consultation_id, seq);

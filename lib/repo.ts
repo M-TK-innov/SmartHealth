@@ -19,6 +19,7 @@ import { vitalInterpretation } from './ai/enrich';
 import { checkPrescription } from './safety';
 import { normalizeText, VITALS } from './terminology';
 import { findDrug } from './terminology/formulary';
+import { attributeSpeakers, type Speaker } from './ai/speakers';
 
 // ------------------------------------------------------------------ lecture
 
@@ -198,10 +199,20 @@ export function createConsultation(
   return id;
 }
 
-export function appendSegments(
-  consultationId: string,
-  segments: { text: string; speaker?: string; startMs?: number; endMs?: number; confidence?: number; language?: string }[],
-) {
+export interface IncomingSegment {
+  text: string;
+  speaker?: string;
+  startMs?: number;
+  endMs?: number;
+  confidence?: number;
+  language?: string;
+  /** Hauteur mediane de la voix, mesuree cote client. Indice de changement de locuteur. */
+  pitchHz?: number;
+  /** true si le praticien a impose le locuteur : la detection ne le touchera plus. */
+  speakerLocked?: boolean;
+}
+
+export function appendSegments(consultationId: string, segments: IncomingSegment[]) {
   const row = get<{ n: number }>('SELECT COALESCE(MAX(seq), 0) as n FROM transcript_segment WHERE consultation_id = ?', [
     consultationId,
   ]);
@@ -220,12 +231,82 @@ export function appendSegments(
         end_ms: s.endMs ?? null,
         confidence: s.confidence ?? null,
         language: s.language ?? null,
+        speaker_source: s.speakerLocked ? 'manual' : 'auto',
+        pitch_hz: s.pitchHz ?? null,
         created_at: nowIso(),
       });
     }
     update('consultation', consultationId, { transcript_full: renderTranscript(consultationId), updated_at: nowIso() });
   });
   return seq;
+}
+
+/**
+ * Correction du locuteur d'un segment par le praticien.
+ *
+ * Passe la source a « manual » : c'est ce marqueur qui protege la correction
+ * d'une re-attribution automatique ulterieure. La transcription complete est
+ * regeneree, puisque c'est elle que lit le moteur d'extraction.
+ */
+export function setSegmentSpeaker(consultationId: string, segmentId: string, speaker: string): boolean {
+  const segment = get<TranscriptSegment>('SELECT * FROM transcript_segment WHERE id = ? AND consultation_id = ?', [
+    segmentId,
+    consultationId,
+  ]);
+  if (!segment) return false;
+
+  update('transcript_segment', segmentId, { speaker, speaker_source: 'manual', speaker_confidence: 1 });
+  update('consultation', consultationId, {
+    transcript_full: renderTranscript(consultationId),
+    updated_at: nowIso(),
+  });
+  return true;
+}
+
+/**
+ * Re-attribution automatique des locuteurs sur toute la consultation.
+ *
+ * Utile apres coup : une fois l'echange complet disponible, le regroupement
+ * par hauteur de voix dispose de bien plus de matiere qu'au fil de l'eau et
+ * rattrape les tours restes indetermines. Les segments corriges a la main sont
+ * laisses intacts.
+ */
+export function reattributeSpeakers(consultationId: string): { updated: number; undetermined: number } {
+  const segments = getSegments(consultationId);
+  if (segments.length === 0) return { updated: 0, undetermined: 0 };
+
+  const attributed = attributeSpeakers(
+    segments.map((s) => ({
+      text: s.text,
+      hint: {
+        pitchHz: s.pitch_hz ?? undefined,
+        manual: s.speaker_source === 'manual' ? (s.speaker as Speaker) : undefined,
+      },
+    })),
+  );
+
+  let updated = 0;
+  let undetermined = 0;
+  tx(() => {
+    attributed.forEach((a, i) => {
+      const segment = segments[i];
+      if (a.locked) return;
+      if (a.speaker === 'unknown') undetermined++;
+      if (segment.speaker === a.speaker && segment.speaker_confidence === a.confidence) return;
+      update('transcript_segment', segment.id, {
+        speaker: a.speaker,
+        speaker_source: 'auto',
+        speaker_confidence: a.confidence,
+      });
+      updated++;
+    });
+    update('consultation', consultationId, {
+      transcript_full: renderTranscript(consultationId),
+      updated_at: nowIso(),
+    });
+  });
+
+  return { updated, undetermined };
 }
 
 export function replaceTranscript(consultationId: string, text: string) {

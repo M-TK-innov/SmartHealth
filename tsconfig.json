@@ -6,6 +6,10 @@
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
+    // Les scripts et les tests tournent sous Node, dont le mode ESM exige
+    // l extension explicite. Sans cette option, un import ecrit pour Node
+    // serait refuse par TypeScript, et inversement.
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",

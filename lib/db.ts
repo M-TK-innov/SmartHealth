@@ -51,6 +51,9 @@ function migrate(database: DatabaseSync) {
   const additions: [table: string, column: string, definition: string][] = [
     ['patient', 'organization_id', 'TEXT'],
     ['consultation', 'organization_id', 'TEXT'],
+    ['transcript_segment', 'speaker_source', "TEXT DEFAULT 'auto'"],
+    ['transcript_segment', 'speaker_confidence', 'REAL'],
+    ['transcript_segment', 'pitch_hz', 'REAL'],
   ];
 
   for (const [table, column, definition] of additions) {

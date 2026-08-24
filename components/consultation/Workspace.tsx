@@ -120,12 +120,46 @@ export function Workspace(props: Props) {
           language: null,
           is_final: 1,
           created_at: new Date().toISOString(),
+          speaker_source: s.speakerLocked ? 'manual' : 'auto',
+          speaker_confidence: s.speakerLocked ? 1 : null,
+          pitch_hz: s.pitchHz ?? null,
         },
       ]);
       if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
       flushTimerRef.current = setTimeout(flush, 2500);
     },
     [consultation.id, flush],
+  );
+
+  /**
+   * Correction du locuteur par le praticien.
+   *
+   * Sa decision fait autorite : le segment passe en source « manual » et
+   * aucune re-analyse ne le rebasculera. Envoi optimiste — l'etiquette change
+   * a l'ecran tout de suite, la persistance suit.
+   */
+  const reassignSpeaker = useCallback(
+    async (segmentId: string, speaker: TranscriptSegment['speaker']) => {
+      setSegments((prev) =>
+        prev.map((s) =>
+          s.id === segmentId ? { ...s, speaker, speaker_source: 'manual', speaker_confidence: 1 } : s,
+        ),
+      );
+      // Un segment pas encore persiste porte un identifiant local : il partira
+      // avec la bonne etiquette au prochain envoi, rien a corriger cote serveur.
+      if (segmentId.startsWith('local-')) return;
+
+      try {
+        await fetch(`/api/consultations/${consultation.id}/transcript`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ segmentId, speaker }),
+        });
+      } catch {
+        setMessage({ tone: 'warn', text: 'Correction du locuteur non enregistree : reseau indisponible.' });
+      }
+    },
+    [consultation.id],
   );
 
   useEffect(() => {
@@ -479,20 +513,12 @@ export function Workspace(props: Props) {
                 </p>
               )}
               {segments.map((s) => (
-                <div key={s.id} className={`flex gap-2 ${s.speaker === 'clinician' ? 'flex-row-reverse text-right' : ''}`}>
-                  <span
-                    className={`chip h-fit shrink-0 ${
-                      s.speaker === 'clinician'
-                        ? 'bg-brand text-white'
-                        : s.speaker === 'patient'
-                          ? 'bg-brand-soft text-brand-dark'
-                          : 'bg-paper text-ink-soft'
-                    }`}
-                  >
-                    {s.speaker === 'clinician' ? 'Med' : s.speaker === 'patient' ? 'Pat' : 'Acc'}
-                  </span>
-                  <p className="text-sm leading-snug">{s.text}</p>
-                </div>
+                <TranscriptLine
+                  key={s.id}
+                  segment={s}
+                  disabled={signed}
+                  onReassign={(speaker) => reassignSpeaker(s.id, speaker)}
+                />
               ))}
             </div>
           </div>
@@ -746,4 +772,83 @@ function proposePatientUpdates(patient: Patient, e: ClinicalExtraction): Record<
   if (generic.test(patient.family_name) && id.familyName) out.family_name = id.familyName;
 
   return out;
+}
+
+// ------------------------------------------------------ ligne de transcription
+
+const SPEAKER_STYLE: Record<string, { chip: string; short: string }> = {
+  clinician: { chip: 'bg-brand text-white', short: 'Med' },
+  patient: { chip: 'bg-brand-soft text-brand-dark', short: 'Pat' },
+  companion: { chip: 'bg-paper text-ink-soft', short: 'Acc' },
+  unknown: { chip: 'bg-warn-soft text-warn', short: '?' },
+};
+
+/**
+ * Un tour de parole, avec son etiquette de locuteur corrigeable.
+ *
+ * L'etiquette proposee automatiquement est signalee comme telle, et une
+ * proposition peu sure est mise en evidence : c'est ce qui permet au praticien
+ * de relire vite en ne s'arretant que sur les cas douteux.
+ */
+function TranscriptLine({
+  segment,
+  disabled,
+  onReassign,
+}: {
+  segment: TranscriptSegment;
+  disabled: boolean;
+  onReassign: (speaker: TranscriptSegment['speaker']) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const style = SPEAKER_STYLE[segment.speaker] ?? SPEAKER_STYLE.unknown;
+  const auto = segment.speaker_source !== 'manual';
+  const uncertain = auto && (segment.speaker === 'unknown' || (segment.speaker_confidence ?? 0) < 0.6);
+
+  return (
+    <div className={`flex gap-2 ${segment.speaker === 'clinician' ? 'flex-row-reverse text-right' : ''}`}>
+      <div className="relative shrink-0">
+        <button
+          onClick={() => !disabled && setOpen((v) => !v)}
+          disabled={disabled}
+          title={auto ? 'Etiquette proposee automatiquement — cliquez pour corriger' : 'Etiquette fixee par vous'}
+          className={`chip h-fit ${style.chip} ${uncertain ? 'ring-2 ring-[var(--color-warn)]' : ''} ${
+            disabled ? '' : 'cursor-pointer'
+          }`}
+        >
+          {style.short}
+          {auto && <span aria-hidden className="ml-0.5 opacity-70">~</span>}
+        </button>
+
+        {open && (
+          <>
+            <button className="fixed inset-0 z-40 cursor-default" aria-hidden onClick={() => setOpen(false)} />
+            <div className="absolute left-0 z-50 mt-1 w-40 rounded-lg border border-line bg-white p-1 text-left shadow-lg">
+              {(
+                [
+                  ['clinician', 'Medecin'],
+                  ['patient', 'Patient'],
+                  ['companion', 'Accompagnant'],
+                ] as [TranscriptSegment['speaker'], string][]
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => {
+                    onReassign(value);
+                    setOpen(false);
+                  }}
+                  className={`block w-full rounded px-2 py-1.5 text-sm hover:bg-paper ${
+                    segment.speaker === value ? 'font-semibold text-brand-dark' : ''
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      <p className="text-sm leading-snug">{segment.text}</p>
+    </div>
+  );
 }
