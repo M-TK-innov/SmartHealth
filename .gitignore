@@ -1,8 +1,13 @@
 node_modules/
 .next/
 out/
+# Donnees de sante : tout le dossier, sous-repertoires compris (les sauvegardes
+# produites depuis la console d administration atterrissent dans data/sauvegardes/).
+data/**/*.db
+data/**/*.db-*
 data/*.db
 data/*.db-*
+data/sauvegardes/
 data/audio/
 .env
 .env.local

@@ -11,6 +11,7 @@ import {
   listConsultations,
 } from '@/lib/repo';
 import { StartConsultation } from '@/components/StartConsultation';
+import { assertSameOrganization, requirePermission } from '@/lib/auth/guard';
 import { computeAge, translateGender } from '@/lib/ai/prompts';
 import { formatDate } from '@/lib/report';
 
@@ -33,9 +34,11 @@ const Empty = ({ children }: { children: React.ReactNode }) => (
 );
 
 export default async function PatientPage({ params }: { params: Promise<{ id: string }> }) {
+  const ctx = await requirePermission('patient:read', `/patients/${(await params).id}`);
   const { id } = await params;
   const patient = getPatient(id);
   if (!patient) notFound();
+  assertSameOrganization(ctx, patient.organization_id);
 
   const problems = getProblems(id);
   const allergies = getAllergies(id);

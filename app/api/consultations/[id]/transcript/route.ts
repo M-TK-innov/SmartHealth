@@ -1,4 +1,5 @@
-import { body, fail, handle, ok } from '@/lib/api';
+import { body, fail, ok } from '@/lib/api';
+import { apiRequire, guarded } from '@/lib/auth/guard';
 import { appendSegments, getConsultation, getSegments, renderTranscript, replaceTranscript } from '@/lib/repo';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +16,8 @@ interface SegmentIn {
 }
 
 export function GET(_req: Request, ctx: Ctx) {
-  return handle(async () => {
+  return guarded(async () => {
+    await apiRequire('consultation:read');
     const { id } = await ctx.params;
     if (!getConsultation(id)) return fail('Consultation introuvable', 404);
     return ok({ segments: getSegments(id), transcript: renderTranscript(id) });
@@ -24,7 +26,8 @@ export function GET(_req: Request, ctx: Ctx) {
 
 /** Ajout incremental des segments produits par la reconnaissance vocale. */
 export function POST(req: Request, ctx: Ctx) {
-  return handle(async () => {
+  return guarded(async () => {
+    await apiRequire('transcript:record');
     const { id } = await ctx.params;
     const consultation = getConsultation(id);
     if (!consultation) return fail('Consultation introuvable', 404);
@@ -41,7 +44,8 @@ export function POST(req: Request, ctx: Ctx) {
 
 /** Remplacement complet : le medecin corrige la transcription a la main. */
 export function PUT(req: Request, ctx: Ctx) {
-  return handle(async () => {
+  return guarded(async () => {
+    await apiRequire('transcript:record');
     const { id } = await ctx.params;
     const consultation = getConsultation(id);
     if (!consultation) return fail('Consultation introuvable', 404);

@@ -1,4 +1,5 @@
-import { body, fail, handle, ok } from '@/lib/api';
+import { body, fail, ok } from '@/lib/api';
+import { apiRequire, assertSameOrganization, guarded } from '@/lib/auth/guard';
 import { update, nowIso } from '@/lib/db';
 import {
   getAllergies,
@@ -22,10 +23,12 @@ export const dynamic = 'force-dynamic';
 type Ctx = { params: Promise<{ id: string }> };
 
 export function GET(_req: Request, ctx: Ctx) {
-  return handle(async () => {
+  return guarded(async () => {
+    const authCtx = await apiRequire('consultation:read');
     const { id } = await ctx.params;
     const consultation = getConsultation(id);
     if (!consultation) return fail('Consultation introuvable', 404);
+    assertSameOrganization(authCtx, consultation.organization_id);
     const patient = getPatient(consultation.patient_id);
     const prescriptions = getPrescriptions(id).map((p) => ({ ...p, items: getPrescriptionItems(p.id) }));
     return ok({
@@ -61,11 +64,13 @@ const EDITABLE: (keyof Consultation)[] = [
 ];
 
 export function PATCH(req: Request, ctx: Ctx) {
-  return handle(async () => {
+  return guarded(async () => {
+    const authCtx = await apiRequire('consultation:write');
     const { id } = await ctx.params;
     const consultation = getConsultation(id);
     if (!consultation) return fail('Consultation introuvable', 404);
     if (consultation.status === 'signed') return fail('Consultation signee : modification impossible.', 409);
+    assertSameOrganization(authCtx, consultation.organization_id);
 
     const data = await body<Partial<Consultation>>(req);
     const patch: Record<string, unknown> = { updated_at: nowIso() };
