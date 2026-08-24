@@ -1,8 +1,11 @@
 import type { Metadata, Viewport } from 'next';
 import Link from 'next/link';
 import './globals.css';
-import { BottomNav, TopNav } from '@/components/Nav';
+import { BottomNav, TopNav, UserMenu } from '@/components/Nav';
+import { navItemsFor } from '@/lib/auth/nav-items';
 import { PwaRuntime } from '@/components/Pwa';
+import { auth } from '@/lib/auth/session';
+import { ROLE_LABELS } from '@/lib/auth/roles';
 
 export const metadata: Metadata = {
   title: 'ParleDocteur — scribe medical IA',
@@ -34,15 +37,18 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const facility = process.env.FACILITY_NAME || 'Structure de sante';
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const ctx = await auth();
+  const items = ctx ? navItemsFor([...ctx.permissions]) : [];
+  const facility = ctx?.organization?.name ?? process.env.FACILITY_NAME ?? 'Structure de sante';
+
   return (
     <html lang="fr">
       <body>
         <PwaRuntime />
 
         <header className="no-print sticky top-0 z-30 border-b border-line bg-white/95 backdrop-blur">
-          <div className="mx-auto flex max-w-[1400px] items-center gap-3 px-4 py-2.5 sm:gap-6 sm:px-6 sm:py-3">
+          <div className="mx-auto flex max-w-[1400px] items-center gap-3 px-4 py-2.5 sm:gap-5 sm:px-6 sm:py-3">
             <Link href="/" className="flex shrink-0 items-center gap-2.5">
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand text-lg text-white">
                 &#9673;
@@ -53,11 +59,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </span>
             </Link>
 
-            <TopNav />
+            <TopNav items={items} />
 
-            <div className="ml-auto min-w-0 text-right text-xs text-ink-soft">
-              <div className="truncate font-semibold text-ink">{facility}</div>
-              <div className="hidden truncate sm:block">{process.env.FACILITY_ID || 'sans identifiant'}</div>
+            <div className="ml-auto flex items-center gap-3">
+              {ctx ? (
+                <>
+                  <div className="hidden min-w-0 text-right text-xs text-ink-soft xl:block">
+                    <div className="truncate font-semibold text-ink">{facility}</div>
+                  </div>
+                  <UserMenu
+                    fullName={ctx.user.full_name}
+                    roleLabel={ROLE_LABELS[ctx.user.role]}
+                    organizationName={ctx.organization?.name ?? null}
+                  />
+                </>
+              ) : (
+                <Link href="/connexion" className="btn-primary btn-sm">
+                  Se connecter
+                </Link>
+              )}
             </div>
           </div>
         </header>
@@ -71,7 +91,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           delivrance d une ordonnance. La responsabilite medicale demeure entierement celle du praticien.
         </footer>
 
-        <BottomNav />
+        <BottomNav items={items} />
       </body>
     </html>
   );

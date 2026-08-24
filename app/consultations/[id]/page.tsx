@@ -11,15 +11,18 @@ import {
   parseExtraction,
 } from '@/lib/repo';
 import { Workspace } from '@/components/consultation/Workspace';
+import { assertSameOrganization, requirePermission } from '@/lib/auth/guard';
 import { buildReport, formatDate } from '@/lib/report';
 import { computeAge, translateGender } from '@/lib/ai/prompts';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ConsultationPage({ params }: { params: Promise<{ id: string }> }) {
+  const ctx = await requirePermission('consultation:read', `/consultations/${(await params).id}`);
   const { id } = await params;
   const consultation = getConsultation(id);
   if (!consultation) notFound();
+  assertSameOrganization(ctx, consultation.organization_id);
 
   const patient = getPatient(consultation.patient_id);
   if (!patient) notFound();

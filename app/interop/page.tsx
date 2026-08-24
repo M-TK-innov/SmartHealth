@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { all } from '@/lib/db';
 import { EXPORT_LABELS } from '@/lib/interop/labels';
 import { formatDate } from '@/lib/report';
+import { requirePermission } from '@/lib/auth/guard';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,7 +45,8 @@ interface ExportRow {
   consultation_id: string | null;
 }
 
-export default function InteropPage() {
+export default async function InteropPage() {
+  await requirePermission('export:read', '/interop');
   const exports = all<ExportRow>(
     `SELECT e.id, e.format, e.status, e.target, e.created_at, e.consultation_id,
             p.given_name, p.family_name

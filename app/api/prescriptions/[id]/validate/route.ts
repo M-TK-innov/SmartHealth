@@ -1,4 +1,5 @@
-import { body, currentPractitioner, fail, handle, ok } from '@/lib/api';
+import { body, currentPractitioner, fail, ok } from '@/lib/api';
+import { apiRequire, guarded } from '@/lib/auth/guard';
 import { getPrescription, getPrescriptionItems, validatePrescription } from '@/lib/repo';
 
 export const dynamic = 'force-dynamic';
@@ -13,13 +14,14 @@ type Ctx = { params: Promise<{ id: string }> };
  * imprimee, transmise a une pharmacie ni exportee comme MedicationRequest actif.
  */
 export function POST(req: Request, ctx: Ctx) {
-  return handle(async () => {
+  return guarded(async () => {
+    await apiRequire('prescription:validate');
     const { id } = await ctx.params;
     const prescription = getPrescription(id);
     if (!prescription) return fail('Ordonnance introuvable', 404);
 
-    const practitioner = currentPractitioner(req);
-    if (!practitioner) return fail('Aucun praticien identifie : validation impossible.', 401);
+    const practitioner = await currentPractitioner();
+    if (!practitioner) return fail("Votre compte n'est pas rattache a une fiche praticien : seule une personne habilitee a prescrire peut valider une ordonnance.", 403);
 
     const { note, overrideJustification } = await body<{ note?: string; overrideJustification?: string }>(req);
 

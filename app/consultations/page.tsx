@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { all } from '@/lib/db';
 import { formatDate } from '@/lib/report';
+import { organizationFilter, requirePermission } from '@/lib/auth/guard';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,16 +27,32 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default async function ConsultationsPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+  const ctx = await requirePermission('consultation:read', '/consultations');
+  const scoped = organizationFilter(ctx);
   const { status } = await searchParams;
+
+  // Le filtre d'etablissement fait partie de la requete, pas de l'affichage :
+  // une liste filtree cote client resterait lisible dans la reponse reseau.
+  const where: string[] = [];
+  const params: unknown[] = [];
+  if (status) {
+    where.push('c.status = ?');
+    params.push(status);
+  }
+  if (scoped) {
+    where.push('(c.organization_id = ? OR c.organization_id IS NULL)');
+    params.push(scoped);
+  }
+
   const rows = all<Row>(
     `SELECT c.id, c.status, c.started_at, c.signed_at, c.analysis_engine, c.patient_id,
             p.given_name, p.family_name, p.mrn,
             (SELECT COUNT(*) FROM diagnosis d WHERE d.consultation_id = c.id) n_diag,
             (SELECT COUNT(*) FROM prescription r WHERE r.consultation_id = c.id AND r.status = 'draft') n_rx_draft
      FROM consultation c JOIN patient p ON p.id = c.patient_id
-     ${status ? 'WHERE c.status = ?' : ''}
+     ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
      ORDER BY c.started_at DESC LIMIT 200`,
-    status ? [status] : [],
+    params,
   );
 
   return (

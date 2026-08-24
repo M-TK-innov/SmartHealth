@@ -1,5 +1,6 @@
 import { audit } from '@/lib/db';
-import { currentPractitioner, fail, handle } from '@/lib/api';
+import { currentPractitioner, fail } from '@/lib/api';
+import { apiRequire, assertSameOrganization, guarded } from '@/lib/auth/guard';
 import { NextResponse } from 'next/server';
 import { buildExport, logExport, type ExportFormat } from '@/lib/interop/build';
 import { getConsultation } from '@/lib/repo';
@@ -21,10 +22,12 @@ const FORMATS: ExportFormat[] = [
 
 /** Telechargement d'un export dans le format demande. */
 export function GET(req: Request, ctx: Ctx) {
-  return handle(async () => {
+  return guarded(async () => {
+    const authCtx = await apiRequire('export:read');
     const { id } = await ctx.params;
     const consultation = getConsultation(id);
     if (!consultation) return fail('Consultation introuvable', 404);
+    assertSameOrganization(authCtx, consultation.organization_id);
 
     const url = new URL(req.url);
     const format = (url.searchParams.get('format') || 'fhir-document') as ExportFormat;
@@ -39,7 +42,7 @@ export function GET(req: Request, ctx: Ctx) {
     }
 
     logExport(id, consultation.patient_id, built);
-    const actor = currentPractitioner(req);
+    const actor = await currentPractitioner();
     audit({
       action: 'export',
       entity: 'consultation',

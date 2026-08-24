@@ -34,7 +34,7 @@ volontairement prudent pour une application médicale :
 - **aucune page de dossier ni réponse d'API n'est jamais mise en cache** — un dossier médical périmé
   affiché comme actuel serait un risque clinique.
 
-Ces deux invariants sont couverts par `npm test` (11 tests, exécutés sur un environnement de
+Ces deux invariants sont couverts par `npm test` (exécuté sur un environnement de
 service worker simulé). Chacun a été vérifié en cassant volontairement le code : retirer le
 garde-fou `/api/` ou mettre les navigations en cache fait échouer le test correspondant.
 
@@ -62,6 +62,79 @@ serveur de développement ; `npm run desktop:dir` produit l'application décompr
 > Le script de préparation **refuse de construire** si une base de données ou un fichier `.env`
 > se trouve encore dans le paquet. Le traceur de fichiers de Next recopie sinon `data/*.db` dans la
 > sortie : un installateur distribuerait alors de vrais dossiers médicaux.
+
+---
+
+## Comptes, rôles et contrôle d'accès
+
+Cinq rôles, organisés en hiérarchie. Chacun ne valide que les niveaux situés sous lui — sans quoi
+un administrateur d'établissement pourrait s'auto-promouvoir super-administrateur.
+
+| Rôle | Périmètre des données | Ce qu'il fait | Validé par |
+|---|---|---|---|
+| **Médecin** | son établissement | consultations, dossiers, ordonnances | son établissement |
+| **Établissement** | son établissement | valide ses médecins, suit l'activité, exporte | administrateur |
+| **Ministère** | national, **agrégé** | indicateurs et surveillance, **aucun dossier nominatif** | administrateur |
+| **Administrateur** | plateforme | organisations, comptes, politique d'accès, sessions | super-administrateur |
+| **Super-administrateur** | plateforme | tout, y compris base de données et serveurs | — |
+
+### Trois couches, dans cet ordre
+
+1. **Le rôle** donne un jeu de droits par défaut. La matrice est modifiable depuis la console.
+2. **La dérogation individuelle** accorde ou retire un droit à un compte précis. Motivée et tracée.
+3. **Le cloisonnement** limite ensuite ce que le droit permet de voir. Ce n'est pas un droit
+   attribuable : un médecin autorisé à lire les dossiers ne lit que ceux de son établissement.
+
+Le contrôle est fait **côté serveur** dans chaque page (`requirePermission`) et chaque route
+(`apiRequire`). Le middleware ne vérifie que la présence d'un cookie — il tourne sur le runtime
+Edge, sans accès à la base, et ne peut donc rien valider. Masquer un lien dans la navigation est du
+confort, jamais une sécurité.
+
+### Vérifié sur l'application en marche
+
+Codes HTTP réellement observés, un compte connecté par rôle :
+
+| Ressource | médecin | établissement | ministère | admin | super-admin |
+|---|---|---|---|---|---|
+| Liste des patients | 200 | 200 | **403** | 403 | 200 |
+| Journal d'audit | 403 | 200 | 403 | 200 | 200 |
+| Matrice des droits | 403 | 403 | 403 | 403 | 200 |
+| Base de données / serveurs | 403 | 403 | 403 | 403 | 200 |
+
+Le ministère est bloqué sur les dossiers nominatifs par construction : son rôle ne détient pas
+`patient:read`, et sa portée `national` refuse l'accès même si on le lui accordait par erreur.
+
+Le cloisonnement inter-établissements a été éprouvé avec deux structures : Parakou voit **0**
+patient de Cotonou en liste, et reçoit un **403** sur l'accès direct à un dossier de Cotonou.
+
+### Sécurité des comptes
+
+- mots de passe hachés en **scrypt** (sel par compte, comparaison en temps constant) ;
+- **sessions révocables** : seule l'empreinte du jeton est stockée, jamais le jeton ;
+- verrouillage temporaire après N tentatives, N et la durée étant configurables ;
+- messages de connexion volontairement identiques (compte inconnu / mot de passe faux) pour ne pas
+  permettre d'énumérer les comptes ;
+- un compte administratif **ne peut pas signer** : la signature et la prescription exigent une fiche
+  praticien, que seuls les comptes médecin possèdent.
+
+### Console d'administration
+
+`/admin`, filtrée par droits : vue d'ensemble, comptes (validation, refus motivé, suspension,
+réinitialisation de mot de passe), organisations, matrice des droits et dérogations, politique
+d'accès, sessions actives, base de données (intégrité, compactage, sauvegarde) et serveurs
+(ressources, intégrations). Les intégrations affichent la **présence** d'une clé, jamais sa valeur.
+
+### Premier compte d'une installation
+
+```bash
+npm run create-admin -- --email admin@hopital.bj --nom "Prenom Nom"
+```
+
+Le mot de passe est généré et affiché une seule fois ; il doit être changé à la première connexion.
+Tous les autres comptes se créent ensuite depuis la console.
+
+En développement, `npm run seed -- --reset` installe un compte par rôle avec un mot de passe commun
+affiché en fin de script — à ne jamais utiliser en production.
 
 ---
 
@@ -296,8 +369,9 @@ scripts/
 | `npm run dev` | serveur de développement |
 | `npm run build` / `npm start` | production web |
 | `npm run typecheck` | vérification TypeScript |
-| `npm test` | tests de la politique de cache du service worker |
-| `npm run seed -- --reset` | réinitialise la base de démonstration |
+| `npm test` | 31 tests : politique de cache du service worker, hiérarchie des rôles, mots de passe |
+| `npm run seed -- --reset` | réinitialise la base de démonstration (un compte par rôle) |
+| `npm run create-admin` | crée le premier super-administrateur (production) |
 | `npm run icons` | régénère les icônes PNG et ICO (aucune dépendance graphique) |
 | `npm run desktop:dev` | fenêtre Electron sur le serveur de développement |
 | `npm run desktop:prepare` | build `standalone` + assemblage, avec purge des données |
@@ -310,11 +384,14 @@ scripts/
 Cette version est complète fonctionnellement mais délibérément dépourvue de trois briques qui
 relèvent du déploiement, pas du produit :
 
-1. **Authentification.** `lib/api.ts` résout le praticien via un en-tête ou le premier du fichier.
-   À brancher sur l'annuaire de l'établissement (OIDC, carte professionnelle de santé) et à protéger
-   par SMART on FHIR / OAuth2 côté API.
+1. **Fédération d'identité et second facteur.** L'authentification interne (comptes, rôles,
+   sessions révocables, verrouillage) est en place, mais reste locale à la plateforme. À brancher sur
+   l'annuaire de l'établissement (OIDC, carte professionnelle de santé) et à compléter par un second
+   facteur pour les comptes d'administration. **L'API FHIR n'est pas authentifiée** : elle est
+   exclue du middleware pour rester utilisable par les systèmes tiers, et doit être protégée par
+   SMART on FHIR / OAuth2 avant toute exposition réseau.
 2. **Chiffrement au repos.** La base SQLite est en clair. Chiffrer le volume, ou passer sur
-   SQLCipher / un SGBD chiffré.
+   SQLCipher / un SGBD chiffré. Les sauvegardes produites depuis la console le sont aussi.
 3. **Conformité.** Le journal d'audit existe et trace toute écriture, validation, signature et
    export ; la durée de conservation, l'exercice des droits du patient et la déclaration auprès de
    l'autorité de protection des données compétente (APDP au Bénin, RGPD à l'international) restent
