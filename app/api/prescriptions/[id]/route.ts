@@ -1,4 +1,5 @@
-import { body, currentPractitioner, fail, handle, ok } from '@/lib/api';
+import { body, currentPractitioner, fail, ok } from '@/lib/api';
+import { apiRequire, guarded } from '@/lib/auth/guard';
 import { audit, insert, nowIso, run, tx, uid, update } from '@/lib/db';
 import { getPrescription, getPrescriptionItems, recomputeSafety } from '@/lib/repo';
 import { findDrug } from '@/lib/terminology/formulary';
@@ -26,7 +27,8 @@ interface ItemIn {
 }
 
 export function GET(_req: Request, ctx: Ctx) {
-  return handle(async () => {
+  return guarded(async () => {
+    await apiRequire('consultation:read');
     const { id } = await ctx.params;
     const prescription = getPrescription(id);
     if (!prescription) return fail('Ordonnance introuvable', 404);
@@ -40,7 +42,8 @@ export function GET(_req: Request, ctx: Ctx) {
 
 /** Edition des lignes par le medecin : possible uniquement tant que l'ordonnance est en brouillon. */
 export function PATCH(req: Request, ctx: Ctx) {
-  return handle(async () => {
+  return guarded(async () => {
+    await apiRequire('consultation:write');
     const { id } = await ctx.params;
     const prescription = getPrescription(id);
     if (!prescription) return fail('Ordonnance introuvable', 404);
@@ -91,12 +94,13 @@ export function PATCH(req: Request, ctx: Ctx) {
 
 /** Annulation de l'ordonnance (jamais de suppression : tracabilite medico-legale). */
 export function DELETE(req: Request, ctx: Ctx) {
-  return handle(async () => {
+  return guarded(async () => {
+    await apiRequire('prescription:validate');
     const { id } = await ctx.params;
     const prescription = getPrescription(id);
     if (!prescription) return fail('Ordonnance introuvable', 404);
     const { reason } = await body<{ reason?: string }>(req);
-    const actor = currentPractitioner(req);
+    const actor = await currentPractitioner();
 
     update('prescription', id, {
       status: 'cancelled',

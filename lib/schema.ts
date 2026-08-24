@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS patient (
   hepatic_impairment   INTEGER NOT NULL DEFAULT 0,
   emergency_contact    TEXT,
   photo_data_url       TEXT,
+  organization_id      TEXT,          -- cloisonnement : etablissement proprietaire du dossier
   created_at           TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at           TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -127,6 +128,7 @@ CREATE TABLE IF NOT EXISTS consultation (
   analysis_at       TEXT,
   report_markdown   TEXT,
   report_edited     INTEGER NOT NULL DEFAULT 0,
+  organization_id   TEXT,             -- cloisonnement : etablissement de la rencontre
   created_at        TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -276,4 +278,111 @@ CREATE TABLE IF NOT EXISTS interop_export (
   created_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_export_consult ON interop_export(consultation_id);
+
+-- ==================================================================
+--            Organisations, comptes et controle d'acces
+-- ==================================================================
+--
+-- Hierarchie : plateforme > ministere > hopital / centre de sante.
+-- Un compte appartient a une organisation et porte un role. Les donnees
+-- cliniques sont cloisonnees par organisation : un etablissement ne voit
+-- jamais les dossiers d'un autre.
+
+CREATE TABLE IF NOT EXISTS organization (
+  id          TEXT PRIMARY KEY,
+  type        TEXT NOT NULL,               -- platform | ministry | hospital | health-center
+  name        TEXT NOT NULL,
+  code        TEXT UNIQUE,                 -- identifiant officiel (code SNIS, FINESS...)
+  parent_id   TEXT REFERENCES organization(id),
+  country     TEXT DEFAULT 'BJ',
+  region      TEXT,
+  address     TEXT,
+  phone       TEXT,
+  email       TEXT,
+  status      TEXT NOT NULL DEFAULT 'pending',   -- pending | active | suspended | rejected
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_org_parent ON organization(parent_id);
+CREATE INDEX IF NOT EXISTS idx_org_status ON organization(status);
+
+CREATE TABLE IF NOT EXISTS user_account (
+  id                   TEXT PRIMARY KEY,
+  email                TEXT NOT NULL UNIQUE,
+  password_hash        TEXT NOT NULL,
+  password_salt        TEXT NOT NULL,
+  password_algo        TEXT NOT NULL DEFAULT 'scrypt',
+  password_changed_at  TEXT,
+  full_name            TEXT NOT NULL,
+  phone                TEXT,
+  role                 TEXT NOT NULL,      -- medecin | hopital | ministere | admin | super_admin
+  organization_id      TEXT REFERENCES organization(id),
+  practitioner_id      TEXT REFERENCES practitioner(id),
+  license_number       TEXT,               -- numero d'ordre, pour les medecins
+  status               TEXT NOT NULL DEFAULT 'pending',
+                       -- pending | active | suspended | rejected
+  must_change_password INTEGER NOT NULL DEFAULT 0,
+  failed_attempts      INTEGER NOT NULL DEFAULT 0,
+  locked_until         TEXT,
+  last_login_at        TEXT,
+  validated_by         TEXT REFERENCES user_account(id),
+  validated_at         TEXT,
+  rejection_reason     TEXT,
+  created_at           TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at           TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_user_email  ON user_account(email);
+CREATE INDEX IF NOT EXISTS idx_user_org    ON user_account(organization_id);
+CREATE INDEX IF NOT EXISTS idx_user_status ON user_account(status);
+
+-- Sessions revocables. On stocke l'empreinte du jeton, jamais le jeton :
+-- une fuite de la base ne permet pas d'usurper une session en cours.
+CREATE TABLE IF NOT EXISTS user_session (
+  id             TEXT PRIMARY KEY,
+  user_id        TEXT NOT NULL REFERENCES user_account(id) ON DELETE CASCADE,
+  token_hash     TEXT NOT NULL UNIQUE,
+  created_at     TEXT NOT NULL DEFAULT (datetime('now')),
+  expires_at     TEXT NOT NULL,
+  last_seen_at   TEXT,
+  ip             TEXT,
+  user_agent     TEXT,
+  revoked_at     TEXT,
+  revoked_reason TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_session_user  ON user_session(user_id);
+CREATE INDEX IF NOT EXISTS idx_session_token ON user_session(token_hash);
+
+-- Matrice role -> permissions, modifiable par un administrateur.
+CREATE TABLE IF NOT EXISTS role_permission (
+  role       TEXT NOT NULL,
+  permission TEXT NOT NULL,
+  PRIMARY KEY (role, permission)
+);
+
+-- Derogation individuelle : accorde ou retire une permission a un compte
+-- precis, par-dessus la matrice de son role.
+CREATE TABLE IF NOT EXISTS user_permission (
+  id         TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL REFERENCES user_account(id) ON DELETE CASCADE,
+  permission TEXT NOT NULL,
+  granted    INTEGER NOT NULL,             -- 1 = accordee, 0 = retiree explicitement
+  granted_by TEXT REFERENCES user_account(id),
+  granted_at TEXT NOT NULL DEFAULT (datetime('now')),
+  reason     TEXT,
+  UNIQUE (user_id, permission)
+);
+
+-- Politique d'acces de la plateforme (ligne unique).
+CREATE TABLE IF NOT EXISTS access_policy (
+  id                       INTEGER PRIMARY KEY CHECK (id = 1),
+  password_min_length      INTEGER NOT NULL DEFAULT 10,
+  password_require_mixed   INTEGER NOT NULL DEFAULT 1,
+  session_hours            INTEGER NOT NULL DEFAULT 12,
+  max_failed_attempts      INTEGER NOT NULL DEFAULT 5,
+  lockout_minutes          INTEGER NOT NULL DEFAULT 15,
+  allow_self_registration  INTEGER NOT NULL DEFAULT 1,
+  require_admin_validation INTEGER NOT NULL DEFAULT 1,
+  updated_by               TEXT,
+  updated_at               TEXT NOT NULL DEFAULT (datetime('now'))
+);
 `;

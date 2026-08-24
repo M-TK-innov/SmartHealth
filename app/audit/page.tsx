@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { all } from '@/lib/db';
 import { getPatient } from '@/lib/repo';
 import { formatDate } from '@/lib/report';
+import { requirePermission } from '@/lib/auth/guard';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,6 +35,7 @@ const ACTION_STYLE: Record<string, string> = {
 };
 
 export default async function AuditPage({ searchParams }: { searchParams: Promise<{ patientId?: string }> }) {
+  await requirePermission('audit:read', '/audit');
   const { patientId } = await searchParams;
   const patient = patientId ? getPatient(patientId) : null;
 

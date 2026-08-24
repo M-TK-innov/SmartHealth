@@ -14,6 +14,8 @@ import { mkdirSync, existsSync, rmSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { SCHEMA_SQL } from '../lib/schema.ts';
+import { hashPassword } from '../lib/auth/password.ts';
+import { DEFAULT_ROLE_PERMISSIONS, ROLES } from '../lib/auth/roles.ts';
 
 const DB_PATH = process.env.PARLEDOCTEUR_DB || path.join(process.cwd(), 'data', 'parledocteur.db');
 const reset = process.argv.includes('--reset');
@@ -53,6 +55,54 @@ if (count('patient') > 0 && !reset) {
   process.exit(0);
 }
 
+// ------------------------------------------------- organisations et acces
+
+const platformId = randomUUID();
+const ministryId = randomUUID();
+const facilityId = randomUUID();
+
+insert('organization', {
+  id: platformId,
+  type: 'platform',
+  name: 'ParleDocteur',
+  code: 'PD-PLATFORM',
+  country: process.env.FACILITY_COUNTRY || 'BJ',
+  status: 'active',
+  created_at: now(),
+  updated_at: now(),
+});
+insert('organization', {
+  id: ministryId,
+  type: 'ministry',
+  name: 'Ministere de la Sante',
+  code: 'BJ-MS',
+  parent_id: platformId,
+  country: process.env.FACILITY_COUNTRY || 'BJ',
+  status: 'active',
+  created_at: now(),
+  updated_at: now(),
+});
+insert('organization', {
+  id: facilityId,
+  type: 'health-center',
+  name: process.env.FACILITY_NAME || 'Centre de Sante de Cotonou',
+  code: process.env.FACILITY_ID || 'BJ-LIT-CSC-001',
+  parent_id: ministryId,
+  region: 'Littoral',
+  country: process.env.FACILITY_COUNTRY || 'BJ',
+  status: 'active',
+  created_at: now(),
+  updated_at: now(),
+});
+
+// Matrice role -> permissions et politique d'acces par defaut.
+for (const role of ROLES) {
+  for (const permission of DEFAULT_ROLE_PERMISSIONS[role]) {
+    db.prepare('INSERT OR IGNORE INTO role_permission (role, permission) VALUES (?, ?)').run(role, permission);
+  }
+}
+insert('access_policy', { id: 1, updated_at: now() });
+
 // ------------------------------------------------------------------ praticien
 const drId = randomUUID();
 insert('practitioner', {
@@ -64,7 +114,7 @@ insert('practitioner', {
   license_number: 'CNOM-BJ-4821',
   email: 'a.sossou@example.bj',
   phone: '+229 97 00 00 00',
-  facility_id: process.env.FACILITY_ID || 'BJ-LIT-CSC-001',
+  facility_id: facilityId,
   created_at: now(),
 });
 
@@ -85,6 +135,7 @@ insert('patient', {
   is_pregnant: 1,
   weight_kg: 62,
   created_at: daysAgo(120),
+  organization_id: facilityId,
   updated_at: daysAgo(120),
 });
 insert('problem', {
@@ -109,6 +160,7 @@ insert('patient', {
   preferred_language: 'fr',
   weight_kg: 13.5,
   created_at: daysAgo(45),
+  organization_id: facilityId,
   updated_at: daysAgo(45),
 });
 
@@ -129,6 +181,7 @@ insert('patient', {
   renal_impairment: 1,
   blood_group: 'O+',
   created_at: daysAgo(300),
+  organization_id: facilityId,
   updated_at: daysAgo(10),
 });
 insert('allergy', {
@@ -184,6 +237,7 @@ insert('consultation', {
   consent_recording: 1,
   consent_at: now(),
   location: process.env.FACILITY_NAME || 'Centre de Sante de Cotonou',
+  organization_id: facilityId,
   created_at: now(),
   updated_at: now(),
 });
@@ -230,13 +284,60 @@ const transcript = DEMO.map(([s, t]) => {
 }).join('\n');
 db.prepare('UPDATE consultation SET transcript_full = ? WHERE id = ?').run(transcript, cId);
 
+// ------------------------------------------------------------------ comptes
+//
+// Un compte par role, pour pouvoir eprouver la hierarchie de bout en bout.
+// Le mot de passe commun n'est acceptable que pour une base de demonstration :
+// en production, les comptes se creent depuis la console (mot de passe genere)
+// ou avec `node scripts/create-admin.mjs`.
+
+const DEMO_PASSWORD = process.env.SEED_PASSWORD || 'ParleDocteur2026!';
+
+function account({ email, fullName, role, organizationId, practitionerId, licenseNumber }) {
+  const { hash, salt, algo } = hashPassword(DEMO_PASSWORD);
+  const id = randomUUID();
+  insert('user_account', {
+    id,
+    email,
+    password_hash: hash,
+    password_salt: salt,
+    password_algo: algo,
+    password_changed_at: now(),
+    full_name: fullName,
+    role,
+    organization_id: organizationId ?? null,
+    practitioner_id: practitionerId ?? null,
+    license_number: licenseNumber ?? null,
+    status: 'active',
+    must_change_password: 0,
+    created_at: now(),
+    updated_at: now(),
+  });
+  return id;
+}
+
+const accounts = [
+  account({ email: 'super@parledocteur.local', fullName: 'Super Administrateur', role: 'super_admin', organizationId: platformId }),
+  account({ email: 'admin@parledocteur.local', fullName: 'Administrateur Plateforme', role: 'admin', organizationId: platformId }),
+  account({ email: 'ministere@sante.bj', fullName: 'Direction des Systemes d Information', role: 'ministere', organizationId: ministryId }),
+  account({ email: 'direction@csc.bj', fullName: 'Direction du Centre de Sante', role: 'hopital', organizationId: facilityId }),
+  account({
+    email: 'a.sossou@example.bj',
+    fullName: 'Ama Sossou',
+    role: 'medecin',
+    organizationId: facilityId,
+    practitionerId: drId,
+    licenseNumber: 'CNOM-BJ-4821',
+  }),
+];
+
 insert('audit_log', {
   id: randomUUID(),
   at: now(),
   actor_label: 'seed',
   action: 'create',
   entity: 'dataset',
-  detail: 'Jeu de donnees de demonstration installe.',
+  detail: `Jeu de demonstration : 3 organisations, ${accounts.length} comptes, 3 patients.`,
 });
 
 console.log(`Base initialisee : ${DB_PATH}`);
@@ -244,4 +345,11 @@ console.log(`  praticien   : Dr Ama Sossou`);
 console.log(`  patients    : 3 (${p1.slice(0, 8)}, ${p2.slice(0, 8)}, ${p3.slice(0, 8)})`);
 console.log(`  consultation: /consultations/${cId}`);
 console.log('');
-console.log('Lancez `npm run dev` puis ouvrez la consultation de demonstration et cliquez sur « Analyser ».');
+console.log('Comptes de demonstration (mot de passe commun : ' + DEMO_PASSWORD + ') :');
+console.log('  super@parledocteur.local   super-administrateur : tout, y compris base et serveurs');
+console.log('  admin@parledocteur.local   administrateur plateforme : organisations et comptes');
+console.log('  ministere@sante.bj         ministere : indicateurs agreges, aucun dossier nominatif');
+console.log('  direction@csc.bj           etablissement : valide ses medecins, suit son activite');
+console.log('  a.sossou@example.bj        medecin : consultations, dossiers, ordonnances');
+console.log('');
+console.log('Lancez `npm run dev` puis connectez-vous sur /connexion.');

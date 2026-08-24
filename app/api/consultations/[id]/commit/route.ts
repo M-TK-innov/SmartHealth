@@ -1,4 +1,5 @@
-import { body, currentPractitioner, fail, handle, ok } from '@/lib/api';
+import { body, currentPractitioner, fail, ok } from '@/lib/api';
+import { apiRequire, assertSameOrganization, guarded } from '@/lib/auth/guard';
 import { update, nowIso } from '@/lib/db';
 import { normalizeExtraction, type ClinicalExtraction, type ProposedMedication } from '@/lib/ai/schema';
 import {
@@ -31,17 +32,19 @@ interface CommitBody {
  * Cree egalement le projet d'ordonnance en statut brouillon.
  */
 export function POST(req: Request, ctx: Ctx) {
-  return handle(async () => {
+  return guarded(async () => {
+    const authCtx = await apiRequire('consultation:write');
     const { id } = await ctx.params;
     const consultation = getConsultation(id);
     if (!consultation) return fail('Consultation introuvable', 404);
     if (consultation.status === 'signed') return fail('Consultation signee : le dossier est verrouille.', 409);
+    assertSameOrganization(authCtx, consultation.organization_id);
 
     const data = await body<CommitBody>(req);
     const extraction = data.extraction ? normalizeExtraction(data.extraction) : parseExtraction(consultation);
     if (!extraction) return fail("Aucune analyse disponible : lancez d'abord l'analyse de la consultation.");
 
-    const actor = currentPractitioner(req);
+    const actor = await currentPractitioner();
     const result = commitExtraction({
       consultationId: id,
       extraction,

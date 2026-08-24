@@ -1,4 +1,5 @@
-import { fail, handle, ok } from '@/lib/api';
+import { fail, ok } from '@/lib/api';
+import { apiRequire, assertSameOrganization, guarded } from '@/lib/auth/guard';
 import { nowIso, update } from '@/lib/db';
 import { extractFromTranscript } from '@/lib/ai/extract';
 import {
@@ -26,10 +27,12 @@ type Ctx = { params: Promise<{ id: string }> };
  * medical : cette etape alimente l'ecran de revue du medecin.
  */
 export function POST(_req: Request, ctx: Ctx) {
-  return handle(async () => {
+  return guarded(async () => {
+    const authCtx = await apiRequire('consultation:write');
     const { id } = await ctx.params;
     const consultation = getConsultation(id);
     if (!consultation) return fail('Consultation introuvable', 404);
+    assertSameOrganization(authCtx, consultation.organization_id);
     const patient = getPatient(consultation.patient_id);
     if (!patient) return fail('Patient introuvable', 404);
 

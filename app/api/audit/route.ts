@@ -1,10 +1,12 @@
 import { all } from '@/lib/db';
-import { handle, ok } from '@/lib/api';
+import { ok } from '@/lib/api';
+import { apiRequire, guarded } from '@/lib/auth/guard';
 
 export const dynamic = 'force-dynamic';
 
 export function GET(req: Request) {
-  return handle(() => {
+  return guarded(async () => {
+    await apiRequire('audit:read');
     const params = new URL(req.url).searchParams;
     const patientId = params.get('patientId');
     const limit = Math.min(Number(params.get('limit') ?? 200), 1000);

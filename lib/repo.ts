@@ -24,23 +24,50 @@ import { findDrug } from './terminology/formulary';
 
 export const getPatient = (id: string) => get<Patient>('SELECT * FROM patient WHERE id = ?', [id]);
 
-export const listPatients = (search = '') => {
-  if (!search.trim()) return all<Patient>('SELECT * FROM patient ORDER BY updated_at DESC LIMIT 200');
+/**
+ * Liste des patients.
+ *
+ * `organizationId` cloisonne le fichier : un etablissement ne voit que ses
+ * dossiers. Les dossiers anterieurs a la mise en place du cloisonnement
+ * (organization_id nul) restent visibles — sans quoi une mise a jour ferait
+ * disparaitre l'existant du jour au lendemain.
+ */
+export const listPatients = (search = '', organizationId?: string | null) => {
+  const scope = organizationId ? '(organization_id = ? OR organization_id IS NULL)' : '1 = 1';
+  const scopeParams: unknown[] = organizationId ? [organizationId] : [];
+
+  if (!search.trim()) {
+    return all<Patient>(`SELECT * FROM patient WHERE ${scope} ORDER BY updated_at DESC LIMIT 200`, scopeParams);
+  }
   const q = `%${search.trim().toLowerCase()}%`;
   return all<Patient>(
     `SELECT * FROM patient
-     WHERE lower(given_name) LIKE ? OR lower(family_name) LIKE ? OR lower(mrn) LIKE ? OR phone LIKE ?
+     WHERE ${scope}
+       AND (lower(given_name) LIKE ? OR lower(family_name) LIKE ? OR lower(mrn) LIKE ? OR phone LIKE ?)
      ORDER BY updated_at DESC LIMIT 200`,
-    [q, q, q, q],
+    [...scopeParams, q, q, q, q],
   );
 };
 
 export const getConsultation = (id: string) => get<Consultation>('SELECT * FROM consultation WHERE id = ?', [id]);
 
-export const listConsultations = (patientId?: string) =>
-  patientId
-    ? all<Consultation>('SELECT * FROM consultation WHERE patient_id = ? ORDER BY started_at DESC', [patientId])
-    : all<Consultation>('SELECT * FROM consultation ORDER BY started_at DESC LIMIT 100');
+export const listConsultations = (patientId?: string, organizationId?: string | null) => {
+  const where: string[] = [];
+  const params: unknown[] = [];
+  if (patientId) {
+    where.push('patient_id = ?');
+    params.push(patientId);
+  }
+  if (organizationId) {
+    where.push('(organization_id = ? OR organization_id IS NULL)');
+    params.push(organizationId);
+  }
+  return all<Consultation>(
+    `SELECT * FROM consultation ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+     ORDER BY started_at DESC LIMIT ${patientId ? 500 : 100}`,
+    params,
+  );
+};
 
 export const getPractitioner = (id: string) => get<Practitioner>('SELECT * FROM practitioner WHERE id = ?', [id]);
 export const listPractitioners = () => all<Practitioner>('SELECT * FROM practitioner ORDER BY family_name');
@@ -120,6 +147,7 @@ export function createPatient(data: Partial<Patient>): string {
     renal_impairment: data.renal_impairment ?? 0,
     hepatic_impairment: data.hepatic_impairment ?? 0,
     emergency_contact: data.emergency_contact ?? null,
+    organization_id: data.organization_id ?? null,
     created_at: nowIso(),
     updated_at: nowIso(),
   });
@@ -147,7 +175,12 @@ export function updatePatient(id: string, data: Partial<Patient>, actor?: Practi
   });
 }
 
-export function createConsultation(patientId: string, practitionerId?: string | null, reason?: string): string {
+export function createConsultation(
+  patientId: string,
+  practitionerId?: string | null,
+  reason?: string,
+  organizationId?: string | null,
+): string {
   const id = uid();
   insert('consultation', {
     id,
@@ -157,6 +190,7 @@ export function createConsultation(patientId: string, practitionerId?: string | 
     reason_text: reason ?? null,
     started_at: nowIso(),
     location: process.env.FACILITY_NAME ?? null,
+    organization_id: organizationId ?? null,
     created_at: nowIso(),
     updated_at: nowIso(),
   });

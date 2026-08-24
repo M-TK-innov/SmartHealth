@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation';
 import { getPatient, getPractitioner, getPrescription, getPrescriptionItems } from '@/lib/repo';
 import { computeAge, translateGender } from '@/lib/ai/prompts';
 import { formatDate } from '@/lib/report';
+import { assertSameOrganization, requirePermission } from '@/lib/auth/guard';
+import { getConsultation } from '@/lib/repo';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,9 +15,11 @@ export const dynamic = 'force-dynamic';
  * a une prescription.
  */
 export default async function PrescriptionPrintPage({ params }: { params: Promise<{ id: string }> }) {
+  const ctx = await requirePermission('consultation:read', `/ordonnance/${(await params).id}`);
   const { id } = await params;
   const rx = getPrescription(id);
   if (!rx) notFound();
+  assertSameOrganization(ctx, getConsultation(rx.consultation_id)?.organization_id ?? null);
 
   const patient = getPatient(rx.patient_id);
   if (!patient) notFound();
