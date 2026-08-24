@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { all, get } from '@/lib/db';
 import { listPatients } from '@/lib/repo';
+import { organizationFilter, requireAuth } from '@/lib/auth/guard';
 import { NewPatientForm } from '@/components/NewPatientForm';
 import { StartConsultation } from '@/components/StartConsultation';
 import { formatDate } from '@/lib/report';
@@ -43,20 +44,43 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: 'annulee',
 };
 
-export default function Dashboard() {
+export default async function Dashboard() {
+  const ctx = await requireAuth('/');
+  const scoped = organizationFilter(ctx);
+  // Chaque compteur est cloisonne au meme titre que les listes : un chiffre
+  // d'activite renseigne deja sur l'activite d'un autre etablissement.
+  const orgClause = (alias: string) =>
+    scoped ? `(${alias}.organization_id = ? OR ${alias}.organization_id IS NULL)` : '1 = 1';
+  const orgParams: unknown[] = scoped ? [scoped] : [];
+
   const recent = all<Row>(
     `SELECT c.id, c.status, c.started_at, c.patient_id, c.analysis_engine,
             p.given_name, p.family_name, p.mrn
      FROM consultation c JOIN patient p ON p.id = c.patient_id
+     WHERE ${orgClause('c')}
      ORDER BY c.started_at DESC LIMIT 12`,
+    orgParams,
   );
 
   const today = new Date().toISOString().slice(0, 10);
-  const nToday = get<{ n: number }>('SELECT COUNT(*) n FROM consultation WHERE date(started_at) = ?', [today])?.n ?? 0;
-  const nPending = get<{ n: number }>("SELECT COUNT(*) n FROM consultation WHERE status = 'analyzed'")?.n ?? 0;
-  const nDraftRx = get<{ n: number }>("SELECT COUNT(*) n FROM prescription WHERE status = 'draft'")?.n ?? 0;
-  const nPatients = get<{ n: number }>('SELECT COUNT(*) n FROM patient')?.n ?? 0;
-  const patients = listPatients().slice(0, 6);
+  const countConsult = (extra: string, params: unknown[] = []) =>
+    get<{ n: number }>(`SELECT COUNT(*) n FROM consultation c WHERE ${orgClause('c')} AND ${extra}`, [
+      ...orgParams,
+      ...params,
+    ])?.n ?? 0;
+
+  const nToday = countConsult('date(c.started_at) = ?', [today]);
+  const nPending = countConsult("c.status = 'analyzed'");
+  const nDraftRx =
+    get<{ n: number }>(
+      `SELECT COUNT(*) n FROM prescription r
+       JOIN consultation c ON c.id = r.consultation_id
+       WHERE r.status = 'draft' AND ${orgClause('c')}`,
+      orgParams,
+    )?.n ?? 0;
+  const nPatients =
+    get<{ n: number }>(`SELECT COUNT(*) n FROM patient p WHERE ${orgClause('p')}`, orgParams)?.n ?? 0;
+  const patients = listPatients('', scoped).slice(0, 6);
 
   return (
     <div className="space-y-6">

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { defaultPractitioner, getPractitioner } from './repo';
+import { auth } from './auth/session';
 import type { Practitioner } from './types';
 
 export function ok(data: unknown, init?: ResponseInit) {
@@ -29,17 +30,22 @@ export function text(body: string, contentType = 'text/plain; charset=utf-8', fi
 /**
  * Praticien courant.
  *
- * L'authentification n'est pas implementee dans cette version : on resout
- * l'acteur via l'en-tete `x-practitioner-id` sinon le premier praticien du
- * fichier. Un deploiement reel doit brancher ici un fournisseur d'identite
- * (OIDC de l'etablissement, carte professionnelle de sante).
+ * Le compte de connexion et la fiche praticien sont deux choses distinctes :
+ * le compte sert a s'authentifier, la fiche praticien est ce qui signe les
+ * comptes rendus et les ordonnances. Un compte medecin porte le lien vers sa
+ * fiche ; les comptes administratifs n'en ont pas, et ne peuvent donc pas
+ * signer d'acte medical — ce qui est le comportement voulu.
+ *
+ * Repli sur le premier praticien du fichier uniquement hors session, pour que
+ * les scripts et la demonstration hors-ligne restent utilisables.
  */
-export function currentPractitioner(req?: Request): Practitioner | null {
-  const headerId = req?.headers.get('x-practitioner-id');
-  if (headerId) {
-    const p = getPractitioner(headerId);
+export async function currentPractitioner(): Promise<Practitioner | null> {
+  const ctx = await auth();
+  if (ctx?.user.practitioner_id) {
+    const p = getPractitioner(ctx.user.practitioner_id);
     if (p) return p;
   }
+  if (ctx) return null;
   return defaultPractitioner() ?? null;
 }
 

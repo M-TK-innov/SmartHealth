@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { listPatients } from '@/lib/repo';
+import { organizationFilter, requirePermission } from '@/lib/auth/guard';
 import { NewPatientForm } from '@/components/NewPatientForm';
 import { StartConsultation } from '@/components/StartConsultation';
 import { computeAge, translateGender } from '@/lib/ai/prompts';
@@ -7,8 +8,9 @@ import { computeAge, translateGender } from '@/lib/ai/prompts';
 export const dynamic = 'force-dynamic';
 
 export default async function PatientsPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  const ctx = await requirePermission('patient:read', '/patients');
   const { q = '' } = await searchParams;
-  const patients = listPatients(q);
+  const patients = listPatients(q, organizationFilter(ctx));
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_380px]">

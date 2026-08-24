@@ -39,6 +39,8 @@ export interface Patient {
   hepatic_impairment: number;
   emergency_contact: string | null;
   photo_data_url: string | null;
+  /** Etablissement proprietaire du dossier. Null pour les dossiers anterieurs au cloisonnement. */
+  organization_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -64,6 +66,8 @@ export interface Consultation {
   analysis_at: string | null;
   report_markdown: string | null;
   report_edited: number;
+  /** Etablissement de la rencontre. Null pour les consultations anterieures au cloisonnement. */
+  organization_id: string | null;
   created_at: string;
   updated_at: string;
 }

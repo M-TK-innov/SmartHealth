@@ -1,5 +1,6 @@
 import { audit } from '@/lib/db';
-import { body, currentPractitioner, fail, handle, ok } from '@/lib/api';
+import { body, currentPractitioner, fail, ok } from '@/lib/api';
+import { apiRequire, assertSameOrganization, guarded } from '@/lib/auth/guard';
 import { buildExport, logExport, type ExportFormat } from '@/lib/interop/build';
 import { getConsultation } from '@/lib/repo';
 
@@ -16,10 +17,12 @@ type Ctx = { params: Promise<{ id: string }> };
  * sante vers une adresse fournie dans la requete.
  */
 export function POST(req: Request, ctx: Ctx) {
-  return handle(async () => {
+  return guarded(async () => {
+    const authCtx = await apiRequire('export:send');
     const { id } = await ctx.params;
     const consultation = getConsultation(id);
     if (!consultation) return fail('Consultation introuvable', 404);
+    assertSameOrganization(authCtx, consultation.organization_id);
 
     const { format = 'fhir-transaction' } = await body<{ format?: ExportFormat }>(req);
     const isDhis2 = format === 'dhis2-event';
@@ -55,7 +58,7 @@ export function POST(req: Request, ctx: Ctx) {
       const responseText = (await res.text()).slice(0, 4000);
       logExport(id, consultation.patient_id, built, endpoint, res.ok ? 'sent' : 'failed', responseText);
 
-      const actor = currentPractitioner(req);
+      const actor = await currentPractitioner();
       audit({
         action: 'export',
         entity: 'consultation',
