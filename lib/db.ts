@@ -1,12 +1,19 @@
 import { DatabaseSync } from 'node:sqlite';
-import { readFileSync, mkdirSync, existsSync } from 'node:fs';
+import { mkdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { SCHEMA_SQL } from './schema';
 
 /**
  * Acces SQLite via le module natif `node:sqlite` (Node >= 22.5).
  * Aucune dependance native a compiler : l'application s'installe sur un poste
  * hors-ligne ou sur un mini-serveur de dispensaire sans chaine de build C++.
+ *
+ * L'emplacement de la base suit la plateforme :
+ *   - serveur web / developpement : ./data/parledocteur.db
+ *   - application desktop         : dossier de donnees utilisateur, transmis
+ *                                   par le processus principal Electron.
+ * Dans les deux cas PARLEDOCTEUR_DB a la priorite.
  */
 
 const DB_PATH = process.env.PARLEDOCTEUR_DB || path.join(process.cwd(), 'data', 'parledocteur.db');
@@ -19,10 +26,11 @@ function open(): DatabaseSync {
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 
   const database = new DatabaseSync(DB_PATH);
-  const schemaPath = path.join(process.cwd(), 'lib', 'schema.sql');
-  database.exec(readFileSync(schemaPath, 'utf8'));
+  database.exec(SCHEMA_SQL);
   return database;
 }
+
+export const databasePath = () => DB_PATH;
 
 export function db(): DatabaseSync {
   if (!g.__parledocteurDb) g.__parledocteurDb = open();
