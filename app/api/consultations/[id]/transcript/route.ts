@@ -1,6 +1,14 @@
 import { body, fail, ok } from '@/lib/api';
 import { apiRequire, guarded } from '@/lib/auth/guard';
-import { appendSegments, getConsultation, getSegments, renderTranscript, replaceTranscript } from '@/lib/repo';
+import {
+  appendSegments,
+  getConsultation,
+  getSegments,
+  reattributeSpeakers,
+  renderTranscript,
+  replaceTranscript,
+  setSegmentSpeaker,
+} from '@/lib/repo';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,6 +61,52 @@ export function PUT(req: Request, ctx: Ctx) {
 
     const { text } = await body<{ text?: string }>(req);
     replaceTranscript(id, text ?? '');
+    return ok({ segments: getSegments(id), transcript: renderTranscript(id) });
+  });
+}
+
+/**
+ * Correction du locuteur, ou re-attribution automatique de toute la
+ * consultation.
+ *
+ *   { segmentId, speaker }        -> le praticien tranche un segment
+ *   { reattribuer: true }         -> relance la detection sur l'ensemble
+ *
+ * Une correction manuelle est definitive : la re-attribution ne la touche pas.
+ */
+export function PATCH(req: Request, ctx: Ctx) {
+  return guarded(async () => {
+    await apiRequire('transcript:record');
+    const { id } = await ctx.params;
+    const consultation = getConsultation(id);
+    if (!consultation) return fail('Consultation introuvable', 404);
+    if (consultation.status === 'signed') return fail('Consultation signee : transcription verrouillee.', 409);
+
+    const data = await body<{ segmentId?: string; speaker?: string; reattribuer?: boolean }>(req);
+
+    if (data.reattribuer) {
+      const result = reattributeSpeakers(id);
+      return ok({
+        ...result,
+        segments: getSegments(id),
+        transcript: renderTranscript(id),
+        message:
+          result.undetermined > 0
+            ? `${result.updated} segment(s) re-attribue(s). ${result.undetermined} reste(nt) indetermine(s) : tranchez-les a la main.`
+            : `${result.updated} segment(s) re-attribue(s).`,
+      });
+    }
+
+    if (!data.segmentId || !data.speaker) {
+      return fail('Fournissez segmentId et speaker, ou reattribuer: true.');
+    }
+    if (!['clinician', 'patient', 'companion', 'unknown'].includes(data.speaker)) {
+      return fail('Locuteur invalide.');
+    }
+
+    if (!setSegmentSpeaker(id, data.segmentId, data.speaker)) {
+      return fail('Segment introuvable dans cette consultation.', 404);
+    }
     return ok({ segments: getSegments(id), transcript: renderTranscript(id) });
   });
 }

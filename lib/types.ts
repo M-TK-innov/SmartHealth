@@ -83,6 +83,10 @@ export interface TranscriptSegment {
   confidence: number | null;
   language: string | null;
   is_final: number;
+  /** auto = propose par la detection, manual = fixe par le praticien (fait autorite). */
+  speaker_source: string | null;
+  speaker_confidence: number | null;
+  pitch_hz: number | null;
   created_at: string;
 }
 

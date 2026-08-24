@@ -17,6 +17,16 @@ const nextConfig = {
   output: isDesktop ? 'standalone' : undefined,
 
   serverExternalPackages: ['node:sqlite'],
+
+  // transformers.js tire onnxruntime-node et sharp, deux paquets natifs lourds
+  // dont on n'a pas l'usage : Whisper tourne dans le navigateur, pas sur le
+  // serveur. On les ecarte du bundle serveur pour ne pas alourdir le build.
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals = [...(config.externals ?? []), 'onnxruntime-node', 'sharp'];
+    }
+    return config;
+  },
   experimental: { serverActions: { bodySizeLimit: '25mb' } },
   async headers() {
     return [
