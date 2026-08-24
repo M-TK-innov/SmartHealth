@@ -206,11 +206,44 @@ inventive. Le bandeau de l'écran de revue indique toujours quel moteur a produi
 
 ### Écoute et transcription
 
-Reconnaissance vocale du navigateur (Chrome/Edge), français par défaut, six langues proposées.
-Le navigateur ne sait pas séparer les locuteurs : le praticien bascule l'étiquette
-Patient / Médecin d'un clic ou avec la barre d'espace. Le consentement du patient est un préalable
-bloquant à l'enregistrement. En l'absence de micro, la transcription se saisit ou se colle à la main
-— le reste de la chaîne est identique.
+Le geste tient en **un bouton** : on appuie, on parle, on appuie pour arrêter. Le consentement du
+patient est un préalable bloquant. En l'absence de micro, la transcription se saisit ou se colle à
+la main — le reste de la chaîne est identique.
+
+**Trois moteurs de transcription**, interchangeables sans toucher au reste de l'application :
+
+| Moteur | Fonctionnement | Confidentialité |
+|---|---|---|
+| Navigateur (défaut) | Web Speech API, immédiat, aucun téléchargement. Chrome/Edge. | L'audio transite par l'éditeur du navigateur |
+| **Whisper sur l'appareil** | Modèle open source (OpenAI, MIT) exécuté dans le navigateur via transformers.js. ~85 Mo au premier lancement, puis en cache. | **L'audio ne quitte jamais l'appareil** |
+| Whisper serveur | POST vers un `whisper.cpp` ou `faster-whisper` de l'établissement (`WHISPER_ENDPOINT`). | L'audio reste sur le réseau interne |
+
+Whisper ne transcrit pas en flux continu : l'audio est découpé aux silences, chaque tour de parole
+devient un bloc. Ce découpage donne aussi l'unité de base de la détection de locuteur.
+
+### Détection automatique du locuteur
+
+L'application propose qui parle — médecin, patient ou accompagnant — en combinant deux signaux :
+
+1. **Linguistique** : qui interroge, qui prescrit, qui dit « docteur », qui se plaint à la première
+   personne. En consultation les rôles conversationnels sont très marqués ; c'est le signal le plus
+   fiable et il ne coûte rien.
+2. **Acoustique** : la hauteur médiane de la voix (F0, par autocorrélation). Elle ne dit pas *qui*
+   parle mais *quand on change de personne*, et rattrape les tours neutres (« D'accord. ») qu'aucun
+   mot ne permet de classer.
+
+> **Ce n'est pas de la diarisation par biométrie vocale.** Une vraie diarisation compare des
+> empreintes vocales et demande un modèle dédié. Ici c'est une proposition assortie d'une confiance.
+> Une étiquette peu sûre est signalée à l'écran, et **un tour sans indice reste « indéterminé »
+> plutôt que d'être attribué au hasard** : dans un dossier médical, une phrase mise dans la mauvaise
+> bouche est pire qu'une phrase non attribuée.
+
+Le praticien corrige d'un clic sur l'étiquette. **Sa décision fait autorité** : elle passe en source
+`manual` et aucune ré-attribution ultérieure ne la touche. Le mode « je bascule moi-même » reste
+disponible quand la détection se trompe trop (plusieurs accompagnants, voix proches).
+
+Mesuré sur la consultation pédiatrique de démonstration (19 tours) : 16 correctement attribués,
+3 laissés indéterminés, **aucune attribution fausse**.
 
 ### Extraction clinique
 
@@ -347,7 +380,10 @@ app/
     export/[id]                8 formats
     fhir/                      façade REST FHIR
 lib/
-  db.ts schema.sql repo.ts     dossier médical (SQLite)
+  db.ts schema.ts repo.ts      dossier médical (SQLite)
+  transcription/               contrat + moteurs (navigateur, Whisper local, Whisper serveur)
+  audio/pitch.ts               estimation F0 par autocorrélation
+  ai/speakers.ts               attribution du locuteur (linguistique + acoustique)
   ai/    schema · prompts · extract · local · enrich
   safety.ts                    contrôle de sécurité des ordonnances
   report.ts                    compte rendu SOAP
@@ -356,6 +392,7 @@ lib/
 components/
   Recorder · consultation/Workspace · ReviewPanel · PrescriptionPanel
   Nav (haute / onglets bas) · Pwa (service worker, installation, état réseau)
+  Recorder (grand bouton, moteurs, détection de locuteur)
 electron/
   main.js      serveur embarqué, fenêtre, menu, isolation du contexte
   preload.js   pont minimal : un marqueur de plateforme, rien d'autre
