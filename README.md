@@ -172,6 +172,11 @@ Deux règles structurent tout le code :
 
 ---
 
+## Installation
+
+Guides détaillés par plateforme dans **[docs/installation/](docs/installation/)** :
+prérequis, serveur web, mobile et tablette, application desktop, mise en production, dépannage.
+
 ## Démarrage
 
 ```bash
