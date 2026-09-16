@@ -126,6 +126,12 @@ d'accès, sessions actives, base de données (intégrité, compactage, sauvegard
 
 ### Premier compte d'une installation
 
+Sur une base vierge, l'application ouvre l'**écran de première installation** : structure, compte
+responsable, puis une confirmation qui récapitule les identifiants et les **adresses réseau**
+auxquelles l'application répond. Cet écran se ferme définitivement dès qu'un compte existe.
+
+En ligne de commande :
+
 ```bash
 npm run create-admin -- --email admin@hopital.bj --nom "Prenom Nom"
 ```

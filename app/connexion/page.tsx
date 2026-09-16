@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth/session';
 import { getPolicy } from '@/lib/auth/store';
+import { needsBootstrap } from '@/lib/auth/bootstrap';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { AuthShell } from '@/components/auth/AuthShell';
 
@@ -11,6 +12,9 @@ export const metadata = { title: 'Connexion — ParleDocteur' };
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ suite?: string }> }) {
   const { suite } = await searchParams;
   if (await auth()) redirect(suite || '/');
+
+  // Base vierge : une page de connexion sans aucun compte est une impasse.
+  if (needsBootstrap()) redirect('/bienvenue');
 
   const policy = getPolicy();
 
