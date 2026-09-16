@@ -46,13 +46,27 @@ Variables utiles :
 
 ## 3. Créer le premier compte
 
+Rien à faire à cette étape : la base est vide, et l'application le voit. **Au premier accès, elle
+ouvre l'écran de première installation** où vous renseignez votre structure et votre compte
+responsable, avec le mot de passe de votre choix.
+
+L'écran de confirmation qui suit récapitule vos identifiants et **les adresses réseau** auxquelles
+les autres postes peuvent se connecter. Notez le mot de passe à ce moment : aucune réinitialisation
+par e-mail n'existe.
+
+> **Cet écran ne s'ouvre qu'une fois.** Dès qu'un compte existe — même suspendu — il se ferme
+> définitivement. Une route créant un super-administrateur sans authentification ne doit jamais
+> rester ouverte sur une installation en service.
+
+### Ou en ligne de commande
+
+Si vous préférez préparer le compte avant même de démarrer le serveur :
+
 ```bash
 npm run create-admin -- --email admin@votre-structure.bj --nom "Prénom Nom"
 ```
 
-Le mot de passe est **généré et affiché une seule fois**. Notez-le, il devra être changé à la
-première connexion. Ce compte est super-administrateur : il crée ensuite tous les autres depuis la
-console `/admin`.
+Le mot de passe est alors **généré et affiché une seule fois**, à changer à la première connexion.
 
 > Pour **essayer** l'application, utilisez plutôt `npm run seed -- --reset`, qui installe trois
 > patients, une consultation et un compte par rôle. À ne jamais faire sur une base réelle : la

@@ -45,6 +45,10 @@ npm run dev
 Ouvrez <http://localhost:3000>. Le script `seed` affiche en fin d'exécution les comptes de
 démonstration et leur mot de passe commun.
 
+Sur une **base vierge** (sans `seed`), l'application ouvre d'elle-même l'**écran de première
+installation** : vous y créez votre structure et votre compte responsable, et l'écran de
+confirmation vous donne les adresses réseau à communiquer aux autres postes.
+
 > **Ces comptes de démonstration ne doivent jamais servir en production** : leur mot de passe est
 > écrit en clair dans `scripts/seed.mjs`, donc dans le dépôt. Pour une vraie installation,
 > voir [05 — Mise en production](05-mise-en-production.md).

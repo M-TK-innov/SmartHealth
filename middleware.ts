@@ -17,10 +17,17 @@ import { NextResponse, type NextRequest } from 'next/server';
 const SESSION_COOKIE = 'pd_session';
 
 /** Accessibles sans session. */
-const PUBLIC_PATHS = ['/connexion', '/inscription', '/acces-refuse', '/hors-ligne'];
+const PUBLIC_PATHS = ['/connexion', '/inscription', '/acces-refuse', '/hors-ligne', '/bienvenue'];
 
 /** Routes d'API ouvertes : authentification et liste publique des etablissements. */
-const PUBLIC_API = ['/api/auth/login', '/api/auth/register', '/api/auth/logout', '/api/organizations'];
+const PUBLIC_API = [
+  '/api/auth/login',
+  '/api/auth/register',
+  '/api/auth/logout',
+  '/api/organizations',
+  // Amorcage : la route se verrouille d'elle-meme des qu'un compte existe.
+  '/api/auth/bootstrap',
+];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

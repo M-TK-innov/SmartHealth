@@ -102,8 +102,38 @@ Ouvre la fenêtre Electron sur le serveur de développement (`npm run dev` doit 
 
 L'application ouvre sa fenêtre et démarre son serveur — **quelques secondes** la première fois.
 
-La base est vide : aucun compte n'existe. Créez le premier administrateur **avant** de distribuer
-l'application, en pointant la variable d'environnement vers le dossier de données :
+La base est vide, et l'application le voit : elle ouvre directement l'**écran de première
+installation**. Rien à faire en ligne de commande.
+
+Vous y renseignez en une seule page :
+
+1. **Votre structure** — nom, type, code officiel, département. Ces informations apparaissent
+   ensuite sur les comptes rendus, les ordonnances et les exports.
+2. **Votre compte responsable** — nom, adresse e-mail, mot de passe de votre choix. Ce compte est
+   super-administrateur ; c'est le seul que vous créez ici.
+
+Un **écran de confirmation** suit, qui récapitule :
+
+- vos identifiants, avec un bouton pour afficher le mot de passe et le copier ;
+- **les adresses auxquelles l'application répond**, y compris celles du réseau local pour les
+  autres postes ;
+- l'avertissement sur le microphone si des adresses réseau sont détectées ;
+- les trois étapes suivantes (créer les médecins, régler la politique d'accès, mettre en place une
+  sauvegarde).
+
+Notez le mot de passe à ce moment : **aucune réinitialisation par e-mail n'existe**, et cet écran
+ne revient pas.
+
+Vous êtes déjà connecté en sortant de cet écran.
+
+> **Cet écran ne s'ouvre qu'une fois.** Dès qu'un compte existe — même suspendu — il se ferme
+> définitivement et redirige vers la connexion. Laisser une route qui crée un
+> super-administrateur sans authentification sur une installation en service serait une porte
+> ouverte.
+
+### Amorçage en ligne de commande
+
+Si vous préférez préparer les postes vous-même, la commande reste disponible :
 
 ```bash
 set PARLEDOCTEUR_DB=%APPDATA%\ParleDocteur\donnees\parledocteur.db
@@ -113,8 +143,7 @@ set PARLEDOCTEUR_DB=%APPDATA%\ParleDocteur\donnees\parledocteur.db
 npm run create-admin -- --email admin@votre-structure.bj --nom "Prénom Nom"
 ```
 
-> Une amélioration utile serait un écran de création du premier compte au premier démarrage. Elle
-> n'est pas faite : aujourd'hui l'amorçage passe par cette commande.
+L'écran de première installation ne s'affichera alors pas, puisqu'un compte existe déjà.
 
 ---
 
