@@ -30,15 +30,12 @@ const nextConfig = {
   experimental: { serverActions: { bodySizeLimit: '25mb' } },
   async headers() {
     return [
-      {
-        // Interoperabilite : les SIH tiers doivent pouvoir interroger l'API FHIR
-        source: '/api/fhir/:path*',
-        headers: [
-          { key: 'Access-Control-Allow-Origin', value: process.env.FHIR_CORS_ORIGIN || '*' },
-          { key: 'Access-Control-Allow-Methods', value: 'GET,POST,OPTIONS' },
-          { key: 'Access-Control-Allow-Headers', value: 'Content-Type,Authorization' },
-        ],
-      },
+      // Les en-tetes CORS de l'API FHIR ne figurent plus ici : fixes a la
+      // construction, ils obligeaient a reconstruire l'application pour
+      // restreindre les origines, et deux en-tetes Access-Control-Allow-Origin
+      // (le statique et celui de la route) font rejeter la reponse par le
+      // navigateur. Ils sont desormais calcules par requete a partir de la
+      // configuration — voir lib/net/fhir-gate.ts.
       {
         // Le service worker ne doit jamais etre servi depuis un cache perime,
         // sinon une correction de securite peut mettre des jours a se propager.

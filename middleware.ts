@@ -36,9 +36,12 @@ export function middleware(req: NextRequest) {
   const isPublicApi = PUBLIC_API.some((p) => pathname === p || pathname.startsWith(`${p}/`));
   if (isPublicPage || isPublicApi) return NextResponse.next();
 
-  // L'API FHIR est destinee aux systemes tiers : elle a son propre modele
-  // d'authentification (a brancher sur SMART on FHIR / OAuth2 en production)
-  // et ne doit pas etre redirigee vers une page de connexion HTML.
+  // L'API FHIR n'est pas redirigee vers une page de connexion HTML : un systeme
+  // tiers attend un OperationOutcome FHIR, pas du HTML. Elle n'est pas ouverte
+  // pour autant — son controle d'acces vit dans la route (lib/net/fhir-gate.ts),
+  // qui sait repondre dans le bon format et applique le reglage choisi dans
+  // Administration > Reseau et serveurs. Le middleware tourne sur l'Edge et ne
+  // peut pas lire la base : il ne pourrait pas decider ici.
   if (pathname.startsWith('/api/fhir')) return NextResponse.next();
 
   if (req.cookies.get(SESSION_COOKIE)) return NextResponse.next();
