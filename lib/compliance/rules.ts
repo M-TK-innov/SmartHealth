@@ -723,6 +723,28 @@ export function evaluate(input: EvaluationInput): Evaluation {
       }
     }
 
+    if (e.auth_mode === 'mtls') {
+      out.push(
+        finding({
+          code: 'MTLS_NON_PORTE_PAR_L_APPLICATION',
+          level: 'warning',
+          target: e.id,
+          targetLabel: label,
+          title: 'Certificat client attendu, mais ParleDocteur n en presente aucun',
+          detail:
+            "Le mode mTLS est declare, or l'application n'embarque pas de certificat client : ses " +
+            "requetes partiront sans, et le serveur distant les refusera — ou pire, les acceptera sans " +
+            "authentifier l'emetteur. Le double sens du certificat doit etre porte par un composant " +
+            'place devant.',
+          reference: 'PGSSI-S (authentification des acteurs) ; RGPD art. 32.1.b',
+          remedy:
+            "Terminer le mTLS sur un proxy sortant (stunnel, nginx, Envoy) qui porte le certificat de " +
+            "la structure, et pointer l'adresse declaree ici vers ce proxy. A defaut, utiliser un jeton " +
+            'porteur.',
+        }),
+      );
+    }
+
     if (e.auth_mode === 'basic' && e.scope === 'external') {
       out.push(
         finding({
