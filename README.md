@@ -333,6 +333,12 @@ GET /api/fhir/Observation?patient={id}
 GET /api/fhir/MedicationRequest?patient={id}
 ```
 
+Elle sert le dossier médical, et elle est donc **fermée par défaut** : une session authentifiée
+disposant de `export:read`, ou un jeton de service (`FHIR_API_TOKEN`) pour un système tiers. Le mode
+se choisit dans **Administration → Réseau et serveurs**, et l'ouvrir sans authentification demande
+une dérogation écrite. Chaque accès accepté est inscrit au journal. Seul le `CapabilityStatement`
+reste libre : c'est par lui qu'un système tiers découvre qu'une authentification est attendue.
+
 ### HL7 v2.5.1
 
 Pour les systèmes hospitaliers déjà installés, qui ne parlent pas encore FHIR :
@@ -435,15 +441,19 @@ relèvent du déploiement, pas du produit :
 1. **Fédération d'identité et second facteur.** L'authentification interne (comptes, rôles,
    sessions révocables, verrouillage) est en place, mais reste locale à la plateforme. À brancher sur
    l'annuaire de l'établissement (OIDC, carte professionnelle de santé) et à compléter par un second
-   facteur pour les comptes d'administration. **L'API FHIR n'est pas authentifiée** : elle est
-   exclue du middleware pour rester utilisable par les systèmes tiers, et doit être protégée par
-   SMART on FHIR / OAuth2 avant toute exposition réseau.
+   facteur pour les comptes d'administration. L'API FHIR est désormais authentifiée — session ou
+   jeton de service, réglable dans **Administration → Réseau et serveurs** — mais le jeton de service
+   est un secret partagé : **SMART on FHIR / OAuth2 reste à mettre en place** pour une fédération
+   réelle, avec des jetons à durée limitée et une portée par patient.
 2. **Chiffrement au repos.** La base SQLite est en clair. Chiffrer le volume, ou passer sur
    SQLCipher / un SGBD chiffré. Les sauvegardes produites depuis la console le sont aussi.
 3. **Conformité.** Le journal d'audit existe et trace toute écriture, validation, signature et
    export ; la durée de conservation, l'exercice des droits du patient et la déclaration auprès de
    l'autorité de protection des données compétente (APDP au Bénin, RGPD à l'international) restent
-   à instruire par l'établissement.
+   à instruire par l'établissement. La console **Réseau et serveurs** refuse les configurations
+   d'adresses et de flux qui exposeraient des données de santé, et exige une dérogation écrite là où
+   la décision revient au responsable de traitement — ce qui empêche les erreurs de configuration
+   qu'on sait nommer, sans valoir attestation de conformité.
 
 **ParleDocteur est un outil d'aide à la documentation clinique.** Il ne pose pas de diagnostic et
 ne prescrit pas. La responsabilité médicale demeure entièrement celle du praticien.

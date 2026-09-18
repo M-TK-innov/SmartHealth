@@ -40,9 +40,14 @@ Variables utiles :
 | `FACILITY_NAME`, `FACILITY_ID`, `FACILITY_COUNTRY` | identité de la structure |
 | `ANTHROPIC_API_KEY` | extraction par modèle de langage — sans elle, moteur local hors ligne |
 | `PARLEDOCTEUR_DB` | emplacement de la base (défaut `./data/parledocteur.db`) |
-| `FHIR_BASE_URL` | URL déclarée dans les exports FHIR |
-| `FHIR_CORS_ORIGIN` | origines autorisées sur l'API FHIR — **à restreindre en production** |
-| `WHISPER_ENDPOINT` | serveur Whisper de l'établissement (facultatif) |
+| `FHIR_BASE_URL` | URL déclarée dans les exports FHIR (repli) |
+| `FHIR_API_TOKEN` | jeton attendu sur l'API FHIR en mode « jeton de service » |
+| `WHISPER_ENDPOINT` | serveur Whisper de l'établissement (repli, facultatif) |
+
+Les **adresses** se règlent dans **Administration → Réseau et serveurs**
+([guide 07](07-reseau-et-serveurs.md)), où elles sont confrontées aux restrictions sanitaires avant
+enregistrement. Le fichier d'environnement garde les **secrets** : un secret modifiable depuis une
+page web est un secret exposé.
 
 ## 3. Créer le premier compte
 
@@ -96,6 +101,10 @@ ipconfig
 
 Les autres appareils du même réseau ouvrent alors `http://192.168.x.x:3000`.
 
+Déclarez cette adresse et l'interface d'écoute dans **Administration → Réseau et serveurs** : c'est
+elle qui figure dans les ressources FHIR émises, et c'est l'interface d'écoute déclarée qui détermine
+la sévérité des contrôles appliqués à la configuration.
+
 > **Le microphone ne fonctionnera pas** sur cette adresse en HTTP : les navigateurs réservent
 > l'accès au micro aux sites `https://` et à `localhost`. C'est une limite du navigateur, pas de
 > l'application. Voir [05 — Mise en production](05-mise-en-production.md) pour le HTTPS.
@@ -143,4 +152,5 @@ Les tests couvrent la politique de cache hors ligne et la détection automatique
 ---
 
 Suite : [03 — Mobile et tablette](03-mobile-et-tablette.md) pour installer l'application sur les
-appareils, ou [05 — Mise en production](05-mise-en-production.md) avant tout usage réel.
+appareils, [07 — Réseau et serveurs](07-reseau-et-serveurs.md) pour les adresses et les
+restrictions, ou [05 — Mise en production](05-mise-en-production.md) avant tout usage réel.

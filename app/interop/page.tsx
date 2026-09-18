@@ -3,6 +3,7 @@ import { all } from '@/lib/db';
 import { EXPORT_LABELS } from '@/lib/interop/labels';
 import { formatDate } from '@/lib/report';
 import { requirePermission } from '@/lib/auth/guard';
+import { fhirBaseUrl } from '@/lib/net/public-url';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,7 +55,7 @@ export default async function InteropPage() {
      ORDER BY e.created_at DESC LIMIT 60`,
   );
 
-  const fhirBase = process.env.FHIR_BASE_URL || 'http://localhost:3000/api/fhir';
+  const fhirBase = fhirBaseUrl();
 
   return (
     <div className="space-y-5">

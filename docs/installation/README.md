@@ -25,6 +25,7 @@ le navigateur, sans magasin d'applications : voir [03](03-mobile-et-tablette.md)
 | [04 — Application desktop](04-application-desktop.md) | Construire et installer le `.exe` (et macOS/Linux) |
 | [05 — Mise en production](05-mise-en-production.md) | Sécurité, HTTPS, sauvegardes, mises à jour |
 | [06 — Dépannage](06-depannage.md) | Les pannes rencontrées et comment les traiter |
+| [07 — Réseau et serveurs](07-reseau-et-serveurs.md) | Adresses, serveurs internes et externes, restrictions sanitaires |
 
 ## En trois commandes, pour voir tout de suite
 
@@ -48,6 +49,11 @@ démonstration et leur mot de passe commun.
 Sur une **base vierge** (sans `seed`), l'application ouvre d'elle-même l'**écran de première
 installation** : vous y créez votre structure et votre compte responsable, et l'écran de
 confirmation vous donne les adresses réseau à communiquer aux autres postes.
+
+Les adresses de l'application et de la base, les serveurs internes et externes et les restrictions
+qui les encadrent se règlent ensuite dans **Administration → Réseau et serveurs** :
+voir [07](07-reseau-et-serveurs.md). Une installation neuve part fermée — API FHIR authentifiée,
+aucun transfert externe autorisé.
 
 > **Ces comptes de démonstration ne doivent jamais servir en production** : leur mot de passe est
 > écrit en clair dans `scripts/seed.mjs`, donc dans le dépôt. Pour une vraie installation,
