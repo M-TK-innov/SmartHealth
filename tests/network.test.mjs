@@ -264,6 +264,14 @@ describe('serveurs declares', () => {
     assert.equal(levelOf(ev, 'DESTINATAIRE_NON_AUTHENTIFIE'), 'blocking');
   });
 
+  test('le mode mTLS est signale : rien ne presente de certificat client', () => {
+    // Piege a eviter : proposer un mode d authentification que la couche de
+    // transmission n implemente pas donnerait un flux declare authentifie qui
+    // part en realite sans identite.
+    const ev = run({}, [endpoint({ auth_mode: 'mtls', secret_env: null, data_class: 'identifying' })]);
+    assert.equal(levelOf(ev, 'MTLS_NON_PORTE_PAR_L_APPLICATION'), 'warning');
+  });
+
   test('un secret declare mais absent du serveur est signale sans bloquer', () => {
     const ev = evaluate({
       config: { ...baseConfig },

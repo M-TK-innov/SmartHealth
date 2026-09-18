@@ -164,6 +164,15 @@ Trois cas méritent d'être connus :
   sous-traitant au sens du règlement. C'est une restriction à lever, avec le contrat correspondant en
   justification — ou basculez sur le moteur d'extraction local hors ligne, qui ne sort rien du poste.
 
+### Le mode mTLS demande un composant devant
+
+ParleDocteur **n'embarque pas de certificat client**. Déclarer « certificat client (mTLS) » sans plus
+produirait des requêtes sans identité — un flux cru authentifié qui ne l'est pas. La console le
+signale.
+
+Terminez le mTLS sur un proxy sortant (stunnel, nginx, Envoy) portant le certificat de la structure,
+et pointez l'adresse déclarée ici vers ce proxy. À défaut, utilisez un jeton porteur.
+
 ### Tester un serveur
 
 Le bouton **Tester** appelle l'adresse **enregistrée**, jamais une adresse saisie dans la requête, ne
