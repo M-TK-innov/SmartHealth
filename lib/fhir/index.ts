@@ -7,6 +7,7 @@
  * Google/AWS Healthcare, INSIA, IPS...) sans dependre de notre serveur.
  */
 
+import { fhirBaseUrl } from '@/lib/net/public-url';
 import type {
   Allergy,
   Consultation,
@@ -42,7 +43,7 @@ const SYS = {
 export type FhirResource = Record<string, unknown> & { resourceType: string; id: string };
 
 function baseUrl(): string {
-  return process.env.FHIR_BASE_URL || 'http://localhost:3000/api/fhir';
+  return fhirBaseUrl();
 }
 
 /** Convertit "2026-08-20 14:32:00" (SQLite) en instant ISO-8601 valide FHIR. */

@@ -388,4 +388,69 @@ CREATE TABLE IF NOT EXISTS access_policy (
   updated_by               TEXT,
   updated_at               TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- ------------------------------------------- Adresses, serveurs et restrictions
+-- Configuration reseau de l installation. Une seule ligne : une installation
+-- est un serveur, une base et un jeu de destinations.
+--
+-- Aucun secret ici. Les identifiants restent dans l environnement du serveur ;
+-- la table n en garde que le NOM de la variable. Une adresse est une donnee
+-- d exploitation, un secret ne l est pas : le premier se modifie depuis la
+-- console, le second suppose un acces au serveur.
+CREATE TABLE IF NOT EXISTS network_config (
+  id                      INTEGER PRIMARY KEY CHECK (id = 1),
+  app_public_url          TEXT,
+  app_bind_host           TEXT NOT NULL DEFAULT '127.0.0.1',
+  app_port                INTEGER NOT NULL DEFAULT 3000,
+  app_https               INTEGER NOT NULL DEFAULT 0,
+  allowed_origins         TEXT NOT NULL DEFAULT '',
+  fhir_access             TEXT NOT NULL DEFAULT 'session'
+                            CHECK (fhir_access IN ('session','token','open')),
+  db_path                 TEXT NOT NULL DEFAULT '',
+  db_backup_dir           TEXT,
+  db_encrypted            INTEGER NOT NULL DEFAULT 0,
+  data_residency_country  TEXT NOT NULL DEFAULT 'BJ',
+  allow_external_transfer INTEGER NOT NULL DEFAULT 0,
+  updated_by              TEXT,
+  updated_at              TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Destinations declarees : serveurs internes du reseau de la structure et
+-- services externes. La portee (internal / external) commande les controles
+-- appliques, elle est donc verifiee contre l adresse reelle.
+CREATE TABLE IF NOT EXISTS network_endpoint (
+  id           TEXT PRIMARY KEY,
+  label        TEXT NOT NULL,
+  scope        TEXT NOT NULL CHECK (scope IN ('internal','external')),
+  category     TEXT NOT NULL
+                 CHECK (category IN ('fhir','hl7','dhis2','whisper','llm','backup','other')),
+  url          TEXT NOT NULL,
+  enabled      INTEGER NOT NULL DEFAULT 1,
+  auth_mode    TEXT NOT NULL DEFAULT 'none' CHECK (auth_mode IN ('none','token','basic','mtls')),
+  secret_env   TEXT,
+  data_class   TEXT NOT NULL DEFAULT 'none'
+                 CHECK (data_class IN ('none','aggregated','pseudonymised','identifying')),
+  country      TEXT,
+  verify_tls   INTEGER NOT NULL DEFAULT 1,
+  note         TEXT,
+  last_test_at     TEXT,
+  last_test_status TEXT,
+  created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_by   TEXT
+);
+
+-- Levee ecrite d une restriction. Le logiciel ne tranche pas a la place du
+-- responsable de traitement, mais il exige une justification et retient qui
+-- l a signee : sans cela, une restriction se contourne sans laisser de trace.
+CREATE TABLE IF NOT EXISTS compliance_derogation (
+  id               TEXT PRIMARY KEY,
+  code             TEXT NOT NULL,
+  target           TEXT NOT NULL,
+  reason           TEXT NOT NULL,
+  granted_by       TEXT,
+  granted_by_label TEXT,
+  granted_at       TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (code, target)
+);
 `;

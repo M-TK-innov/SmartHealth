@@ -13,5 +13,6 @@ export const ADMIN_SECTIONS: { href: string; label: string; permission: Permissi
   { href: '/admin/organisations', label: 'Organisations', permission: 'org:read' },
   { href: '/admin/droits', label: 'Droits', permission: 'permission:manage' },
   { href: '/admin/acces', label: 'Acces et sessions', permission: 'session:manage' },
-  { href: '/admin/systeme', label: 'Base et serveurs', permission: 'database:manage' },
+  { href: '/admin/systeme', label: 'Etat du systeme', permission: 'database:manage' },
+  { href: '/admin/reseau', label: 'Reseau et serveurs', permission: 'server:manage' },
 ];
