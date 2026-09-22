@@ -599,11 +599,22 @@ export function recordTest(id: string, status: string) {
  * absurde de continuer a emettre vers elle parce qu'elle avait ete acceptee
  * un jour.
  */
-export function resolveEndpoint(category: EndpointCategory): {
+export function resolveEndpoint(
+  category: EndpointCategory,
+  /**
+   * Depart entre plusieurs destinations d'une meme categorie. Whisper et Griot
+   * partagent la categorie « transcription » parce qu'ils recoivent la meme
+   * chose — de l'audio brut de consultation, donc une donnee identifiante —
+   * et doivent donc subir les memes restrictions. Seule leur adresse differe.
+   */
+  match?: (e: EndpointRow) => boolean,
+): {
   endpoint: EndpointRow;
   secret: string | null;
 } | null {
-  const rows = listEndpoints().filter((e) => e.category === category && e.enabled === 1);
+  const rows = listEndpoints().filter(
+    (e) => e.category === category && e.enabled === 1 && (!match || match(e)),
+  );
   if (rows.length === 0) return null;
 
   const evaluation = evaluateCurrent();
@@ -618,8 +629,13 @@ export function resolveEndpoint(category: EndpointCategory): {
 }
 
 /** Motif de refus, quand `resolveEndpoint` ne rend rien alors qu'une ligne existe. */
-export function blockingReason(category: EndpointCategory): string | null {
-  const rows = listEndpoints().filter((e) => e.category === category && e.enabled === 1);
+export function blockingReason(
+  category: EndpointCategory,
+  match?: (e: EndpointRow) => boolean,
+): string | null {
+  const rows = listEndpoints().filter(
+    (e) => e.category === category && e.enabled === 1 && (!match || match(e)),
+  );
   if (rows.length === 0) return null;
   const ids = new Set(rows.map((e) => e.id));
   const evaluation = evaluateCurrent();

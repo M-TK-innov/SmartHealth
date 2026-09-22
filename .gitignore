@@ -23,3 +23,11 @@ dist-desktop2/
 public/icons/
 electron/icon.png
 electron/icon.ico
+
+# Supports de la communication BWAI 2026 : a trancher, hors du depot pour l instant.
+docs/bwai-2026/
+
+# Caches Python des services auxiliaires
+__pycache__/
+*.py[cod]
+.venv/

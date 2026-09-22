@@ -150,6 +150,12 @@ CREATE TABLE IF NOT EXISTS transcript_segment (
   speaker_source     TEXT DEFAULT 'auto',   -- auto | manual : « manual » fait autorite
   speaker_confidence REAL,                  -- 0..1, confiance de la detection
   pitch_hz           REAL,                  -- hauteur mediane de la voix sur le tour
+  -- Phrase reellement prononcee, quand la colonne text en est une traduction.
+  -- Conservee parce qu'une traduction est une interpretation : elle peut inverser une
+  -- negation ou deplacer une posologie, et le dossier doit garder de quoi le
+  -- verifier apres coup, pas seulement au moment de la validation.
+  source_text        TEXT,
+  source_language    TEXT,                  -- langue de source_text (« fon »...)
   created_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_segment_consult ON transcript_segment(consultation_id, seq);

@@ -21,6 +21,11 @@ interface SegmentIn {
   endMs?: number;
   confidence?: number;
   language?: string;
+  pitchHz?: number;
+  speakerLocked?: boolean;
+  /** Phrase prononcee, quand `text` en est une traduction automatique. */
+  sourceText?: string;
+  sourceLanguage?: string;
 }
 
 export function GET(_req: Request, ctx: Ctx) {

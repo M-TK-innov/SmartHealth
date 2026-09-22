@@ -56,8 +56,9 @@ et la base SQLite**. Un centre de santé sans connexion installe l'exécutable e
 npm run desktop:build
 ```
 
-L'installateur est produit dans `dist-desktop/`. `npm run desktop:dev` ouvre la fenêtre sur le
-serveur de développement ; `npm run desktop:dir` produit l'application décompressée sans installateur.
+L'installateur est produit dans `dist-desktop/`. `npm run desktop:dev` démarre le serveur, les
+services auxiliaires et la fenêtre d'une seule commande ; `npm run desktop:dir` produit
+l'application décompressée sans installateur.
 
 > Le script de préparation **refuse de construire** si une base de données ou un fichier `.env`
 > se trouve encore dans le paquet. Le traceur de fichiers de Next recopie sinon `data/*.db` dans la
@@ -204,6 +205,12 @@ npm run dev
 Ouvrez <http://localhost:3000>. Le jeu de démonstration contient un praticien, trois patients aux
 profils cliniques contrastés et une consultation pédiatrique prête à analyser.
 
+Cette commande démarre aussi les **services auxiliaires** que l'application sait piloter — à ce
+jour le service de transcription en fon (`services/griot/`), qui demande PyTorch et tourne donc
+dans un processus Python séparé. Un poste qui ne l'a pas installé démarre normalement : le message
+dit ce qui manque, et les trois autres moteurs de transcription fonctionnent. Même chose dans
+l'exécutable desktop, qui lance ses services lui-même.
+
 ### Clé IA (facultative)
 
 Renseignez `ANTHROPIC_API_KEY` dans `.env.local` pour l'extraction par modèle de langage.
@@ -221,13 +228,51 @@ Le geste tient en **un bouton** : on appuie, on parle, on appuie pour arrêter. 
 patient est un préalable bloquant. En l'absence de micro, la transcription se saisit ou se colle à
 la main — le reste de la chaîne est identique.
 
-**Trois moteurs de transcription**, interchangeables sans toucher au reste de l'application :
+**Quatre moteurs de transcription**, interchangeables sans toucher au reste de l'application :
 
 | Moteur | Fonctionnement | Confidentialité |
 |---|---|---|
 | Navigateur (défaut) | Web Speech API, immédiat, aucun téléchargement. Chrome/Edge. | L'audio transite par l'éditeur du navigateur |
 | **Whisper sur l'appareil** | Modèle open source (OpenAI, MIT) exécuté dans le navigateur via transformers.js. ~85 Mo au premier lancement, puis en cache. | **L'audio ne quitte jamais l'appareil** |
 | Whisper serveur | POST vers un `whisper.cpp` ou `faster-whisper` de l'établissement (`WHISPER_ENDPOINT`). | L'audio reste sur le réseau interne |
+| **Griot — fon** | Modèle ouvert à **adaptateurs de langue**, servi par la structure (`GRIOT_ENDPOINT`). Seul moteur qui sache transcrire une consultation tenue en **fon**, avec traduction vers le français en second étage. | L'audio reste sur le réseau interne |
+
+Griot n'est pas un Whisper ordinaire : la langue se choisit **au chargement du modèle**
+(`language="fon"`) et le tokenizer vit dans un sous-dossier du dépôt. Changer de langue veut dire
+changer d'instance, d'où un cache d'adaptateurs borné côté service. Il demande PyTorch et du code de
+modélisation propre à son dépôt : il ne tourne donc pas dans le navigateur, il est porté par un petit
+service Python (`services/griot/`) qui parle exactement le même contrat HTTP que whisper.cpp.
+L'application ne sait pas qu'elle change de moteur, elle change d'adresse. Les deux partagent la
+catégorie réseau « transcription », parce qu'ils reçoivent la même chose — de l'audio brut de
+consultation, donc une donnée identifiante.
+
+> **Le modèle de parole ne traduit pas.** L'adaptateur « fon » rend du texte fon — aucun modèle de
+> reconnaissance vocale ne fait autre chose.
+
+#### Du fon au français, avant la validation
+
+Le médecin lit le français : une transcription en fon ne lui sert à rien s'il ne parle pas la langue.
+Un **second étage** du même service traduit donc le texte fon avant de le rendre, avec un modèle de
+traduction distinct (`TRADUCTION_MODELE`), dans le même aller-retour que la transcription.
+
+**La phrase en fon ne disparaît jamais.** Elle s'affiche sous le français à l'écran de validation et
+reste dans le dossier. Ce n'est pas un ornement : une traduction automatique est une interprétation,
+elle peut inverser une négation — « pas de fièvre » devenant « fièvre » —, déplacer une posologie ou
+perdre une durée. Rien en aval ne saurait le repérer ; l'extraction, le compte rendu et l'ordonnance
+hériteraient de l'erreur en la tenant pour la parole du patient. Le seul garde-fou possible est que
+le praticien ait sous les yeux ce qui a été prononcé. Si la traduction échoue, l'extrait est rendu en
+fon plutôt que perdu.
+
+Aucun modèle fon → français léger n'est aujourd'hui à la fois évalué sur des consultations et
+clairement licencié pour le soin : le choix est **déclaré par la structure** et engage le responsable
+de traitement. Le tableau des modèles vérifiés, avec leur licence, est dans
+[`services/griot/README.md`](services/griot/README.md).
+
+**Ni la transcription ni la traduction du fon n'ont été mesurées par nous.** Le trajet des données
+est intégré et testé ; évaluer ces modèles sur des consultations réelles est un travail d'annotation
+qui reste à faire, et qui demande des locuteurs. Deux modèles en série composent leurs erreurs : une
+transcription approximative traduite approximativement donne un texte français fluide et faux, la
+pire des sorties parce qu'elle ne réveille pas la méfiance.
 
 Whisper ne transcrit pas en flux continu : l'audio est découpé aux silences, chaque tour de parole
 devient un bloc. Ce découpage donne aussi l'unité de base de la détection de locuteur.
@@ -255,6 +300,34 @@ disponible quand la détection se trompe trop (plusieurs accompagnants, voix pro
 
 Mesuré sur la consultation pédiatrique de démonstration (19 tours) : 16 correctement attribués,
 3 laissés indéterminés, **aucune attribution fausse**.
+
+### Reconnaissance des mots-clés cliniques
+
+Un moteur vocal n'a jamais entendu « artéméther-luméfantrine » aussi souvent que « arrête me ter ».
+Deux leviers, l'un avant et l'autre après :
+
+- **biaisage** — l'application souffle au moteur les termes attendus (`initial_prompt`), construits
+  depuis ses propres terminologies. Le formulaire est la seule source : ajouter une molécule la rend
+  reconnaissable à la dictée, sans double saisie. Les termes sont triés par poids parce que le modèle
+  tronque l'amorce — ce qui doit survivre, c'est le paludisme, pas l'hypertension ;
+- **normalisation** — au retour, un quasi-manque est ramené au terme canonique
+  (`lib/transcription/keywords.ts`).
+
+Les deux ne s'appliquent qu'à une **sortie française**. Souffler une amorce en français médical à un
+adaptateur fon le tirerait vers une langue qu'il n'est pas en train de transcrire, et passer du texte
+fon dans un lexique de DCI françaises abîmerait un texte correct au lieu de le corriger.
+
+La règle est celle de l'attribution du locuteur : **en cas d'ambiguïté, on ne corrige pas.** Trois
+verrous cumulatifs — une tolérance qui dépend de la longueur, un plafond relatif, et l'exigence que
+le meilleur candidat soit *strictement* meilleur que le suivant. Entre deux molécules voisines, le
+système s'abstient : une molécule corrigée vers la mauvaise voisine est plausible et passera la
+relecture, alors qu'une molécule mal orthographiée saute aux yeux. Un fragment portant un chiffre
+n'est jamais touché — c'est une posologie. Les corrections appliquées sont rendues avec le texte,
+jamais silencieuses.
+
+Le mot employé par le locuteur est respecté : « doliprane » est reconnu, donc protégé de toute
+correction, mais **pas** réécrit en « Paracetamol ». La transcription reste fidèle à ce qui a été dit ;
+c'est l'extraction qui fait l'équivalence.
 
 ### Extraction clinique
 
@@ -420,14 +493,16 @@ scripts/
 
 | Commande | Effet |
 |---|---|
-| `npm run dev` | serveur de développement |
-| `npm run build` / `npm start` | production web |
+| `npm run dev` | serveur de développement **et services auxiliaires** |
+| `npm run build` / `npm start` | production web, services auxiliaires compris |
+| `npm run services` | les services auxiliaires seuls (avant une démonstration) |
+| `npm run dev:next` / `npm run start:next` | serveur web seul, sans les services |
 | `npm run typecheck` | vérification TypeScript |
-| `npm test` | 31 tests : politique de cache du service worker, hiérarchie des rôles, mots de passe |
+| `npm test` | 122 tests : restrictions réseau, lancement des services, traduction, rôles, mots de passe |
 | `npm run seed -- --reset` | réinitialise la base de démonstration (un compte par rôle) |
 | `npm run create-admin` | crée le premier super-administrateur (production) |
 | `npm run icons` | régénère les icônes PNG et ICO (aucune dépendance graphique) |
-| `npm run desktop:dev` | fenêtre Electron sur le serveur de développement |
+| `npm run desktop:dev` | serveur, services et fenêtre Electron, d'une seule commande |
 | `npm run desktop:prepare` | build `standalone` + assemblage, avec purge des données |
 | `npm run desktop:build` | installateur Windows dans `dist-desktop/` |
 
