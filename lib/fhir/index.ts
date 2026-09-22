@@ -8,6 +8,8 @@
  */
 
 import { fhirBaseUrl } from '@/lib/net/public-url';
+import { networkConfig } from '@/lib/net/store';
+import { securiteRest } from './securite';
 import type {
   Allergy,
   Consultation,
@@ -563,6 +565,7 @@ export function capabilityStatement(): Record<string, unknown> {
     'ServiceRequest',
     'Composition',
   ];
+  const securite = securiteRest(networkConfig().fhir_access);
   return {
     resourceType: 'CapabilityStatement',
     status: 'active',
@@ -578,6 +581,9 @@ export function capabilityStatement(): Record<string, unknown> {
         mode: 'server',
         documentation:
           'API de lecture destinee a l interoperabilite avec les systemes d information hospitaliers et les registres nationaux.',
+        // Le dossier medical n'est pas servi a un appelant anonyme : le dire ici
+        // est la seule facon qu'a un systeme tiers de l'apprendre avant le 401.
+        ...(securite ? { security: securite } : {}),
         resource: resourceTypes.map((type) => ({
           type,
           interaction: [{ code: 'read' }, { code: 'search-type' }],
