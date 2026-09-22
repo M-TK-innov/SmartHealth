@@ -81,7 +81,14 @@ rapide pour vérifier.
 npm run desktop:dev
 ```
 
-Ouvre la fenêtre Electron sur le serveur de développement (`npm run dev` doit tourner en parallèle).
+Démarre le serveur de développement, les services auxiliaires et la fenêtre Electron d'une seule
+commande. Un seul Ctrl+C arrête l'ensemble.
+
+L'application installée fait le même travail seule : au lancement, elle démarre son serveur web et
+les services auxiliaires qu'elle trouve, puis les arrête en quittant. Le service de transcription en
+fon (`services/griot/`) **n'est pas embarqué** dans l'installateur — les poids du modèle pèsent
+plusieurs gigaoctets — mais s'il est déposé à côté de l'exécutable, il est lancé automatiquement.
+Son absence n'empêche rien : les trois autres moteurs de transcription restent disponibles.
 
 ---
 

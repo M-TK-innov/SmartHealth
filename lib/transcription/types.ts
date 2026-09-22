@@ -10,6 +10,11 @@
  *     est telecharge une fois puis mis en cache.
  *   - `whisper-serveur` : POST de l'audio vers un whisper.cpp ou
  *     faster-whisper heberge par l'etablissement.
+ *   - `griot-serveur` : meme trajet, mais vers un service portant Griot, un
+ *     modele ouvert dote d'un ADAPTATEUR PAR LANGUE. C'est le seul des quatre
+ *     qui sache transcrire une consultation tenue en fon. Le modele de parole
+ *     ne traduit pas ; un second etage du service s'en charge, avec un modele
+ *     de traduction distinct, et rend les deux textes.
  *
  * Le choix est clinique autant que technique : dans un cabinet, la
  * confidentialite peut interdire `webspeech`, et un poste ancien peut ne pas
@@ -17,7 +22,7 @@
  * reste de l'application.
  */
 
-export type EngineId = 'webspeech' | 'whisper-local' | 'whisper-serveur';
+export type EngineId = 'webspeech' | 'whisper-local' | 'whisper-serveur' | 'griot-serveur';
 
 export interface TranscriptionChunk {
   text: string;
@@ -29,6 +34,17 @@ export interface TranscriptionChunk {
   endMs?: number;
   /** Hauteur mediane de la voix sur ce tour, si le moteur peut la mesurer. */
   pitchHz?: number;
+  /**
+   * Phrase reellement prononcee, quand `text` en est une traduction.
+   *
+   * Elle n'est pas decorative : c'est le seul recours du praticien si la
+   * traduction inverse une negation ou deplace une posologie. Rien en aval —
+   * extraction, compte rendu, ordonnance — ne peut rattraper cela.
+   */
+  sourceText?: string;
+  /** Langue de `sourceText` (« fon »...). */
+  sourceLanguage?: string;
+  translated?: boolean;
 }
 
 export interface EngineStatus {
@@ -79,6 +95,15 @@ export const ENGINES: EngineDescriptor[] = [
     label: 'Whisper — serveur de l etablissement',
     summary: 'Envoie l audio a un whisper.cpp ou faster-whisper heberge localement.',
     privacy: "L'audio reste sur le reseau de l'etablissement.",
+    offline: true,
+  },
+  {
+    id: 'griot-serveur',
+    label: 'Griot — consultation en fon',
+    summary:
+      'Modele ouvert a adaptateurs de langue, servi par la structure. Transcrit le fon, puis le traduit en francais si un modele de traduction est declare. La phrase en fon reste affichee a la validation.',
+    privacy: "L'audio reste sur le reseau de l'etablissement.",
+    download: 'Modele charge par le serveur, rien a telecharger sur le poste',
     offline: true,
   },
 ];
