@@ -298,8 +298,38 @@ Le praticien corrige d'un clic sur l'étiquette. **Sa décision fait autorité**
 `manual` et aucune ré-attribution ultérieure ne la touche. Le mode « je bascule moi-même » reste
 disponible quand la détection se trompe trop (plusieurs accompagnants, voix proches).
 
-Mesuré sur la consultation pédiatrique de démonstration (19 tours) : 16 correctement attribués,
-3 laissés indéterminés, **aucune attribution fausse**.
+#### Mesure, recalculée à la demande
+
+```bash
+npm run mesure
+```
+
+Sur la consultation pédiatrique de démonstration (**20 tours annotés**, `corpus/`) :
+
+| | |
+|---|---|
+| correctement attribués | 16 |
+| laissés indéterminés | 3 |
+| **confusions médecin / non-médecin** | **0** |
+| confusions patient / accompagnant | 1 |
+
+Les deux dernières lignes ne sont pas du même ordre, et les confondre ferait perdre l'essentiel.
+Prendre le patient pour le médecin **change la nature de l'énoncé** : une plainte devient une
+observation clinique, entre au dossier, et rien ne la signale. Prendre le patient pour sa mère garde
+l'énoncé du côté de celui qui consulte. La première est un **invariant tenu à zéro par un test** ; la
+seconde est un compte suivi, figé dans le corpus pour qu'une dégradation se voie.
+
+La confusion qui subsiste est le tour « Non, jamais eu de problème avec les médicaments » : c'est la
+mère qui répond, et aucun indice du texte ne désigne l'un plutôt que l'autre.
+
+> **Ces chiffres ne mesurent pas une performance.** Un seul dialogue, écrit puis annoté à la main,
+> aucun locuteur réel, aucune hauteur de voix — le signal acoustique n'est donc pas éprouvé ici. Ils
+> montrent la **forme** du résultat : le système perd du rappel plutôt que de la précision. Une
+> mesure de performance demande des enregistrements cliniques annotés par des soignants.
+
+Le corpus est la **même source** que le jeu de démonstration (`npm run seed`) : deux copies auraient
+divergé à la première correction, et la mesure aurait alors porté sur autre chose que ce qu'on
+montre.
 
 ### Reconnaissance des mots-clés cliniques
 
@@ -498,7 +528,8 @@ scripts/
 | `npm run services` | les services auxiliaires seuls (avant une démonstration) |
 | `npm run dev:next` / `npm run start:next` | serveur web seul, sans les services |
 | `npm run typecheck` | vérification TypeScript |
-| `npm test` | 122 tests : restrictions réseau, lancement des services, traduction, rôles, mots de passe |
+| `npm test` | 140 tests : invariant d'attribution, restrictions réseau, services, traduction, rôles |
+| `npm run mesure` | recalcule les mesures d'attribution sur corpus annoté |
 | `npm run seed -- --reset` | réinitialise la base de démonstration (un compte par rôle) |
 | `npm run create-admin` | crée le premier super-administrateur (production) |
 | `npm run icons` | régénère les icônes PNG et ICO (aucune dépendance graphique) |
