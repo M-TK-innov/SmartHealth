@@ -27,6 +27,10 @@ const PUBLIC_API = [
   '/api/organizations',
   // Amorcage : la route se verrouille d'elle-meme des qu'un compte existe.
   '/api/auth/bootstrap',
+  // Diagnostic des prerequis : il s'adresse au responsable qui installe, donc
+  // avant qu'il n'ait de compte. La route se referme elle aussi derriere
+  // server:manage des qu'un compte existe, et n'expose qu'un etat de machine.
+  '/api/prerequis',
 ];
 
 export function middleware(req: NextRequest) {
