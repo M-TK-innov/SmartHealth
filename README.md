@@ -359,6 +359,39 @@ Le mot employé par le locuteur est respecté : « doliprane » est reconnu, don
 correction, mais **pas** réécrit en « Paracetamol ». La transcription reste fidèle à ce qui a été dit ;
 c'est l'extraction qui fait l'équivalence.
 
+### Amélioration continue, à partir des corrections du praticien
+
+Quand un médecin reprend une transcription, il produit sans le savoir un **exemple annoté** :
+la machine avait écrit ceci, il fallait cela. C'est la seule source d'apprentissage qu'un poste
+hors ligne possède, et elle existait déjà — elle n'était simplement pas ramassée.
+
+Rien ne sort du poste. Aucune correction ne remonte vers un serveur, aucune ne descend depuis un
+autre : l'amélioration d'un dispensaire lui appartient, et la mutualiser supposerait de faire
+circuler des extraits de consultation. Les leçons **ne franchissent pas non plus la structure**
+qui les a produites.
+
+Une leçon retenue à tort s'appliquerait en silence à toutes les transcriptions suivantes, et le
+praticien relirait un texte déjà abîmé en croyant relire la machine. D'où quatre garde-fous :
+
+| | |
+|---|---|
+| **Répétition exigée** | une correction n'est appliquée qu'après être apparue dans **deux consultations distinctes**. Une correction isolée peut être une faute de frappe ou un mot rare. |
+| **Ressemblance exigée** | on n'apprend que ce que la machine a **mal entendu** — « arthemeter » et « artemether » s'écrivent presque pareil parce qu'ils se prononcent pareil. « Il faudrait revenir » → « Revenez » est une reformulation : la retenir reviendrait à apprendre le style d'un praticien un jour donné. |
+| **Aucun chiffre** | une posologie, une température, un âge sont des **données de patient**. Les apprendre replaquerait la valeur d'un patient sur les suivants. |
+| **Dénominations protégées** | un mot appartenant à une dénomination officielle n'est jamais « corrigé » : l'apprendre corromprait la molécule à chaque consultation suivante, sur une ligne d'ordonnance. |
+
+Les corrections appliquées sont **rendues avec le texte**, jamais posées en douce, comme celles du
+lexique. Un relecteur voit ce qui a été appris et peut l'écarter — définitivement.
+
+```
+Administration → ce que l'installation a appris
+```
+
+L'export `?format=jsonl` prépare un ré-entraînement ultérieur, **sur une machine dédiée et sur
+décision écrite** : il demande `server:manage`, et il est inscrit au journal. Entraîner un modèle
+sur des consultations est un traitement de données de santé à part entière, avec sa propre base
+légale — ce n'est pas une opération que l'application déclenche seule.
+
 ### Extraction clinique
 
 Produit une structure complète (`lib/ai/schema.ts`) : identité, motif, histoire de la maladie,
@@ -528,7 +561,7 @@ scripts/
 | `npm run services` | les services auxiliaires seuls (avant une démonstration) |
 | `npm run dev:next` / `npm run start:next` | serveur web seul, sans les services |
 | `npm run typecheck` | vérification TypeScript |
-| `npm test` | 140 tests : invariant d'attribution, restrictions réseau, services, traduction, rôles |
+| `npm test` | 189 tests : apprentissage local, prérequis, invariant d'attribution, réseau, rôles |
 | `npm run mesure` | recalcule les mesures d'attribution sur corpus annoté |
 | `npm run seed -- --reset` | réinitialise la base de démonstration (un compte par rôle) |
 | `npm run create-admin` | crée le premier super-administrateur (production) |
