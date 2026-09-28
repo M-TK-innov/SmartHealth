@@ -5,6 +5,8 @@ import type { EndpointRow } from '@/lib/net/store';
 import { indexClinique, promptBiaisage } from '@/lib/transcription/clinical-lexicon';
 import { normalizeKeywords } from '@/lib/transcription/keywords';
 import { doitTraduire, estFrancais, resoudreSortie } from '@/lib/transcription/traduction';
+import { appliquerLecons } from '@/lib/apprentissage/application';
+import { leconsAppliquees } from '@/lib/apprentissage/store';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -119,7 +121,11 @@ export function GET(req: Request) {
 
 export function POST(req: Request) {
   return guarded(async () => {
-    await apiRequire('transcript:record');
+    const ctx = await apiRequire('transcript:record');
+    // Les lecons tirees des corrections restent dans la structure qui les a
+    // produites : une habitude de vocabulaire d'un dispensaire n'a pas a
+    // s'appliquer aux consultations d'un autre.
+    const org = ctx.user.organization_id ?? null;
 
     const incoming = await req.formData();
     const backend = backendOf(incoming.get('backend'));
@@ -177,7 +183,7 @@ export function POST(req: Request) {
     // francais medical n'aiderait pas un adaptateur fon — elle le tirerait vers
     // une langue qu'il n'est pas en train de transcrire.
     if (francais) {
-      const bias = promptBiaisage();
+      const bias = promptBiaisage(org);
       outgoing.append('prompt', bias);
       outgoing.append('initial_prompt', bias);
     }
@@ -224,9 +230,20 @@ export function POST(req: Request) {
 
       // Le lexique clinique francais s'applique a ce qui est effectivement en
       // francais — donc aussi a une traduction, qui en beneficie.
-      const { text: corrige, corrections } = estFrancais(sortie.language)
-        ? normalizeKeywords(sortie.text, indexClinique())
+      const normalise = estFrancais(sortie.language)
+        ? normalizeKeywords(sortie.text, indexClinique(org))
         : { text: sortie.text, corrections: [] };
+
+      // Puis les lecons tirees des corrections deja faites par les praticiens de
+      // cette structure. Une passe a part, et non une entree de plus dans le
+      // lexique : celui-ci PROTEGE les formes qu'il connait au lieu de les
+      // remplacer, ce qui rendrait la lecon inerte.
+      const apprises = estFrancais(sortie.language)
+        ? appliquerLecons(normalise.text, leconsAppliquees(org))
+        : { text: normalise.text, corrections: [] };
+
+      const corrige = apprises.text;
+      const corrections = [...normalise.corrections, ...apprises.corrections];
 
       return NextResponse.json({
         ...sortie,
