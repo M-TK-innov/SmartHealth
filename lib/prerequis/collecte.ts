@@ -11,13 +11,16 @@
  * exception qui masquerait les autres constats.
  */
 
-import { existsSync, accessSync, constants, mkdirSync, readdirSync } from 'node:fs';
+import { existsSync, accessSync, constants, mkdirSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import type { Releve } from './regles.ts';
 
 const WIN = process.platform === 'win32';
+
+/** Depot du modele de transcription sur appareil, tel que l'installateur l'embarque. */
+const MODELE_LOCAL = 'Xenova/whisper-small';
 
 /** Modules exiges par le service de transcription en langue locale. */
 const MODULES_SERVICE = ['fastapi', 'uvicorn', 'torch', 'transformers', 'librosa', 'soundfile'];
@@ -124,11 +127,14 @@ function modulesManquants(py: { commande: string; args: string[] }): string[] {
  */
 function whisperPresent(racines: string[]): boolean {
   for (const racine of racines) {
-    const dossier = path.join(racine, 'modeles', 'whisper');
+    // public/ est servi a la racine du site : c'est de la que le navigateur
+    // ira chercher les poids. On teste le fichier de configuration, quelques
+    // centaines d'octets, et non les poids eux-memes.
+    const config = path.join(racine, 'public', 'modeles', ...MODELE_LOCAL.split('/'), 'config.json');
     try {
-      if (existsSync(dossier) && readdirSync(dossier).length > 0) return true;
+      if (existsSync(config) && statSync(config).size > 0) return true;
     } catch {
-      // dossier illisible : considere absent
+      // chemin illisible : considere absent
     }
   }
   return false;

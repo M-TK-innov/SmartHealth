@@ -31,3 +31,6 @@ docs/bwai-2026/
 __pycache__/
 *.py[cod]
 .venv/
+
+# Poids des modeles : 240 Mo de binaires, recuperes par « npm run modeles ».
+public/modeles/

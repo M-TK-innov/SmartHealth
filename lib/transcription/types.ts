@@ -87,7 +87,7 @@ export const ENGINES: EngineDescriptor[] = [
     label: 'Whisper — sur l appareil',
     summary: 'Modele open source execute dans le navigateur. Meilleure qualite en francais.',
     privacy: "L'audio ne quitte jamais l'appareil.",
-    download: '~85 Mo la premiere fois, puis mis en cache',
+    download: 'Embarque par l installateur desktop ; ~240 Mo a telecharger une fois sur une installation web',
     offline: true,
   },
   {

@@ -203,10 +203,11 @@ export function verifier(r: Releve): ConstatPrerequis[] {
         detail:
           "Le moteur qui transcrit sans rien envoyer hors du poste n'est pas present. " +
           'Il se telecharge au premier usage, ce qui demande une connexion Internet : ' +
-          'sur un poste isole, ce moteur restera indisponible.',
+          'sur un poste isole, ce moteur — le seul qui ne fasse rien sortir — restera indisponible.',
         remede:
-          'Installer la version desktop, qui embarque le modele, ou connecter le poste une fois ' +
-          'le temps du telechargement (environ 85 Mo, garde en cache ensuite).',
+          "Installer la version desktop, qui embarque le modele. Sur une installation web : " +
+          '« npm run modeles » depose les poids (240 Mo) une fois pour toutes, ou connecter le ' +
+          'poste le temps du premier usage.',
       }),
     );
   }
