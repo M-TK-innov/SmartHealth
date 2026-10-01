@@ -89,7 +89,6 @@ function assembler(): LexiconTerm[] {
   return termes;
 }
 
-let cacheIndex: LexiconIndex | null = null;
 let cacheTermes: LexiconTerm[] | null = null;
 
 export function lexiqueClinique(): LexiconTerm[] {
@@ -119,26 +118,48 @@ function avecApprentissage(organizationId: string | null): LexiconTerm[] {
 }
 
 /**
- * A appeler quand une lecon est apprise ou ecartee : l'index general est mis
- * en cache, et le laisser tel quel ferait ignorer la nouvelle lecon jusqu'au
- * redemarrage du serveur.
+ * Index et amorce, memorises PAR STRUCTURE.
+ *
+ * Les lecons apprises ne franchissent pas la structure qui les a produites :
+ * il y a donc un index par organisation, et non un seul. Sans ce cache,
+ * chacun etait reconstruit a CHAQUE extrait — un extrait toutes les quelques
+ * secondes pendant toute la consultation, sur un poste qu'on sait modeste.
+ */
+const indexParStructure = new Map<string, LexiconIndex>();
+const amorceParStructure = new Map<string, string>();
+
+const cle = (organizationId: string | null) => organizationId ?? '*';
+
+/**
+ * A appeler quand une lecon est apprise ou ecartee.
+ *
+ * Toutes les structures sont vidées, pas seulement celle qui a appris : le
+ * cout d'une reconstruction est de quelques millisecondes, alors qu'un index
+ * perime ferait ignorer la lecon jusqu'au redemarrage du serveur.
  */
 export function invaliderIndexClinique() {
-  cacheIndex = null;
+  indexParStructure.clear();
+  amorceParStructure.clear();
 }
 
-/** Index de correction. */
+/** Index de correction, memorise par structure. */
 export function indexClinique(organizationId: string | null = null): LexiconIndex {
-  if (organizationId === null) {
-    if (!cacheIndex) cacheIndex = buildIndex(avecApprentissage(null));
-    return cacheIndex;
+  const k = cle(organizationId);
+  let index = indexParStructure.get(k);
+  if (!index) {
+    index = buildIndex(avecApprentissage(organizationId));
+    indexParStructure.set(k, index);
   }
-  // Les lecons ne franchissent pas la structure qui les a produites : l'index
-  // d'une organisation ne peut donc pas etre mis en cache pour toutes.
-  return buildIndex(avecApprentissage(organizationId));
+  return index;
 }
 
 /** Prompt de biaisage a transmettre au moteur de transcription. */
 export function promptBiaisage(organizationId: string | null = null): string {
-  return buildBiasPrompt(avecApprentissage(organizationId));
+  const k = cle(organizationId);
+  let amorce = amorceParStructure.get(k);
+  if (amorce === undefined) {
+    amorce = buildBiasPrompt(avecApprentissage(organizationId));
+    amorceParStructure.set(k, amorce);
+  }
+  return amorce;
 }
