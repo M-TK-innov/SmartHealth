@@ -10,7 +10,7 @@
  */
 
 import { DatabaseSync } from 'node:sqlite';
-import { mkdirSync, existsSync, rmSync } from 'node:fs';
+import { mkdirSync, existsSync, rmSync, readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { SCHEMA_SQL } from '../lib/schema.ts';
@@ -242,27 +242,18 @@ insert('consultation', {
   updated_at: now(),
 });
 
-const DEMO = [
-  ['clinician', 'Bonjour madame, asseyez-vous. Qu est-ce qui amene le petit Koffi aujourd hui ?'],
-  ['companion', 'Docteur, il a le corps chaud depuis trois jours, et il ne mange plus.'],
-  ['clinician', 'Depuis trois jours. Est-ce qu il vomit ?'],
-  ['companion', 'Il a vomi deux fois hier soir. Mais il n a pas la diarrhee.'],
-  ['clinician', 'Est-ce qu il tousse ?'],
-  ['companion', 'Non, il ne tousse pas. Mais il tremble la nuit, il a des frissons.'],
-  ['clinician', 'D accord. Est-ce qu il dort sous moustiquaire ?'],
-  ['companion', 'Parfois seulement, la moustiquaire est dechiree.'],
-  ['clinician', 'Je vais l examiner. Sa temperature est a 39,2 degres. Le pouls est a 132.'],
-  ['clinician', 'Il pese 13,5 kilos. Les conjonctives sont un peu pales.'],
-  ['clinician', 'L abdomen est souple, la gorge est propre, les tympans sont normaux.'],
-  ['clinician', 'Le tableau evoque fortement un paludisme simple. On va faire un test rapide, un TDR paludisme.'],
-  ['clinician', 'Je demande aussi une numeration formule sanguine pour verifier l anemie.'],
-  ['companion', 'Est-ce qu il est allergique a quelque chose ? Non, jamais eu de probleme avec les medicaments.'],
-  ['clinician', 'Bien. Je vous prescris de l artemether lumefantrine, deux fois par jour pendant trois jours, a prendre au cours des repas.'],
-  ['clinician', 'Et du paracetamol 250 milligrammes, trois fois par jour pendant trois jours pour la fievre.'],
-  ['clinician', 'Faites-le boire beaucoup. Reparez la moustiquaire, c est important.'],
-  ['clinician', 'Si il convulse, s il refuse de boire ou s il devient somnolent, revenez immediatement aux urgences.'],
-  ['clinician', 'Revenez me voir dans trois jours pour un controle.'],
-];
+/**
+ * La transcription de demonstration vient du CORPUS ANNOTE, pas d'une copie.
+ *
+ * Les deux ont besoin des memes tours avec les memes etiquettes : l'un pour
+ * peupler la demonstration, l'autre pour mesurer l'attribution (npm run mesure).
+ * Deux copies auraient diverge a la premiere correction, et la mesure aurait
+ * alors porte sur autre chose que ce qu'on montre.
+ */
+const CORPUS = JSON.parse(
+  readFileSync(new URL('../corpus/consultation-pediatrique.json', import.meta.url), 'utf8'),
+);
+const DEMO = CORPUS.tours.map((t) => [t.gold, t.text]);
 
 DEMO.forEach(([speaker, text], i) => {
   insert('transcript_segment', {

@@ -25,6 +25,22 @@ const standalone = path.join(root, '.next', 'standalone');
 // avant de construire, sinon un clone neuf produirait un paquet sans icone.
 spawnSync(process.execPath, [path.join('scripts', 'gen-icons.mjs')], { stdio: 'inherit' });
 
+// Les poids du modele de transcription sur appareil, meme raison : hors depot,
+// recuperes ici. Sans eux, l'installateur produit une application qui ira
+// chercher son modele sur Internet au premier usage — c'est-a-dire aucun
+// moteur local sur un poste isole, precisement la ou il sert le plus.
+console.log('\nModele de transcription sur appareil...\n');
+const modele = spawnSync(process.execPath, [path.join('scripts', 'modeles.mjs')], { stdio: 'inherit' });
+if (modele.status !== 0) {
+  console.error(
+    "\nARRET : les poids du modele n'ont pas pu etre recuperes.\n" +
+      'Construire malgre tout produirait un installateur qui promet un moteur\n' +
+      'hors ligne sans le fournir. Relancez avec une connexion, ou retirez\n' +
+      'sciemment cette etape si vous assumez un paquet sans modele embarque.',
+  );
+  process.exit(1);
+}
+
 if (!process.argv.includes('--no-build')) {
   console.log('\nConstruction de la cible desktop (sortie standalone)...\n');
   const res = spawnSync('npx', ['next', 'build'], {

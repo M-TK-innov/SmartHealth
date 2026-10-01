@@ -1,5 +1,8 @@
 import { body, fail, ok } from '@/lib/api';
 import { apiRequire, guarded } from '@/lib/auth/guard';
+import { audit } from '@/lib/db';
+import { couplesCorriges } from '@/lib/apprentissage/corrections';
+import { enregistrerCorrections } from '@/lib/apprentissage/store';
 import {
   appendSegments,
   getConsultation,
@@ -21,6 +24,11 @@ interface SegmentIn {
   endMs?: number;
   confidence?: number;
   language?: string;
+  pitchHz?: number;
+  speakerLocked?: boolean;
+  /** Phrase prononcee, quand `text` en est une traduction automatique. */
+  sourceText?: string;
+  sourceLanguage?: string;
 }
 
 export function GET(_req: Request, ctx: Ctx) {
@@ -60,7 +68,37 @@ export function PUT(req: Request, ctx: Ctx) {
     if (consultation.status === 'signed') return fail('Consultation signee : transcription verrouillee.', 409);
 
     const { text } = await body<{ text?: string }>(req);
+
+    // Ce que le praticien vient de reprendre est un exemple annote : la machine
+    // avait ecrit ceci, il fallait cela. C'est la seule source d'apprentissage
+    // qu'un poste hors ligne possede, et elle existait deja — elle n'etait
+    // simplement pas ramassee.
+    //
+    // Rien n'est applique tout de suite : le couple attend une repetition dans
+    // une autre consultation. Une lecon retenue a tort abimerait en silence
+    // toutes les transcriptions suivantes.
+    const avant = renderTranscript(id);
     replaceTranscript(id, text ?? '');
+
+    try {
+      const apprises = enregistrerCorrections({
+        couples: couplesCorriges(avant, text ?? ''),
+        consultationId: id,
+        organizationId: consultation.organization_id ?? null,
+      });
+      if (apprises > 0) {
+        audit({
+          action: 'update',
+          entity: 'apprentissage_correction',
+          entityId: id,
+          detail: { couples: apprises },
+        });
+      }
+    } catch {
+      // L'apprentissage est un bonus : son echec ne doit jamais faire perdre
+      // la correction que le praticien vient de saisir.
+    }
+
     return ok({ segments: getSegments(id), transcript: renderTranscript(id) });
   });
 }

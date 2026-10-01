@@ -150,9 +150,39 @@ CREATE TABLE IF NOT EXISTS transcript_segment (
   speaker_source     TEXT DEFAULT 'auto',   -- auto | manual : « manual » fait autorite
   speaker_confidence REAL,                  -- 0..1, confiance de la detection
   pitch_hz           REAL,                  -- hauteur mediane de la voix sur le tour
+  -- Phrase reellement prononcee, quand la colonne text en est une traduction.
+  -- Conservee parce qu'une traduction est une interpretation : elle peut inverser une
+  -- negation ou deplacer une posologie, et le dossier doit garder de quoi le
+  -- verifier apres coup, pas seulement au moment de la validation.
+  source_text        TEXT,
+  source_language    TEXT,                  -- langue de source_text (« fon »...)
   created_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_segment_consult ON transcript_segment(consultation_id, seq);
+
+-- Ce que l application a appris des corrections du praticien.
+--
+-- Une ligne = un couple « la machine a entendu ceci, il fallait cela ». Elle
+-- n'est APPLIQUEE qu'a partir de deux consultations distinctes : une seule
+-- correction peut etre une faute de frappe, et une lecon retenue a tort
+-- abimerait en silence toutes les transcriptions suivantes.
+--
+-- Rien de nominatif ici : un couple de termes et son contexte immediat. La
+-- reference a la consultation sert a compter les occurrences distinctes et
+-- disparait avec elle.
+CREATE TABLE IF NOT EXISTS apprentissage_correction (
+  id              TEXT PRIMARY KEY,
+  organization_id TEXT,                  -- une lecon ne franchit pas la structure qui l a produite
+  avant           TEXT NOT NULL,         -- forme normalisee, pour le comptage
+  apres           TEXT NOT NULL,         -- forme canonique a retenir
+  avant_affiche   TEXT NOT NULL,         -- tel qu ecrit, pour la relecture
+  contexte        TEXT,
+  consultation_id TEXT REFERENCES consultation(id) ON DELETE SET NULL,
+  -- 'propose' : vu, pas encore confirme | 'ecarte' : refuse par un relecteur
+  etat            TEXT NOT NULL DEFAULT 'propose',
+  created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_apprentissage_couple ON apprentissage_correction(organization_id, avant, apres);
 
 -- Constantes et resultats -> FHIR Observation
 CREATE TABLE IF NOT EXISTS observation (

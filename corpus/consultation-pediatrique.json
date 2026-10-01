@@ -1,0 +1,113 @@
+{
+  "id": "consultation-pediatrique-fr",
+  "langue": "fr-FR",
+  "description": "Consultation pediatrique : paludisme simple chez un enfant de 13,5 kg, accompagne de sa mere.",
+  "provenance": "Consultation de demonstration redigee pour ParleDocteur, annotee a la main. Ce n est PAS une consultation reelle.",
+  "limites": "Un seul dialogue, un seul contexte clinique, une seule langue, aucun locuteur reel. Trop faible pour une mesure de performance ; suffisant pour tenir un invariant.",
+  "aucune_hauteur": "Les tours n ont pas de hauteur de voix : cette mesure n eprouve donc que le signal linguistique.",
+  "tours": [
+    {
+      "seq": 1,
+      "gold": "clinician",
+      "text": "Bonjour madame, asseyez-vous. Qu est-ce qui amene le petit Koffi aujourd hui ?"
+    },
+    {
+      "seq": 2,
+      "gold": "companion",
+      "text": "Docteur, il a le corps chaud depuis trois jours, et il ne mange plus."
+    },
+    {
+      "seq": 3,
+      "gold": "clinician",
+      "text": "Depuis trois jours. Est-ce qu il vomit ?"
+    },
+    {
+      "seq": 4,
+      "gold": "companion",
+      "text": "Il a vomi deux fois hier soir. Mais il n a pas la diarrhee."
+    },
+    {
+      "seq": 5,
+      "gold": "clinician",
+      "text": "Est-ce qu il tousse ?"
+    },
+    {
+      "seq": 6,
+      "gold": "companion",
+      "text": "Non, il ne tousse pas. Mais il tremble la nuit, il a des frissons."
+    },
+    {
+      "seq": 7,
+      "gold": "clinician",
+      "text": "D accord. Est-ce qu il dort sous moustiquaire ?"
+    },
+    {
+      "seq": 8,
+      "gold": "companion",
+      "text": "Parfois seulement, la moustiquaire est dechiree."
+    },
+    {
+      "seq": 9,
+      "gold": "clinician",
+      "text": "Je vais l examiner. Sa temperature est a 39,2 degres. Le pouls est a 132."
+    },
+    {
+      "seq": 10,
+      "gold": "clinician",
+      "text": "Il pese 13,5 kilos. Les conjonctives sont un peu pales."
+    },
+    {
+      "seq": 11,
+      "gold": "clinician",
+      "text": "L abdomen est souple, la gorge est propre, les tympans sont normaux."
+    },
+    {
+      "seq": 12,
+      "gold": "clinician",
+      "text": "Le tableau evoque fortement un paludisme simple. On va faire un test rapide, un TDR paludisme."
+    },
+    {
+      "seq": 13,
+      "gold": "clinician",
+      "text": "Je demande aussi une numeration formule sanguine pour verifier l anemie."
+    },
+    {
+      "seq": 14,
+      "gold": "clinician",
+      "text": "Est-ce qu il est allergique a quelque chose ?"
+    },
+    {
+      "seq": 15,
+      "gold": "companion",
+      "text": "Non, jamais eu de probleme avec les medicaments."
+    },
+    {
+      "seq": 16,
+      "gold": "clinician",
+      "text": "Bien. Je vous prescris de l artemether lumefantrine, deux fois par jour pendant trois jours, a prendre au cours des repas."
+    },
+    {
+      "seq": 17,
+      "gold": "clinician",
+      "text": "Et du paracetamol 250 milligrammes, trois fois par jour pendant trois jours pour la fievre."
+    },
+    {
+      "seq": 18,
+      "gold": "clinician",
+      "text": "Faites-le boire beaucoup. Reparez la moustiquaire, c est important."
+    },
+    {
+      "seq": 19,
+      "gold": "clinician",
+      "text": "Si il convulse, s il refuse de boire ou s il devient somnolent, revenez immediatement aux urgences."
+    },
+    {
+      "seq": 20,
+      "gold": "clinician",
+      "text": "Revenez me voir dans trois jours pour un controle."
+    }
+  ],
+  "segmentation": "Un segment porte un seul locuteur, comme le produit le decoupage aux silences. Le tour 14 d origine melait une question du medecin et la reponse de la mere : aucune attribution n aurait pu etre juste, et l annotation elle-meme n avait pas de sens.",
+  "confusions_entourage_connues": 1,
+  "confusions_entourage_detail": "Tour 15, « Non, jamais eu de probleme avec les medicaments. » : la mere repond, le detecteur lit « patient ». Aucun indice du texte ne designe l un plutot que l autre. L enonce reste du cote de celui qui consulte."
+}

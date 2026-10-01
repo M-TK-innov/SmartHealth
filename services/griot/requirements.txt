@@ -1,0 +1,13 @@
+# Service de transcription Griot — ParleDocteur
+#
+# PyTorch n'est pas epingle : la roue a installer depend de la machine
+# (CPU seul, CUDA, ROCm). Installez-le d'abord en suivant pytorch.org,
+# puis `pip install -r requirements.txt`.
+transformers>=4.44
+accelerate>=0.33
+librosa>=0.10
+soundfile>=0.12
+numpy>=1.26
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9

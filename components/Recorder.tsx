@@ -29,6 +29,12 @@ export interface Segment {
   speakerLocked?: boolean;
   /** Ce qui a motive la proposition automatique. */
   speakerReasons?: string[];
+  /**
+   * Phrase prononcee, quand `text` en est une traduction automatique.
+   * Elle suit le tour jusqu'a l'ecran de validation et jusqu'au dossier.
+   */
+  sourceText?: string;
+  sourceLanguage?: string;
 }
 
 const LANGUAGES = [
@@ -108,7 +114,15 @@ export function Recorder({
   useEffect(() => () => engineRef.current?.dispose(), []);
 
   const handleChunk = useCallback(
-    (chunk: { text: string; isFinal: boolean; confidence?: number; startMs?: number; pitchHz?: number }) => {
+    (chunk: {
+      text: string;
+      isFinal: boolean;
+      confidence?: number;
+      startMs?: number;
+      pitchHz?: number;
+      sourceText?: string;
+      sourceLanguage?: string;
+    }) => {
       if (!chunk.isFinal) {
         setInterim(chunk.text);
         return;
@@ -122,6 +136,8 @@ export function Recorder({
           confidence: chunk.confidence,
           startMs: chunk.startMs,
           pitchHz: chunk.pitchHz,
+          sourceText: chunk.sourceText,
+          sourceLanguage: chunk.sourceLanguage,
           speakerLocked: true,
         });
         return;
@@ -137,6 +153,8 @@ export function Recorder({
         confidence: chunk.confidence,
         startMs: chunk.startMs,
         pitchHz: chunk.pitchHz,
+        sourceText: chunk.sourceText,
+        sourceLanguage: chunk.sourceLanguage,
         speakerLocked: false,
         speakerReasons: guess.reasons,
       });

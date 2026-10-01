@@ -210,6 +210,9 @@ export interface IncomingSegment {
   pitchHz?: number;
   /** true si le praticien a impose le locuteur : la detection ne le touchera plus. */
   speakerLocked?: boolean;
+  /** Phrase prononcee, quand `text` en est une traduction automatique. */
+  sourceText?: string;
+  sourceLanguage?: string;
 }
 
 export function appendSegments(consultationId: string, segments: IncomingSegment[]) {
@@ -233,6 +236,8 @@ export function appendSegments(consultationId: string, segments: IncomingSegment
         language: s.language ?? null,
         speaker_source: s.speakerLocked ? 'manual' : 'auto',
         pitch_hz: s.pitchHz ?? null,
+        source_text: s.sourceText?.trim() || null,
+        source_language: s.sourceLanguage ?? null,
         created_at: nowIso(),
       });
     }

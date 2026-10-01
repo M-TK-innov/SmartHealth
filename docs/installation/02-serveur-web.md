@@ -89,6 +89,12 @@ npm start
 
 Le serveur écoute sur le port **3000**. Sur le poste lui-même : <http://localhost:3000>.
 
+`npm start` démarre aussi les **services auxiliaires** de ce poste — à ce jour le service de
+transcription en fon, qui demande PyTorch et tourne dans un processus Python séparé. Un poste qui
+ne l'a pas installé démarre normalement, avec un message disant ce qui manque : le dossier médical
+et les trois autres moteurs de transcription ne dépendent pas de lui. Pour le serveur web seul :
+`npm run start:next`.
+
 ### Depuis les autres appareils
 
 Relevez l'adresse IP locale du poste serveur :

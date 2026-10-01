@@ -78,7 +78,7 @@ transcription »** :
 | **Whisper sur l'appareil** | iPhone/iPad, ou dès que la confidentialité prime | **l'audio ne quitte jamais l'appareil** |
 | **Whisper serveur** | tablettes peu puissantes, serveur Whisper disponible | l'audio reste sur le réseau de la structure |
 
-**Whisper sur l'appareil télécharge ~85 Mo au premier usage**, puis fonctionne hors ligne. Faites
+**Whisper sur l'appareil charge ~240 Mo au premier usage**, puis fonctionne hors ligne. Sur un serveur qui a reçu `npm run modeles`, ces données viennent du réseau local et non d'Internet. Faites
 ce premier lancement en Wi-Fi, pas en données mobiles, et pas au milieu d'une consultation.
 
 ## Détection automatique du locuteur

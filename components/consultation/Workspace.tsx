@@ -123,6 +123,8 @@ export function Workspace(props: Props) {
           speaker_source: s.speakerLocked ? 'manual' : 'auto',
           speaker_confidence: s.speakerLocked ? 1 : null,
           pitch_hz: s.pitchHz ?? null,
+          source_text: s.sourceText ?? null,
+          source_language: s.sourceLanguage ?? null,
         },
       ]);
       if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
@@ -848,7 +850,30 @@ function TranscriptLine({
         )}
       </div>
 
-      <p className="text-sm leading-snug">{segment.text}</p>
+      <div className="min-w-0">
+        <p className="text-sm leading-snug">{segment.text}</p>
+
+        {/*
+          La phrase prononcee, sous sa traduction.
+
+          Elle n'est pas un detail d'interface. Une traduction automatique peut
+          inverser une negation, deplacer une posologie ou perdre une duree, et
+          rien en aval — extraction, compte rendu, ordonnance — ne saurait le
+          reperer. Le praticien valide ici : c'est le seul endroit de la chaine
+          ou la source peut encore servir a quelque chose.
+        */}
+        {segment.source_text && (
+          <p
+            className="mt-1 border-l-2 border-line pl-2 text-xs italic text-ink-soft"
+            title="Phrase prononcee, avant traduction automatique"
+          >
+            <span className="not-italic font-medium uppercase tracking-wide">
+              {segment.source_language || 'source'}
+            </span>{' '}
+            {segment.source_text}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

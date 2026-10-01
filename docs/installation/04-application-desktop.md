@@ -52,8 +52,23 @@ Compter **5 à 15 minutes**. Le résultat :
 dist-desktop/ParleDocteur-0.2.0-installateur.exe
 ```
 
-Environ **170 Mo** — le runtime Chromium et Node y sont inclus, c'est ce qui permet de ne rien
-installer d'autre sur les postes cibles.
+Environ **434 Mo** — le runtime Chromium et Node y sont inclus, c'est ce qui permet de ne rien
+installer d'autre sur les postes cibles, et **le modèle de transcription sur appareil** (240 Mo
+décompressés) y est embarqué.
+
+Ce modèle est ce qui rend l'application utilisable dans un dispensaire isolé : le poste dispose
+d'un moteur qui transcrit **sans rien faire sortir, dès l'installation et sans réseau**. Sans lui,
+ce moteur — le seul qui ne fasse rien sortir de l'appareil — irait chercher ses poids sur Internet
+au premier usage, c'est-à-dire resterait indisponible là où il sert le plus.
+
+> La préparation **refuse de construire** si les poids n'ont pas pu être récupérés : un installateur
+> qui promet un moteur hors ligne sans le fournir serait pire que pas d'installateur du tout.
+> Les poids ne sont pas versionnés — `npm run modeles` les récupère, avec reprise sur coupure.
+
+**Sur un poste à la mémoire juste**, charger ce modèle demande quelques centaines de mégaoctets de
+plus que l'application au repos. L'écran de première installation le signale en dessous de 2 Go et
+oriente vers la reconnaissance du navigateur ou un serveur de transcription de la structure, qui ne
+demandent rien au poste.
 
 ### Le garde-fou de confidentialité
 
@@ -81,7 +96,14 @@ rapide pour vérifier.
 npm run desktop:dev
 ```
 
-Ouvre la fenêtre Electron sur le serveur de développement (`npm run dev` doit tourner en parallèle).
+Démarre le serveur de développement, les services auxiliaires et la fenêtre Electron d'une seule
+commande. Un seul Ctrl+C arrête l'ensemble.
+
+L'application installée fait le même travail seule : au lancement, elle démarre son serveur web et
+les services auxiliaires qu'elle trouve, puis les arrête en quittant. Le service de transcription en
+fon (`services/griot/`) **n'est pas embarqué** dans l'installateur — les poids du modèle pèsent
+plusieurs gigaoctets — mais s'il est déposé à côté de l'exécutable, il est lancé automatiquement.
+Son absence n'empêche rien : les trois autres moteurs de transcription restent disponibles.
 
 ---
 
