@@ -193,8 +193,15 @@ export class WebSpeechEngine implements TranscriptionEngine {
  * quand les postes sont trop modestes pour faire tourner le modele mais qu'un
  * petit serveur existe dans la structure.
  */
-export class WhisperServerEngine implements TranscriptionEngine {
-  readonly id = 'whisper-serveur' as const;
+/**
+ * Moteur « serveur » : la capture, la detection de silence et l'estimation de
+ * hauteur sont identiques quelle que soit la dorsale. Seules changent la
+ * destination et la langue attendue — Whisper pour le francais, Griot quand la
+ * consultation se tient en fon. Le decoupage aux silences reste l'unite de
+ * base, c'est aussi ce qui donne les tours de parole a l'attribution.
+ */
+export class AsrServerEngine implements TranscriptionEngine {
+  readonly id: EngineId;
 
   private stream: MediaStream | null = null;
   private audioContext: AudioContext | null = null;
@@ -207,18 +214,40 @@ export class WhisperServerEngine implements TranscriptionEngine {
   private startedAt = 0;
   private segmentStartMs = 0;
 
-  constructor(private readonly language: string = 'fr') {}
+  constructor(
+    private readonly language: string = 'fr',
+    private readonly backend: 'whisper' | 'griot' = 'whisper',
+  ) {
+    this.id = backend === 'griot' ? 'griot-serveur' : 'whisper-serveur';
+  }
 
   async prepare(onStatus: (s: EngineStatus) => void): Promise<void> {
-    const res = await fetch('/api/transcription', { method: 'GET' });
+    const res = await fetch(`/api/transcription?backend=${this.backend}`, { method: 'GET' });
     const info = await res.json();
     if (!info.configured) {
       onStatus({
         state: 'error',
         message:
-          "Aucun serveur Whisper configure. Renseignez WHISPER_ENDPOINT dans l'environnement du serveur.",
+          info.blocked ??
+          (this.backend === 'griot'
+            ? "Aucun serveur Griot configure. Renseignez GRIOT_ENDPOINT dans l'environnement du serveur."
+            : "Aucun serveur Whisper configure. Renseignez WHISPER_ENDPOINT dans l'environnement du serveur."),
       });
-      throw new Error('WHISPER_ENDPOINT absent');
+      throw new Error(`${this.backend} : aucune destination`);
+    }
+    // Declare mais muet. Le cas courant depuis que l'application lance ses
+    // services : Griot charge son modele, ce qui prend une a deux minutes au
+    // premier demarrage. Le dire vaut mieux que laisser le praticien parler
+    // pour rien et decouvrir l'echec extrait par extrait.
+    if (info.reachable === false) {
+      onStatus({
+        state: 'error',
+        message:
+          this.backend === 'griot'
+            ? `Le service Griot (${info.endpoint}) ne repond pas encore. Au premier lancement il charge son modele : reessayez dans une minute.`
+            : `Le serveur Whisper (${info.endpoint}) ne repond pas.`,
+      });
+      throw new Error(`${this.backend} : injoignable`);
     }
     onStatus({ state: 'ready', message: `Serveur de transcription : ${info.endpoint}` });
   }
@@ -294,13 +323,27 @@ export class WhisperServerEngine implements TranscriptionEngine {
       const form = new FormData();
       form.append('audio', new Blob([wav], { type: 'audio/wav' }), 'extrait.wav');
       form.append('language', this.language);
+      form.append('backend', this.backend);
 
       const res = await fetch('/api/transcription', { method: 'POST', body: form });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
       const text = String(data.text ?? '').trim();
-      if (text) onChunk({ text, isFinal: true, startMs, endMs, pitchHz });
+      if (text) {
+        onChunk({
+          text,
+          isFinal: true,
+          startMs,
+          endMs,
+          pitchHz,
+          // La phrase prononcee accompagne sa traduction jusqu'a l'ecran de
+          // validation. La perdre ici la perdrait pour de bon.
+          sourceText: data.sourceText ?? undefined,
+          sourceLanguage: data.sourceLanguage ?? undefined,
+          translated: Boolean(data.translated),
+        });
+      }
     } catch (e) {
       onStatus({
         state: 'error',
@@ -359,6 +402,9 @@ export async function createEngine(id: EngineId, language: string): Promise<Tran
     const { WhisperLocalEngine } = await import('./whisper');
     return new WhisperLocalEngine(language === 'fr-FR' ? 'french' : 'english');
   }
-  if (id === 'whisper-serveur') return new WhisperServerEngine(language.slice(0, 2));
+  if (id === 'whisper-serveur') return new AsrServerEngine(language.slice(0, 2), 'whisper');
+  // Griot recoit la langue PARLEE : elle designe l'adaptateur a charger cote
+  // service, et la transcription sort dans cette meme langue.
+  if (id === 'griot-serveur') return new AsrServerEngine(language.slice(0, 2), 'griot');
   return new WebSpeechEngine(language);
 }

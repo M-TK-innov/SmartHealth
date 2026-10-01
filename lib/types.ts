@@ -87,6 +87,12 @@ export interface TranscriptSegment {
   speaker_source: string | null;
   speaker_confidence: number | null;
   pitch_hz: number | null;
+  /**
+   * Phrase reellement prononcee, quand `text` en est une traduction automatique.
+   * Null pour un tour non traduit, c'est-a-dire l'immense majorite.
+   */
+  source_text: string | null;
+  source_language: string | null;
   created_at: string;
 }
 

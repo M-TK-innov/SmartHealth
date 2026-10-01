@@ -19,6 +19,18 @@ const net = require('node:net');
 const isDev = !app.isPackaged;
 const DEV_URL = process.env.PARLEDOCTEUR_DEV_URL || 'http://localhost:3000';
 
+/**
+ * Racine ou chercher les services auxiliaires (services/griot...).
+ *
+ * En developpement c'est le depot. Dans l'application installee, ces services
+ * ne sont pas embarques — ils pesent plusieurs gigaoctets de poids de modele —
+ * mais un etablissement peut les avoir deposes a cote de l'executable. On
+ * regarde donc les deux, et l'absence est le cas normal.
+ */
+function racineServices() {
+  return isDev ? path.join(__dirname, '..') : path.dirname(app.getPath('exe'));
+}
+
 /** Une seule instance : deux serveurs sur la meme base SQLite se marcheraient dessus. */
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -27,6 +39,7 @@ if (!app.requestSingleInstanceLock()) {
 
 let serverProcess = null;
 let mainWindow = null;
+let services = null;
 
 // ------------------------------------------------------------------ serveur
 
@@ -61,8 +74,28 @@ function waitForServer(port, timeoutMs = 60000) {
   });
 }
 
+/**
+ * Services auxiliaires, demarres avec l'application.
+ *
+ * Leur echec n'est jamais fatal : ParleDocteur doit s'ouvrir sur un poste sans
+ * Python comme sur un poste equipe. Le detail est ecrit dans la console, la
+ * fenetre s'ouvre dans les deux cas.
+ */
+async function startServices() {
+  try {
+    const { startServices: demarrer } = await import('../scripts/services.mjs');
+    services = await demarrer({
+      root: racineServices(),
+      log: (m) => process.stdout.write(`${m}\n`),
+    });
+    return services.variables;
+  } catch (err) {
+    process.stdout.write(`[services] indisponibles : ${err?.message ?? err}\n`);
+    return {};
+  }
+}
+
 async function startServer() {
-  const port = await findFreePort();
   const serverEntry = path.join(process.resourcesPath, 'app', 'server.js');
 
   if (!fs.existsSync(serverEntry)) {
@@ -70,6 +103,13 @@ async function startServer() {
       `Serveur introuvable (${serverEntry}). Lancez « npm run desktop:prepare » avant de construire le paquet.`,
     );
   }
+
+  // Les services auxiliaires et le port se preparent en parallele : le premier
+  // interroge le reseau et lance Python, le second ouvre une socket. Rien ici
+  // n'attend qu'un modele soit charge — Griot pese plusieurs gigaoctets, et
+  // l'attendre serait une minute de fenetre noire a chaque lancement. Le
+  // moteur apparait dans l'enregistreur des que le service repond.
+  const [port, variablesServices] = await Promise.all([findFreePort(), startServices()]);
 
   // La base vit dans le dossier de donnees utilisateur : elle survit aux mises
   // a jour de l'application et n'est pas ecrasee par une reinstallation.
@@ -80,6 +120,9 @@ async function startServer() {
     cwd: path.dirname(serverEntry),
     env: {
       ...process.env,
+      // Les adresses des services lances a l'instant. Elles ne peuvent pas etre
+      // transmises apres le fork : c'est pourquoi ils demarrent avant lui.
+      ...variablesServices,
       NODE_ENV: 'production',
       PORT: String(port),
       HOSTNAME: '127.0.0.1',
@@ -247,6 +290,10 @@ app.on('second-instance', () => {
 app.on('before-quit', () => {
   app.isQuitting = true;
   serverProcess?.kill();
+  // Seuls les services que nous avons lances sont arretes. Un service deja en
+  // ecoute au demarrage appartenait a quelqu un d autre : le tuer couperait un
+  // travail en cours dans une autre fenetre.
+  services?.stop();
 });
 
 app.on('window-all-closed', () => {

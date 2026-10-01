@@ -54,6 +54,8 @@ function migrate(database: DatabaseSync) {
     ['transcript_segment', 'speaker_source', "TEXT DEFAULT 'auto'"],
     ['transcript_segment', 'speaker_confidence', 'REAL'],
     ['transcript_segment', 'pitch_hz', 'REAL'],
+    ['transcript_segment', 'source_text', 'TEXT'],
+    ['transcript_segment', 'source_language', 'TEXT'],
   ];
 
   for (const [table, column, definition] of additions) {

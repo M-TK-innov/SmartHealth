@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Prerequis } from './Prerequis';
 
 interface NetworkAddress {
   url: string;
@@ -91,6 +92,13 @@ function SetupForm({
 
   return (
     <form onSubmit={submit} className="space-y-5" noValidate>
+      {/*
+        Le diagnostic du poste vient AVANT le formulaire, pas apres. Un
+        responsable qui decouvre au bout de vingt minutes de saisie que le
+        disque est plein a perdu vingt minutes — et la confiance dans l outil.
+      */}
+      <Prerequis />
+
       <section>
         <h2 className="section-title mb-2">1. Votre structure</h2>
         <div className="grid gap-3 sm:grid-cols-2">
