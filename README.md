@@ -383,9 +383,10 @@ praticien relirait un texte déjà abîmé en croyant relire la machine. D'où q
 Les corrections appliquées sont **rendues avec le texte**, jamais posées en douce, comme celles du
 lexique. Un relecteur voit ce qui a été appris et peut l'écarter — définitivement.
 
-```
-Administration → ce que l'installation a appris
-```
+L'écran **Corrections apprises** est dans la navigation du praticien, pas dans la console
+d'administration : c'est lui qui produit ces corrections et lui seul qui sait si une leçon se
+généralise. La ranger sous *Administration* l'aurait mise hors de portée de la personne à qui elle
+sert.
 
 L'export `?format=jsonl` prépare un ré-entraînement ultérieur, **sur une machine dédiée et sur
 décision écrite** : il demande `server:manage`, et il est inscrit au journal. Entraîner un modèle
