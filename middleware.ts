@@ -62,5 +62,9 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   // Tout sauf les ressources statiques, le manifeste, le service worker et les icones.
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|icons/|manifest.webmanifest|sw.js).*)'],
+  // `modeles/` porte les poids du modele de transcription sur appareil : des
+  // artefacts publics sous licence MIT, servis a l'identique par Hugging Face.
+  // Les proteger n'ajouterait rien — ils ne contiennent aucune donnee de sante —
+  // et les rendrait inatteignables au moteur, qui les charge sans cookie.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|icons/|modeles/|manifest.webmanifest|sw.js).*)'],
 };

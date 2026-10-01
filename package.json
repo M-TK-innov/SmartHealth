@@ -23,7 +23,8 @@
     "services": "node scripts/services.mjs --autonome",
     "start:next": "next start -p 3000",
     "dev:next": "next dev -p 3000",
-    "mesure": "node scripts/mesurer.mjs"
+    "mesure": "node scripts/mesurer.mjs",
+    "modeles": "node scripts/modeles.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.72.0",

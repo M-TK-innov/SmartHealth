@@ -21,6 +21,22 @@ import type { EngineStatus, TranscriptionChunk, TranscriptionEngine } from './ty
  */
 
 const MODEL_ID = 'Xenova/whisper-small';
+
+/**
+ * L'installation sert-elle les poids du modele ?
+ *
+ * Une simple requete sur le fichier de configuration suffit : il pese quelques
+ * centaines d'octets et sa presence garantit que le dossier a ete depose. On
+ * ne teste pas les poids eux-memes, qui font des centaines de mega-octets.
+ */
+async function modeleServiLocalement(): Promise<boolean> {
+  try {
+    const res = await fetch(`/modeles/${MODEL_ID}/config.json`, { method: 'HEAD' });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
 const SAMPLE_RATE = 16000;
 
 /** Seuil d'energie sous lequel on considere qu'il n'y a plus de parole. */
@@ -64,15 +80,30 @@ export class WhisperLocalEngine implements TranscriptionEngine {
       return;
     }
 
-    onStatus({ state: 'loading', progress: 0, message: 'Telechargement du modele Whisper...' });
+    onStatus({ state: 'loading', progress: 0, message: 'Preparation du modele Whisper...' });
 
     // Import dynamique : la bibliotheque (plusieurs Mo) n'est chargee que si le
     // praticien choisit reellement ce moteur.
     const { pipeline, env } = await import('@huggingface/transformers');
 
-    // Pas de recherche de modele local sur le serveur : tout vient du cache
-    // navigateur ou du CDN.
-    env.allowLocalModels = false;
+    // Le modele est-il servi par cette installation ?
+    //
+    // C'est la difference entre un dispensaire qui dispose d'un moteur local et
+    // un dispensaire qui n'en a aucun : sans les poids sur place, ce moteur —
+    // le seul qui ne fasse rien sortir de l'appareil — exige une connexion au
+    // premier usage, et reste donc indisponible la ou il sert le plus.
+    const local = await modeleServiLocalement();
+
+    if (local) {
+      env.allowLocalModels = true;
+      env.localModelPath = '/modeles/';
+      // Coupe la sortie reseau : si un fichier manque, on veut un echec franc
+      // plutot qu'un telechargement silencieux qui trahirait la promesse
+      // « tout reste sur l'appareil » d'un poste declare hors ligne.
+      env.allowRemoteModels = false;
+    } else {
+      env.allowLocalModels = false;
+    }
 
     const asr = await pipeline('automatic-speech-recognition', MODEL_ID, {
       dtype: 'q8',
@@ -81,7 +112,9 @@ export class WhisperLocalEngine implements TranscriptionEngine {
           onStatus({
             state: 'loading',
             progress: p.progress / 100,
-            message: `Telechargement du modele (${Math.round(p.progress)} %)`,
+            message: local
+              ? `Chargement du modele (${Math.round(p.progress)} %)`
+              : `Telechargement du modele (${Math.round(p.progress)} %)`,
           });
         } else if (p.status === 'ready' || p.status === 'done') {
           onStatus({ state: 'loading', progress: 1, message: 'Preparation du modele...' });
@@ -90,7 +123,12 @@ export class WhisperLocalEngine implements TranscriptionEngine {
     });
 
     this.pipeline = asr as unknown as Pipeline;
-    onStatus({ state: 'ready', message: 'Modele pret. Tout reste sur cet appareil.' });
+    onStatus({
+      state: 'ready',
+      message: local
+        ? 'Modele pret, servi par cette installation. Tout reste sur cet appareil.'
+        : 'Modele pret, telecharge puis mis en cache. Tout reste sur cet appareil.',
+    });
   }
 
   async start(handlers: {

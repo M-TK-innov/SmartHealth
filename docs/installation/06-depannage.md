@@ -94,7 +94,7 @@ choisissez **Whisper sur l'appareil** — il fonctionne partout.
 
 ### Whisper reste bloqué sur « téléchargement du modèle »
 
-~85 Mo à récupérer au premier usage, depuis Internet. Sur une connexion lente, cela prend du temps.
+~240 Mo à récupérer au premier usage. Depuis Internet si le serveur ne les sert pas — lancez `npm run modeles` sur le serveur, et les postes les prendront sur le réseau local. L'application desktop les embarque déjà.
 Faites ce premier lancement en Wi-Fi, hors consultation. Une fois en cache, il fonctionne hors ligne.
 
 Si le téléchargement échoue, basculez sur le moteur du navigateur ou saisissez la transcription à

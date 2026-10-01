@@ -233,7 +233,7 @@ la main — le reste de la chaîne est identique.
 | Moteur | Fonctionnement | Confidentialité |
 |---|---|---|
 | Navigateur (défaut) | Web Speech API, immédiat, aucun téléchargement. Chrome/Edge. | L'audio transite par l'éditeur du navigateur |
-| **Whisper sur l'appareil** | Modèle open source (OpenAI, MIT) exécuté dans le navigateur via transformers.js. ~85 Mo au premier lancement, puis en cache. | **L'audio ne quitte jamais l'appareil** |
+| **Whisper sur l'appareil** | Modèle open source (OpenAI, MIT) exécuté dans le navigateur via transformers.js. **Embarqué dans l'installateur desktop** ; sur une installation web, `npm run modeles` dépose les 240 Mo une fois pour toutes. | **L'audio ne quitte jamais l'appareil** |
 | Whisper serveur | POST vers un `whisper.cpp` ou `faster-whisper` de l'établissement (`WHISPER_ENDPOINT`). | L'audio reste sur le réseau interne |
 | **Griot — fon** | Modèle ouvert à **adaptateurs de langue**, servi par la structure (`GRIOT_ENDPOINT`). Seul moteur qui sache transcrire une consultation tenue en **fon**, avec traduction vers le français en second étage. | L'audio reste sur le réseau interne |
 
@@ -562,6 +562,7 @@ scripts/
 | `npm run dev:next` / `npm run start:next` | serveur web seul, sans les services |
 | `npm run typecheck` | vérification TypeScript |
 | `npm test` | 189 tests : apprentissage local, prérequis, invariant d'attribution, réseau, rôles |
+| `npm run modeles` | dépose les poids du moteur sur appareil (240 Mo) pour un usage hors ligne |
 | `npm run mesure` | recalcule les mesures d'attribution sur corpus annoté |
 | `npm run seed -- --reset` | réinitialise la base de démonstration (un compte par rôle) |
 | `npm run create-admin` | crée le premier super-administrateur (production) |
