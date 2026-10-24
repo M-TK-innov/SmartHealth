@@ -49,6 +49,12 @@ export const PERMISSIONS = {
   'prescription:validate': "Valider une ordonnance (acte de prescription)",
   'transcript:record': 'Capturer et transcrire une consultation',
 
+  // --- parcours du patient et caisse
+  'flux:read': "Voir les files d'attente et la tension des postes",
+  'flux:write': 'Placer, appeler et orienter un patient dans les files',
+  'caisse:read': 'Consulter une facture et son reste a charge',
+  'caisse:write': 'Facturer un acte et encaisser un paiement',
+
   // --- interoperabilite
   'export:read': 'Generer et telecharger les exports FHIR / HL7 / DHIS2',
   'export:send': "Transmettre un export vers un systeme d'information tiers",
@@ -91,6 +97,10 @@ export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] =
       'transcript:record',
     ],
   },
+  {
+    label: 'Parcours et caisse',
+    permissions: ['flux:read', 'flux:write', 'caisse:read', 'caisse:write'],
+  },
   { label: 'Interoperabilite', permissions: ['export:read', 'export:send'] },
   { label: 'Pilotage', permissions: ['stats:facility', 'stats:national', 'surveillance:read'] },
   {
@@ -123,10 +133,21 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'prescription:validate',
     'transcript:record',
     'export:read',
+    // Le medecin appelle son patient suivant et VOIT le reste a charge — pour
+    // pouvoir en parler et orienter — mais il n'encaisse pas. Separer celui
+    // qui soigne de celui qui tient la caisse est une regle de controle
+    // interne elementaire, et elle protege aussi le medecin.
+    'flux:read',
+    'flux:write',
+    'caisse:read',
   ],
   hopital: [
     'patient:read',
     'consultation:read',
+    'flux:read',
+    'flux:write',
+    'caisse:read',
+    'caisse:write',
     'export:read',
     'export:send',
     'stats:facility',
@@ -154,6 +175,67 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ],
   super_admin: [...ALL_PERMISSIONS],
 };
+
+// ------------------------------------------- rattrapage a la mise a jour
+
+export interface EtatMatrice {
+  /** Permissions deja amorcees au moins une fois (table permission_amorcee). */
+  dejaAmorcees: string[];
+  /** Permissions presentes aujourd'hui sur au moins un role. */
+  presentesEnBase: string[];
+}
+
+export interface Rattrapage {
+  aAccorder: { role: Role; permission: Permission }[];
+  aMarquer: Permission[];
+}
+
+/**
+ * Ce qu'une mise a jour doit accorder, et rien de plus.
+ *
+ * Fonction PURE : elle ne lit ni n'ecrit la base. C'est la partie qui decide,
+ * et c'est elle qu'on peut eprouver — le code qui ecrit n'a plus qu'a
+ * appliquer.
+ *
+ * LA REGLE : on n'accorde QUE les permissions jamais amorcees. Une
+ * permission deja connue et aujourd'hui absente a ete retiree par un
+ * administrateur ; une mise a jour n'a pas a defaire sa decision.
+ *
+ * Il n'y a pas de cas particulier pour l'installation neuve : une matrice
+ * vide n'a rien d'amorce, donc TOUT y est nouveau, et la regle generale pose
+ * la matrice par defaut d'elle-meme. Une branche dediee donnerait le meme
+ * resultat par un autre chemin — c'est-a-dire un chemin de moins a eprouver.
+ *
+ * Angle mort assume, documente ici parce qu'il doit se lire avec la regle :
+ * sur une base anterieure a la table de suivi, l'historique est reconstitue
+ * a partir des permissions encore presentes. Une permission retiree de TOUS
+ * les roles — super-administrateur compris, qui les a toutes par defaut —
+ * passe donc pour jamais amorcee et sera accordee une fois. Le cas est
+ * etroit ; le defaut inverse, un module muet apres mise a jour, coute bien
+ * plus cher a un etablissement.
+ */
+export function rattrapage(etat: EtatMatrice): Rattrapage {
+  // Si la table de suivi est vide, on reconstitue l'historique a partir des
+  // droits encore presents : c'est une base anterieure a son introduction.
+  const connues = new Set(etat.dejaAmorcees.length > 0 ? etat.dejaAmorcees : etat.presentesEnBase);
+  const nouvelles = ALL_PERMISSIONS.filter((p) => !connues.has(p));
+
+  if (nouvelles.length === 0) {
+    // Cas de tous les demarrages ordinaires : rien a accorder. On ne marque
+    // que si la table de suivi est encore vide, pour qu'un lancement
+    // ordinaire ne reecrive pas la matrice d'acces a chaque fois.
+    return { aAccorder: [], aMarquer: etat.dejaAmorcees.length === 0 ? [...ALL_PERMISSIONS] : [] };
+  }
+
+  return {
+    aAccorder: ROLES.flatMap((role) =>
+      DEFAULT_ROLE_PERMISSIONS[role]
+        .filter((permission) => nouvelles.includes(permission))
+        .map((permission) => ({ role, permission })),
+    ),
+    aMarquer: [...ALL_PERMISSIONS],
+  };
+}
 
 // ----------------------------------------------------------- qui valide qui
 

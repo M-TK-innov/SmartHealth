@@ -237,6 +237,92 @@ CREATE TABLE IF NOT EXISTS mouvement (
 );
 CREATE INDEX IF NOT EXISTS idx_mouvement_sejour ON mouvement(sejour_id, survenu_le);
 
+-- Poste : un point de passage dans l etablissement (accueil, triage,
+-- consultation, caisse, pharmacie, laboratoire). Chaque poste a sa file.
+CREATE TABLE IF NOT EXISTS poste (
+  id              TEXT PRIMARY KEY,
+  organization_id TEXT,
+  code            TEXT NOT NULL,         -- lisible : ACC, TRI, CONS-1, CAISSE
+  nom             TEXT NOT NULL,
+  -- accueil | triage | consultation | caisse | pharmacie | laboratoire | imagerie
+  categorie       TEXT NOT NULL DEFAULT 'consultation',
+  actif           INTEGER NOT NULL DEFAULT 1,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_poste_org ON poste(organization_id, actif);
+
+-- Passage : un patient dans la file d un poste.
+--
+-- L etat parti n est PAS un synonyme de termine. La part de patients qui
+-- repartent sans avoir ete vus est l indicateur le plus direct d un poste
+-- sature ; les confondre efface cette mesure.
+CREATE TABLE IF NOT EXISTS passage (
+  id                TEXT PRIMARY KEY,
+  sejour_id         TEXT NOT NULL REFERENCES sejour(id) ON DELETE CASCADE,
+  poste_id          TEXT NOT NULL REFERENCES poste(id) ON DELETE CASCADE,
+  -- vitale | urgente | standard | differable
+  gravite           TEXT NOT NULL DEFAULT 'standard',
+  -- en-attente | en-cours | termine | parti
+  etat              TEXT NOT NULL DEFAULT 'en-attente',
+  arrive_le         TEXT NOT NULL DEFAULT (datetime('now')),
+  pris_en_charge_le TEXT,
+  termine_le        TEXT,
+  acteur_id         TEXT,
+  created_at        TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_passage_file ON passage(poste_id, etat, arrive_le);
+CREATE INDEX IF NOT EXISTS idx_passage_sejour ON passage(sejour_id, arrive_le DESC);
+-- Un patient n attend qu a un seul endroit a la fois. Sans cet index, une
+-- double saisie afficherait le meme patient dans deux files : chaque poste
+-- l attendrait, aucun ne l aurait, et l attente mesuree serait fausse aux
+-- deux endroits.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_passage_ouvert_unique
+  ON passage(sejour_id) WHERE etat IN ('en-attente', 'en-cours');
+
+-- Facture : les actes d un sejour et ce qui a ete paye.
+--
+-- Montants en FRANCS CFA ENTIERS, jamais en flottant : une caisse qui derive
+-- d un centime par ligne finit par ne plus tomber juste.
+CREATE TABLE IF NOT EXISTS facture (
+  id              TEXT PRIMARY KEY,
+  sejour_id       TEXT NOT NULL REFERENCES sejour(id) ON DELETE CASCADE,
+  organization_id TEXT,
+  part_tiers      INTEGER NOT NULL DEFAULT 0,
+  tiers_nom       TEXT,                  -- mutuelle, assurance, programme
+  close           INTEGER NOT NULL DEFAULT 0,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_facture_sejour ON facture(sejour_id);
+CREATE INDEX IF NOT EXISTS idx_facture_ouverte ON facture(organization_id, close);
+
+CREATE TABLE IF NOT EXISTS facture_ligne (
+  id          TEXT PRIMARY KEY,
+  facture_id  TEXT NOT NULL REFERENCES facture(id) ON DELETE CASCADE,
+  libelle     TEXT NOT NULL,
+  montant     INTEGER NOT NULL,          -- unitaire, francs entiers
+  quantite    INTEGER NOT NULL DEFAULT 1,
+  -- vitale | urgente | programmable : decide si un impaye peut bloquer l acte
+  urgence     TEXT NOT NULL DEFAULT 'programmable',
+  acteur_id   TEXT,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_fligne_facture ON facture_ligne(facture_id);
+
+-- Un paiement ne se modifie pas et ne se supprime pas : il s annule par un
+-- autre mouvement. Une caisse dont les lignes s editent ne prouve rien.
+CREATE TABLE IF NOT EXISTS paiement (
+  id          TEXT PRIMARY KEY,
+  facture_id  TEXT NOT NULL REFERENCES facture(id) ON DELETE CASCADE,
+  montant     INTEGER NOT NULL,
+  -- especes | mobile | carte | tiers-payant
+  moyen       TEXT NOT NULL DEFAULT 'especes',
+  reference   TEXT,                      -- numero de transaction mobile money
+  acteur_id   TEXT,
+  recu_le     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_paiement_facture ON paiement(facture_id, recu_le);
+
 -- Ce que l application a appris des corrections du praticien.
 --
 -- Une ligne = un couple « la machine a entendu ceci, il fallait cela ». Elle
@@ -467,6 +553,19 @@ CREATE TABLE IF NOT EXISTS role_permission (
   role       TEXT NOT NULL,
   permission TEXT NOT NULL,
   PRIMARY KEY (role, permission)
+);
+
+-- Permissions deja amorcees au moins une fois.
+--
+-- Sans cette table, une mise a jour qui ajoute une permission ne l accorde a
+-- personne : l amorcage ne s execute que sur une matrice vide, et un
+-- etablissement deja installe decouvrirait le nouveau module par un refus
+-- d acces sans explication. Avec elle, on distingue « jamais introduite »,
+-- qu il faut amorcer, de « retiree par un administrateur », qu il faut
+-- respecter.
+CREATE TABLE IF NOT EXISTS permission_amorcee (
+  permission TEXT PRIMARY KEY,
+  amorcee_le TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Derogation individuelle : accorde ou retire une permission a un compte
