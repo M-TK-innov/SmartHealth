@@ -160,6 +160,83 @@ CREATE TABLE IF NOT EXISTS transcript_segment (
 );
 CREATE INDEX IF NOT EXISTS idx_segment_consult ON transcript_segment(consultation_id, seq);
 
+-- ===================================================================== HOPITAL
+--
+-- Le sejour est la colonne vertebrale de la plateforme hospitaliere : la
+-- gestion des lits, le flux, la caisse et la pharmacie s'y accrochent. Sans
+-- lui, chaque module tiendrait son propre etat du monde, et deux services
+-- finiraient par ne plus dire la meme chose du meme patient.
+
+-- Unite de soins : medecine, chirurgie, maternite, urgences... -> FHIR Location (ward)
+CREATE TABLE IF NOT EXISTS unite_soins (
+  id              TEXT PRIMARY KEY,
+  organization_id TEXT,
+  code            TEXT NOT NULL,
+  nom             TEXT NOT NULL,
+  -- hospitalisation | urgences | consultation | plateau-technique
+  categorie       TEXT NOT NULL DEFAULT 'hospitalisation',
+  actif           INTEGER NOT NULL DEFAULT 1,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_unite_org ON unite_soins(organization_id, actif);
+
+-- Lit -> FHIR Location (bed). La colonne etat est une donnee DERIVEE, utile
+-- pour afficher un plan d'occupation ; ce qui fait foi pour savoir si un lit
+-- est pris, c'est qu'un sejour en cours le declare. Se fier a la seule colonne
+-- etat laisserait passer la double occupation apres un incident.
+CREATE TABLE IF NOT EXISTS lit (
+  id         TEXT PRIMARY KEY,
+  unite_id   TEXT NOT NULL REFERENCES unite_soins(id) ON DELETE CASCADE,
+  chambre    TEXT,
+  code       TEXT NOT NULL,              -- lisible par un soignant : « MED-12-B »
+  -- libre | occupe | a-preparer | hors-service
+  etat       TEXT NOT NULL DEFAULT 'libre',
+  isolement  INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_lit_unite ON lit(unite_id, etat);
+
+-- Sejour -> FHIR Encounter. De l'entree a la sortie.
+CREATE TABLE IF NOT EXISTS sejour (
+  id              TEXT PRIMARY KEY,
+  patient_id      TEXT NOT NULL REFERENCES patient(id) ON DELETE CASCADE,
+  organization_id TEXT,
+  -- externe | urgence | hospitalisation
+  type            TEXT NOT NULL DEFAULT 'hospitalisation',
+  -- prevu | en-cours | sorti | annule
+  statut          TEXT NOT NULL DEFAULT 'prevu',
+  lit_id          TEXT REFERENCES lit(id) ON DELETE SET NULL,
+  motif           TEXT,
+  mode_entree     TEXT,                  -- domicile, transfert, urgences...
+  mode_sortie     TEXT,                  -- domicile, transfert, contre-avis, deces
+  admis_le        TEXT,
+  sorti_le        TEXT,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_sejour_patient ON sejour(patient_id, admis_le DESC);
+CREATE INDEX IF NOT EXISTS idx_sejour_statut  ON sejour(statut, organization_id);
+-- Un lit ne porte qu'un sejour EN COURS. L'index partiel fait tenir
+-- l'invariant par la base elle-meme, et pas seulement par le code qui
+-- l'appelle : deux chemins d'ecriture concurrents ne peuvent pas le violer.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sejour_lit_unique
+  ON sejour(lit_id) WHERE statut = 'en-cours' AND lit_id IS NOT NULL;
+
+-- Mouvement : chaque passage dans un lit. C'est l'historique qui permet de
+-- reconstituer un parcours, pas seulement l'etat courant.
+CREATE TABLE IF NOT EXISTS mouvement (
+  id         TEXT PRIMARY KEY,
+  sejour_id  TEXT NOT NULL REFERENCES sejour(id) ON DELETE CASCADE,
+  lit_id     TEXT REFERENCES lit(id) ON DELETE SET NULL,
+  unite_id   TEXT REFERENCES unite_soins(id) ON DELETE SET NULL,
+  -- admission | transfert | sortie
+  type       TEXT NOT NULL,
+  motif      TEXT,
+  acteur_id  TEXT,
+  survenu_le TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_mouvement_sejour ON mouvement(sejour_id, survenu_le);
+
 -- Ce que l application a appris des corrections du praticien.
 --
 -- Une ligne = un couple « la machine a entendu ceci, il fallait cela ». Elle
