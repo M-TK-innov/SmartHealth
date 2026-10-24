@@ -275,6 +275,98 @@ const transcript = DEMO.map(([s, t]) => {
 }).join('\n');
 db.prepare('UPDATE consultation SET transcript_full = ? WHERE id = ?').run(transcript, cId);
 
+// ------------------------------------------------- unites, lits et postes
+//
+// Les chiffres sont ceux d'un centre de sante de commune, pas d'un CHU : une
+// dizaine de lits par unite, un seul bloc de consultation. Un jeu de
+// demonstration surdimensionne donne une fausse idee de ce que l'ecran doit
+// supporter — et cache les cas etroits, comme une unite ou il ne reste qu'un
+// lit libre.
+
+const unites = [
+  { code: 'MED', nom: 'Medecine generale', categorie: 'hospitalisation', lits: 10 },
+  { code: 'MAT', nom: 'Maternite', categorie: 'obstetrique', lits: 8 },
+  { code: 'PED', nom: 'Pediatrie', categorie: 'pediatrie', lits: 6 },
+  { code: 'URG', nom: 'Urgences — observation', categorie: 'urgences', lits: 4 },
+];
+
+const litsParUnite = {};
+for (const u of unites) {
+  const uniteId = randomUUID();
+  insert('unite_soins', {
+    id: uniteId,
+    organization_id: facilityId,
+    code: u.code,
+    nom: u.nom,
+    categorie: u.categorie,
+    actif: 1,
+  });
+
+  litsParUnite[u.code] = [];
+  for (let i = 1; i <= u.lits; i++) {
+    const litId = randomUUID();
+    // Un lit hors service par unite a partir de la troisieme place, et un lit
+    // a preparer : l'ecran doit montrer ces deux etats des la demonstration,
+    // parce que ce sont eux qui font diverger « places » et « lits ».
+    const etat = i === 3 ? 'hors-service' : i === 4 ? 'a-preparer' : 'libre';
+    insert('lit', {
+      id: litId,
+      unite_id: uniteId,
+      chambre: `${u.code}-${Math.ceil(i / 2)}`,
+      code: `${u.code}-${String(i).padStart(2, '0')}`,
+      etat,
+      isolement: i === u.lits ? 1 : 0,
+    });
+    litsParUnite[u.code].push({ id: litId, etat });
+  }
+}
+
+const postes = [
+  { code: 'ACC', nom: 'Accueil', categorie: 'accueil' },
+  { code: 'TRI', nom: 'Triage', categorie: 'triage' },
+  { code: 'CONS-1', nom: 'Consultation 1', categorie: 'consultation' },
+  { code: 'CAISSE', nom: 'Caisse', categorie: 'caisse' },
+  { code: 'PHARM', nom: 'Pharmacie', categorie: 'pharmacie' },
+  { code: 'LABO', nom: 'Laboratoire', categorie: 'laboratoire' },
+];
+
+const posteId = {};
+for (const p of postes) {
+  posteId[p.code] = randomUUID();
+  insert('poste', {
+    id: posteId[p.code],
+    organization_id: facilityId,
+    code: p.code,
+    nom: p.nom,
+    categorie: p.categorie,
+    actif: 1,
+  });
+}
+
+// Un sejour en cours, pour que l'occupation et les files ne soient pas vides
+// au premier ecran.
+const sejourId = randomUUID();
+const litMed = litsParUnite.MED.find((l) => l.etat === 'libre');
+insert('sejour', {
+  id: sejourId,
+  patient_id: p3,
+  organization_id: facilityId,
+  type: 'hospitalisation',
+  statut: 'en-cours',
+  lit_id: litMed.id,
+  motif: 'Desequilibre glycemique',
+  mode_entree: 'urgences',
+  admis_le: daysAgo(1),
+});
+db.prepare("UPDATE lit SET etat = 'occupe' WHERE id = ?").run(litMed.id);
+insert('mouvement', {
+  id: randomUUID(),
+  sejour_id: sejourId,
+  lit_id: litMed.id,
+  type: 'admission',
+  survenu_le: daysAgo(1),
+});
+
 // ------------------------------------------------------------------ comptes
 //
 // Un compte par role, pour pouvoir eprouver la hierarchie de bout en bout.
@@ -328,13 +420,17 @@ insert('audit_log', {
   actor_label: 'seed',
   action: 'create',
   entity: 'dataset',
-  detail: `Jeu de demonstration : 3 organisations, ${accounts.length} comptes, 3 patients.`,
+  detail: `Jeu de demonstration : 3 organisations, ${accounts.length} comptes, 3 patients, ${unites.length} unites, ${postes.length} postes.`,
 });
 
 console.log(`Base initialisee : ${DB_PATH}`);
 console.log(`  praticien   : Dr Ama Sossou`);
 console.log(`  patients    : 3 (${p1.slice(0, 8)}, ${p2.slice(0, 8)}, ${p3.slice(0, 8)})`);
 console.log(`  consultation: /consultations/${cId}`);
+const totalLits = unites.reduce((n, u) => n + u.lits, 0);
+console.log(
+  `  hopital     : ${unites.length} unites (${totalLits} lits), ${postes.length} postes, 1 sejour en cours`,
+);
 console.log('');
 console.log('Comptes de demonstration (mot de passe commun : ' + DEMO_PASSWORD + ') :');
 console.log('  super@parledocteur.local   super-administrateur : tout, y compris base et serveurs');

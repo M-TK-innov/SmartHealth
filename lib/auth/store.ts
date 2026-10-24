@@ -5,6 +5,7 @@ import {
   ALL_PERMISSIONS,
   DEFAULT_ROLE_PERMISSIONS,
   ROLES,
+  rattrapage,
   type Permission,
   type Role,
   type OrgType,
@@ -144,14 +145,41 @@ export function passwordPolicy(): PasswordPolicy {
 
 // ------------------------------------------------------------- permissions
 
-/** Amorce la matrice role -> permissions si elle est vide. */
+/**
+ * Amorce la matrice role -> permissions, et rattrape celles qui sont
+ * apparues depuis l'installation.
+ *
+ * La DECISION vit dans rattrapage(), qui est pur et teste. Ici on se contente
+ * de lire l'etat, de la lui soumettre, et d'ecrire ce qu'elle accorde.
+ */
 export function ensureRolePermissions() {
-  const count = get<{ n: number }>('SELECT COUNT(*) n FROM role_permission')?.n ?? 0;
-  if (count > 0) return;
-  for (const role of ROLES) {
-    for (const permission of DEFAULT_ROLE_PERMISSIONS[role]) {
-      run('INSERT OR IGNORE INTO role_permission (role, permission) VALUES (?, ?)', [role, permission]);
-    }
+  const n = get<{ n: number }>('SELECT COUNT(*) n FROM role_permission')?.n ?? 0;
+
+  const plan = rattrapage({
+    dejaAmorcees: all<{ permission: string }>('SELECT permission FROM permission_amorcee').map(
+      (r) => r.permission,
+    ),
+    presentesEnBase: all<{ permission: string }>(
+      'SELECT DISTINCT permission FROM role_permission',
+    ).map((r) => r.permission),
+  });
+
+  for (const { role, permission } of plan.aAccorder) {
+    run('INSERT OR IGNORE INTO role_permission (role, permission) VALUES (?, ?)', [role, permission]);
+  }
+  for (const p of plan.aMarquer) {
+    run('INSERT OR IGNORE INTO permission_amorcee (permission) VALUES (?)', [p]);
+  }
+
+  // Un rattrapage sur une base deja installee modifie des droits : il se
+  // journalise, sinon personne ne saura d'ou vient le changement.
+  if (n > 0 && plan.aAccorder.length > 0) {
+    audit({
+      action: 'update',
+      entity: 'role_permission',
+      entityId: 'rattrapage',
+      detail: { accordees: plan.aAccorder },
+    });
   }
 }
 
