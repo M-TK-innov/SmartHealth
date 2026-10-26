@@ -17,8 +17,24 @@ import type { NavItem } from '@/lib/auth/nav-items';
  * confort, pas une securite : chaque page revalide ses droits cote serveur.
  */
 
-function isActive(pathname: string, href: string): boolean {
-  return href === '/' ? pathname === '/' : pathname.startsWith(href);
+/**
+ * Une entree est active si l'URL courante est sous elle — et qu'aucune
+ * entree PLUS PRECISE ne l'est aussi.
+ *
+ * Sans cette seconde condition, une page imbriquee allume deux onglets a la
+ * fois : sur /hopital/pharmacie, « Lits et files » s'allumerait avec
+ * « Pharmacie », et le praticien ne saurait plus ou il se trouve.
+ */
+function isActive(pathname: string, href: string, items: NavItem[]): boolean {
+  if (href === '/') return pathname === '/';
+  if (!sousLa(pathname, href)) return false;
+  return !items.some((i) => i.href !== href && i.href.length > href.length && sousLa(pathname, i.href));
+}
+
+function sousLa(pathname: string, href: string): boolean {
+  // Comparaison par SEGMENT : sans elle, /hopitaux serait considere comme
+  // une page de /hopital.
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function TopNav({ items }: { items: NavItem[] }) {
@@ -29,9 +45,9 @@ export function TopNav({ items }: { items: NavItem[] }) {
         <Link
           key={n.href}
           href={n.href}
-          aria-current={isActive(pathname, n.href) ? 'page' : undefined}
+          aria-current={isActive(pathname, n.href, items) ? 'page' : undefined}
           className={`rounded-lg px-3 py-1.5 text-sm transition ${
-            isActive(pathname, n.href)
+            isActive(pathname, n.href, items)
               ? 'bg-brand-soft font-medium text-brand-dark'
               : 'text-ink-soft hover:bg-brand-soft hover:text-brand-dark'
           }`}
@@ -53,7 +69,7 @@ export function BottomNav({ items }: { items: NavItem[] }) {
     >
       <ul className="flex">
         {items.map((n) => {
-          const active = isActive(pathname, n.href);
+          const active = isActive(pathname, n.href, items);
           return (
             <li key={n.href} className="flex-1">
               <Link

@@ -3,6 +3,7 @@ import { mkdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { SCHEMA_SQL } from './schema';
+import { appliquerMigrations } from './migrations';
 
 /**
  * Acces SQLite via le module natif `node:sqlite` (Node >= 22.5).
@@ -27,43 +28,8 @@ function open(): DatabaseSync {
 
   const database = new DatabaseSync(DB_PATH);
   database.exec(SCHEMA_SQL);
-  migrate(database);
+  appliquerMigrations(database);
   return database;
-}
-
-/**
- * Migrations additives.
- *
- * `CREATE TABLE IF NOT EXISTS` ne touche pas une table deja creee : une base
- * installee avant l'ajout d'une colonne ne l'aurait jamais. On ajoute donc
- * explicitement les colonnes manquantes. Uniquement des ajouts : on ne
- * supprime ni ne renomme rien dans une base de dossiers medicaux.
- */
-function migrate(database: DatabaseSync) {
-  const columns = (table: string): string[] => {
-    try {
-      return (database.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((c) => c.name);
-    } catch {
-      return [];
-    }
-  };
-
-  const additions: [table: string, column: string, definition: string][] = [
-    ['patient', 'organization_id', 'TEXT'],
-    ['consultation', 'organization_id', 'TEXT'],
-    ['transcript_segment', 'speaker_source', "TEXT DEFAULT 'auto'"],
-    ['transcript_segment', 'speaker_confidence', 'REAL'],
-    ['transcript_segment', 'pitch_hz', 'REAL'],
-    ['transcript_segment', 'source_text', 'TEXT'],
-    ['transcript_segment', 'source_language', 'TEXT'],
-  ];
-
-  for (const [table, column, definition] of additions) {
-    const existing = columns(table);
-    if (existing.length && !existing.includes(column)) {
-      database.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
-    }
-  }
 }
 
 export const databasePath = () => DB_PATH;

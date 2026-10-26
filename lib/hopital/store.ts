@@ -124,6 +124,93 @@ export function tableauOccupation(organizationId: string | null): UniteAvecOccup
   }));
 }
 
+export interface SejourPresent {
+  id: string;
+  patientNom: string;
+  type: string;
+  litCode: string | null;
+  uniteNom: string | null;
+  admisLe: string | null;
+}
+
+/** Les patients actuellement presents, pour le tableau de bord. */
+export function sejoursPresents(organizationId: string | null): SejourPresent[] {
+  return all<{
+    id: string;
+    given_name: string;
+    family_name: string;
+    type: string;
+    lit_code: string | null;
+    unite_nom: string | null;
+    admis_le: string | null;
+  }>(
+    `SELECT s.id, p.given_name, p.family_name, s.type, s.admis_le,
+            l.code AS lit_code, u.nom AS unite_nom
+       FROM sejour s
+       JOIN patient p ON p.id = s.patient_id
+       LEFT JOIN lit l ON l.id = s.lit_id
+       LEFT JOIN unite_soins u ON u.id = l.unite_id
+      WHERE s.statut = 'en-cours'
+        AND (? IS NULL OR s.organization_id = ? OR s.organization_id IS NULL)
+      ORDER BY s.admis_le DESC`,
+    [organizationId, organizationId],
+  ).map((r) => ({
+    id: r.id,
+    patientNom: `${r.given_name} ${r.family_name}`,
+    type: r.type,
+    litCode: r.lit_code,
+    uniteNom: r.unite_nom,
+    admisLe: r.admis_le,
+  }));
+}
+
+export interface ConsultationDuSejour {
+  id: string;
+  status: string;
+  reason_text: string | null;
+  started_at: string;
+  signed_at: string | null;
+}
+
+/**
+ * Les consultations rattachees a un sejour.
+ *
+ * Par le LIEN et non par les dates. Recoller un dossier d'hospitalisation
+ * en prenant les consultations du meme patient entre l'admission et la
+ * sortie y fait entrer la consultation externe qu'il a eue le meme jour
+ * dans un autre service — et la fait disparaitre de son propre dossier.
+ */
+export function consultationsDuSejour(sejourId: string): ConsultationDuSejour[] {
+  return all<ConsultationDuSejour>(
+    `SELECT id, status, reason_text, started_at, signed_at
+       FROM consultation WHERE sejour_id = ? ORDER BY started_at DESC`,
+    [sejourId],
+  );
+}
+
+export interface MouvementDuSejour {
+  id: string;
+  type: string;
+  motif: string | null;
+  survenu_le: string;
+  lit_code: string | null;
+  unite_nom: string | null;
+}
+
+/** Le parcours du patient dans l'etablissement, mouvement par mouvement. */
+export function mouvementsDuSejour(sejourId: string): MouvementDuSejour[] {
+  return all<MouvementDuSejour>(
+    `SELECT m.id, m.type, m.motif, m.survenu_le,
+            l.code AS lit_code, u.nom AS unite_nom
+       FROM mouvement m
+       LEFT JOIN lit l ON l.id = m.lit_id
+       LEFT JOIN unite_soins u ON u.id = COALESCE(m.unite_id, l.unite_id)
+      WHERE m.sejour_id = ?
+      ORDER BY m.survenu_le`,
+    [sejourId],
+  );
+}
+
 // ------------------------------------------------------------------ ecriture
 
 function journaliser(params: {
