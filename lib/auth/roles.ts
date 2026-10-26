@@ -54,6 +54,9 @@ export const PERMISSIONS = {
   'flux:write': 'Placer, appeler et orienter un patient dans les files',
   'caisse:read': 'Consulter une facture et son reste a charge',
   'caisse:write': 'Facturer un acte et encaisser un paiement',
+  'pharmacie:read': 'Consulter le stock de pharmacie',
+  'pharmacie:dispense': 'Dispenser un medicament a un patient',
+  'pharmacie:stock': 'Enregistrer une livraison et retirer les lots perimes',
 
   // --- interoperabilite
   'export:read': 'Generer et telecharger les exports FHIR / HL7 / DHIS2',
@@ -99,7 +102,15 @@ export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] =
   },
   {
     label: 'Parcours et caisse',
-    permissions: ['flux:read', 'flux:write', 'caisse:read', 'caisse:write'],
+    permissions: [
+      'flux:read',
+      'flux:write',
+      'caisse:read',
+      'caisse:write',
+      'pharmacie:read',
+      'pharmacie:dispense',
+      'pharmacie:stock',
+    ],
   },
   { label: 'Interoperabilite', permissions: ['export:read', 'export:send'] },
   { label: 'Pilotage', permissions: ['stats:facility', 'stats:national', 'surveillance:read'] },
@@ -140,6 +151,9 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'flux:read',
     'flux:write',
     'caisse:read',
+    // Il VOIT le stock — prescrire ce qui est en rupture fait revenir le
+    // patient pour rien — mais il ne dispense pas et n'y touche pas.
+    'pharmacie:read',
   ],
   hopital: [
     'patient:read',
@@ -148,6 +162,9 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'flux:write',
     'caisse:read',
     'caisse:write',
+    'pharmacie:read',
+    'pharmacie:dispense',
+    'pharmacie:stock',
     'export:read',
     'export:send',
     'stats:facility',

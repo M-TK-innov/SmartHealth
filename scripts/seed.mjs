@@ -367,6 +367,82 @@ insert('mouvement', {
   survenu_le: daysAgo(1),
 });
 
+// ------------------------------------------------------------- pharmacie
+//
+// Le rayon porte volontairement les quatre etats que l'ecran doit savoir
+// montrer : suffisant, bas, rupture, et entierement perime. Un jeu de
+// demonstration ou tout va bien ne prouve rien — et surtout pas que le
+// refus de servir un lot perime fonctionne.
+
+const dansNJours = (n) =>
+  new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+
+const medicaments = [
+  {
+    dci: 'Amoxicilline', forme: 'comprime', dosage: '500 mg', seuil: 200,
+    lots: [
+      { numero: 'AMX-2605', perimeLe: dansNJours(420), quantite: 600 },
+      { numero: 'AMX-2512', perimeLe: dansNJours(21), quantite: 150 },
+    ],
+  },
+  {
+    dci: 'Artemether/lumefantrine', forme: 'comprime', dosage: '20/120 mg', seuil: 120,
+    lots: [{ numero: 'ALU-2603', perimeLe: dansNJours(260), quantite: 480 }],
+  },
+  {
+    // Stock bas : au seuil exact, pour que l'ecran le signale des maintenant
+    // et non le jour ou il tombe en dessous.
+    dci: 'Paracetamol', forme: 'comprime', dosage: '500 mg', seuil: 300,
+    lots: [{ numero: 'PAR-2611', perimeLe: dansNJours(180), quantite: 300 }],
+  },
+  {
+    // Entierement perime : les boites sont encore en rayon, et c'est
+    // exactement la situation ou quelqu'un les sert sans regarder.
+    dci: 'Ceftriaxone', forme: 'injectable', dosage: '1 g', seuil: 40,
+    lots: [{ numero: 'CEF-2409', perimeLe: dansNJours(-35), quantite: 60 }],
+  },
+  {
+    // Rupture franche : aucun lot.
+    dci: 'Sulfadoxine/pyrimethamine', forme: 'comprime', dosage: '500/25 mg', seuil: 100, lots: [],
+  },
+  {
+    dci: 'Sels de rehydratation orale', forme: 'sachet', dosage: null, seuil: 150,
+    lots: [{ numero: 'SRO-2607', perimeLe: dansNJours(540), quantite: 900 }],
+  },
+];
+
+for (const m of medicaments) {
+  const articleId = randomUUID();
+  insert('article', {
+    id: articleId,
+    organization_id: facilityId,
+    dci: m.dci,
+    forme: m.forme,
+    dosage: m.dosage,
+    unite: m.forme === 'sachet' ? 'sachet' : 'unite',
+    seuil_alerte: m.seuil,
+    actif: 1,
+  });
+  for (const l of m.lots) {
+    const lotId = randomUUID();
+    insert('lot', {
+      id: lotId,
+      article_id: articleId,
+      numero: l.numero,
+      perime_le: l.perimeLe,
+      quantite: l.quantite,
+    });
+    insert('mouvement_stock', {
+      id: randomUUID(),
+      lot_id: lotId,
+      article_id: articleId,
+      type: 'entree',
+      quantite: l.quantite,
+      motif: 'Dotation initiale',
+    });
+  }
+}
+
 // ------------------------------------------------------------------ comptes
 //
 // Un compte par role, pour pouvoir eprouver la hierarchie de bout en bout.
@@ -430,6 +506,9 @@ console.log(`  consultation: /consultations/${cId}`);
 const totalLits = unites.reduce((n, u) => n + u.lits, 0);
 console.log(
   `  hopital     : ${unites.length} unites (${totalLits} lits), ${postes.length} postes, 1 sejour en cours`,
+);
+console.log(
+  `  pharmacie   : ${medicaments.length} references, dont 1 en rupture, 1 au seuil et 1 entierement perimee`,
 );
 console.log('');
 console.log('Comptes de demonstration (mot de passe commun : ' + DEMO_PASSWORD + ') :');

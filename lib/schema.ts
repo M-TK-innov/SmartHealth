@@ -129,6 +129,14 @@ CREATE TABLE IF NOT EXISTS consultation (
   report_markdown   TEXT,
   report_edited     INTEGER NOT NULL DEFAULT 0,
   organization_id   TEXT,             -- cloisonnement : etablissement de la rencontre
+  -- Sejour pendant lequel la consultation a eu lieu. NULL pour une
+  -- consultation externe, ce qui est une situation normale et non une
+  -- donnee manquante.
+  --
+  -- Son index est declare dans lib/migrations.ts et NON ici : sur une base
+  -- deja installee, la colonne n'existe qu'apres l'ALTER TABLE, et un index
+  -- pose ici s'executerait avant — la base ne s'ouvrirait plus.
+  sejour_id         TEXT,
   created_at        TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -322,6 +330,87 @@ CREATE TABLE IF NOT EXISTS paiement (
   recu_le     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_paiement_facture ON paiement(facture_id, recu_le);
+
+-- Article de pharmacie, designe par sa DCI. Le stock, lui, vit dans les
+-- lots : un article sans lot n'a pas un stock de zero, il n'a pas de stock
+-- du tout, et la nuance compte quand on cherche pourquoi on ne sert pas.
+CREATE TABLE IF NOT EXISTS article (
+  id              TEXT PRIMARY KEY,
+  organization_id TEXT,
+  dci             TEXT NOT NULL,         -- denomination commune internationale
+  forme           TEXT,                  -- comprime, sirop, injectable...
+  dosage          TEXT,
+  atc_code        TEXT,
+  unite           TEXT NOT NULL DEFAULT 'unite',
+  seuil_alerte    INTEGER NOT NULL DEFAULT 0,
+  actif           INTEGER NOT NULL DEFAULT 1,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_article_org ON article(organization_id, actif);
+CREATE INDEX IF NOT EXISTS idx_article_dci ON article(dci);
+
+-- Lot : l'unite reelle du stock, parce que la peremption est portee par le
+-- lot et non par l'article. Un stock agrege par article ne sait pas dire ce
+-- qui est encore servable.
+CREATE TABLE IF NOT EXISTS lot (
+  id          TEXT PRIMARY KEY,
+  article_id  TEXT NOT NULL REFERENCES article(id) ON DELETE CASCADE,
+  numero      TEXT NOT NULL,             -- celui qu on lit sur la boite
+  perime_le   TEXT NOT NULL,             -- AAAA-MM-JJ
+  quantite    INTEGER NOT NULL DEFAULT 0,
+  recu_le     TEXT NOT NULL DEFAULT (datetime('now')),
+  -- Un stock negatif est toujours le signe qu on a servi ce qu on n avait
+  -- pas. L accepter « pour regulariser plus tard » rend tout l inventaire
+  -- inexploitable, donc la base le refuse.
+  CHECK (quantite >= 0)
+);
+CREATE INDEX IF NOT EXISTS idx_lot_article ON lot(article_id, perime_le);
+
+-- Dispensation : ce qui est sorti, pour qui, et ce qui manquait.
+CREATE TABLE IF NOT EXISTS dispensation (
+  id              TEXT PRIMARY KEY,
+  sejour_id       TEXT REFERENCES sejour(id) ON DELETE SET NULL,
+  patient_id      TEXT NOT NULL REFERENCES patient(id) ON DELETE CASCADE,
+  prescription_id TEXT REFERENCES prescription(id) ON DELETE SET NULL,
+  organization_id TEXT,
+  acteur_id       TEXT,
+  servi_le        TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_disp_patient ON dispensation(patient_id, servi_le DESC);
+CREATE INDEX IF NOT EXISTS idx_disp_sejour ON dispensation(sejour_id);
+
+CREATE TABLE IF NOT EXISTS dispensation_ligne (
+  id              TEXT PRIMARY KEY,
+  dispensation_id TEXT NOT NULL REFERENCES dispensation(id) ON DELETE CASCADE,
+  article_id      TEXT NOT NULL REFERENCES article(id),
+  lot_id          TEXT REFERENCES lot(id) ON DELETE SET NULL,
+  -- Le numero de lot est COPIE ici, et pas seulement reference. Un rappel de
+  -- lot se fait des annees plus tard ; la ligne doit encore savoir ce
+  -- qu'elle a servi meme si la fiche du lot a disparu.
+  numero_lot      TEXT NOT NULL,
+  perime_le       TEXT NOT NULL,
+  quantite        INTEGER NOT NULL,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_dligne_disp ON dispensation_ligne(dispensation_id);
+-- Pour retrouver tous les patients servis depuis un lot rappele.
+CREATE INDEX IF NOT EXISTS idx_dligne_lot ON dispensation_ligne(numero_lot);
+
+-- Tout mouvement de stock, y compris les entrees et les destructions. Sans
+-- ce journal, un ecart d'inventaire ne s'explique jamais.
+CREATE TABLE IF NOT EXISTS mouvement_stock (
+  id         TEXT PRIMARY KEY,
+  lot_id     TEXT REFERENCES lot(id) ON DELETE SET NULL,
+  article_id TEXT NOT NULL REFERENCES article(id) ON DELETE CASCADE,
+  -- entree | dispensation | destruction | ajustement
+  type       TEXT NOT NULL,
+  -- Signe : positif pour une entree, negatif pour une sortie.
+  quantite   INTEGER NOT NULL,
+  motif      TEXT,
+  acteur_id  TEXT,
+  survenu_le TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_mvtstock_article ON mouvement_stock(article_id, survenu_le);
 
 -- Ce que l application a appris des corrections du praticien.
 --

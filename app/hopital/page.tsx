@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { requireAnyPermission } from '@/lib/auth/guard';
-import { tableauOccupation } from '@/lib/hopital/store';
+import { sejoursPresents, tableauOccupation } from '@/lib/hopital/store';
 import { tableauTension } from '@/lib/hopital/flux-store';
 
 export const dynamic = 'force-dynamic';
@@ -23,6 +23,7 @@ export default async function HopitalPage() {
 
   const unites = tableauOccupation(orgId);
   const postes = peutVoirFiles ? tableauTension(orgId) : [];
+  const presents = sejoursPresents(orgId);
 
   const utilisables = unites.reduce((n, u) => n + (u.total - u.horsService), 0);
   const occupes = unites.reduce((n, u) => n + u.occupes, 0);
@@ -127,6 +128,38 @@ export default async function HopitalPage() {
           </section>
         )}
       </div>
+
+      <section className="card">
+        <header className="border-b border-line px-5 py-3">
+          <h2 className="text-lg font-bold">Patients presents ({presents.length})</h2>
+          <p className="text-xs text-ink-soft">
+            Y compris ceux qui n occupent pas de lit — un patient aux urgences est present, et
+            l oublier revient a perdre sa trace entre deux ecrans.
+          </p>
+        </header>
+        {presents.length === 0 ? (
+          <p className="p-5 text-sm text-ink-soft">Aucun patient present.</p>
+        ) : (
+          <ul className="divide-y divide-line">
+            {presents.map((s) => (
+              <li key={s.id} className="flex flex-wrap items-center gap-3 px-5 py-2.5">
+                <Link href={`/hopital/sejours/${s.id}`} className="min-w-0 flex-1 hover:underline">
+                  <span className="block truncate font-medium">{s.patientNom}</span>
+                  <span className="block text-xs text-ink-soft">
+                    {s.uniteNom ?? s.type}
+                    {s.litCode ? ` · lit ${s.litCode}` : ' · sans lit'}
+                  </span>
+                </Link>
+                {s.admisLe && (
+                  <span className="shrink-0 text-xs text-ink-soft">
+                    depuis le {new Date(s.admisLe.replace(' ', 'T')).toLocaleDateString('fr-FR')}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }
