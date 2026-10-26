@@ -443,6 +443,111 @@ for (const m of medicaments) {
   }
 }
 
+// --------------------------------------------- plateau technique et bloc
+//
+// LES SEUILS SONT UNE DONNEE DE L'ETABLISSEMENT, pas une constante de
+// l'application. Ceux-ci sont un point de depart pour la demonstration :
+// ils doivent etre revus et valides par le biologiste du site avant toute
+// utilisation reelle, et c'est pour cela que la table porte les colonnes
+// valide_par et valide_le, laissees vides ici.
+
+const seuils = [
+  { examen: 'Kaliemie', unite: 'mmol/l', bas: 2.8, haut: 6.0, stabilite: 60 },
+  { examen: 'Glycemie', unite: 'g/l', bas: 0.4, haut: 4.0, stabilite: 120 },
+  { examen: 'Hemoglobine', unite: 'g/dl', bas: 6.0, haut: null, stabilite: 480 },
+  { examen: 'Creatininemie', unite: 'mg/l', bas: null, haut: 50, stabilite: 480 },
+  // Sans seuil : la goutte epaisse se rend en parasitemie, et le seuil
+  // d'alerte depend du contexte de transmission. L'absence est volontaire,
+  // et l'ecran dira « non interprete » plutot que « normal ».
+  { examen: 'Goutte epaisse', unite: 'parasites/ul', bas: null, haut: null, stabilite: 240 },
+];
+
+for (const s of seuils) {
+  insert('seuil_critique', {
+    id: randomUUID(),
+    organization_id: facilityId,
+    examen: s.examen,
+    unite: s.unite,
+    borne_basse: s.bas,
+    borne_haute: s.haut,
+    stabilite_min: s.stabilite,
+  });
+}
+
+// Deux demandes en cours, pour que l'ecran ne soit pas vide : une prelevee
+// qui attend son resultat, une qui attend son prelevement.
+const demandeKaliemie = randomUUID();
+insert('demande_examen', {
+  id: demandeKaliemie,
+  patient_id: p3,
+  sejour_id: sejourId,
+  organization_id: facilityId,
+  domaine: 'laboratoire',
+  examen: 'Kaliemie',
+  priorite: 'urgente',
+  etat: 'prelevee',
+  demandee_le: now(),
+  prelevee_le: now(),
+  identite_verifiee: 1,
+});
+insert('demande_examen', {
+  id: randomUUID(),
+  patient_id: p1,
+  organization_id: facilityId,
+  domaine: 'imagerie',
+  examen: 'Echographie obstetricale',
+  priorite: 'routine',
+  etat: 'demandee',
+  demandee_le: now(),
+});
+
+const sallesBloc = [
+  { code: 'BO-1', nom: 'Bloc 1 — chirurgie generale' },
+  { code: 'BO-2', nom: 'Bloc 2 — obstetrique' },
+];
+const salleId = {};
+for (const s of sallesBloc) {
+  salleId[s.code] = randomUUID();
+  insert('salle_operatoire', {
+    id: salleId[s.code],
+    organization_id: facilityId,
+    code: s.code,
+    nom: s.nom,
+    actif: 1,
+  });
+}
+
+// Une intervention lateralisee au programme du jour : c'est le cas ou
+// l'affichage du cote compte, et il doit etre visible des la demonstration.
+const aujourdhui = new Date().toISOString().slice(0, 10);
+insert('intervention', {
+  id: randomUUID(),
+  patient_id: p3,
+  sejour_id: sejourId,
+  salle_id: salleId['BO-1'],
+  organization_id: facilityId,
+  geste: 'Cure de hernie inguinale',
+  lateralise: 1,
+  lateralite: 'droite',
+  debut_prevu: `${aujourdhui}T08:00:00.000Z`,
+  fin_prevue: `${aujourdhui}T10:00:00.000Z`,
+  etat: 'programmee',
+  operateur_id: drId,
+});
+insert('intervention', {
+  id: randomUUID(),
+  patient_id: p1,
+  salle_id: salleId['BO-2'],
+  organization_id: facilityId,
+  geste: 'Cesarienne programmee',
+  lateralise: 0,
+  lateralite: 'sans-objet',
+  debut_prevu: `${aujourdhui}T10:30:00.000Z`,
+  fin_prevue: `${aujourdhui}T12:00:00.000Z`,
+  etat: 'programmee',
+  operateur_id: drId,
+});
+
 // ------------------------------------------------------------------ comptes
 //
 // Un compte par role, pour pouvoir eprouver la hierarchie de bout en bout.
@@ -510,6 +615,10 @@ console.log(
 console.log(
   `  pharmacie   : ${medicaments.length} references, dont 1 en rupture, 1 au seuil et 1 entierement perimee`,
 );
+console.log(
+  `  plateau     : ${seuils.length} seuils (1 volontairement sans borne), 2 demandes en cours`,
+);
+console.log(`  bloc        : ${sallesBloc.length} salles, 2 interventions au programme du jour`);
 console.log('');
 console.log('Comptes de demonstration (mot de passe commun : ' + DEMO_PASSWORD + ') :');
 console.log('  super@parledocteur.local   super-administrateur : tout, y compris base et serveurs');

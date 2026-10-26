@@ -24,6 +24,8 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/consultations', label: 'Consultations', short: 'Consult.', icon: '◑', permission: 'consultation:read' },
   { href: '/hopital', label: 'Lits et files', short: 'Hopital', icon: '▤', permission: 'flux:read' },
   { href: '/hopital/pharmacie', label: 'Pharmacie', short: 'Pharma', icon: '⚕', permission: 'pharmacie:read' },
+  { href: '/hopital/plateau', label: 'Laboratoire', short: 'Labo', icon: '◎', permission: 'plateau:read' },
+  { href: '/hopital/bloc', label: 'Bloc', short: 'Bloc', icon: '✚', permission: 'bloc:read' },
   { href: '/interop', label: 'Interoperabilite', short: 'Interop', icon: '⇄', permission: 'export:read' },
   { href: '/corrections', label: 'Corrections apprises', short: 'Appris', icon: '✎', permission: 'transcript:record' },
   { href: '/audit', label: 'Journal', short: 'Journal', icon: '≡', permission: 'audit:read' },

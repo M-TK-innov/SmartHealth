@@ -11,6 +11,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { all, audit, get, insert, run, tx } from '../db.ts';
+import { versIsoRequis } from '../temps.ts';
 import {
   avisAvantActe,
   francs,
@@ -71,7 +72,7 @@ export function factureParId(id: string): Facture | null {
   const paiements = all<LignePaiementDb>(
     'SELECT * FROM paiement WHERE facture_id = ? ORDER BY recu_le',
     [id],
-  ).map<Paiement>((p) => ({ id: p.id, montant: p.montant, moyen: p.moyen, recuLe: p.recu_le }));
+  ).map<Paiement>((p) => ({ id: p.id, montant: p.montant, moyen: p.moyen, recuLe: versIsoRequis(p.recu_le) }));
 
   return {
     id: f.id,

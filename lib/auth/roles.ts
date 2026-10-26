@@ -57,6 +57,11 @@ export const PERMISSIONS = {
   'pharmacie:read': 'Consulter le stock de pharmacie',
   'pharmacie:dispense': 'Dispenser un medicament a un patient',
   'pharmacie:stock': 'Enregistrer une livraison et retirer les lots perimes',
+  'plateau:read': 'Consulter les demandes et resultats d examen',
+  'plateau:write': 'Prelever, saisir et corriger un resultat',
+  'plateau:acquitter': 'Acquitter une valeur critique au nom d un soignant joint',
+  'bloc:read': 'Consulter le programme operatoire',
+  'bloc:write': 'Programmer une intervention et conduire sa checklist',
 
   // --- interoperabilite
   'export:read': 'Generer et telecharger les exports FHIR / HL7 / DHIS2',
@@ -102,15 +107,15 @@ export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] =
   },
   {
     label: 'Parcours et caisse',
-    permissions: [
-      'flux:read',
-      'flux:write',
-      'caisse:read',
-      'caisse:write',
-      'pharmacie:read',
-      'pharmacie:dispense',
-      'pharmacie:stock',
-    ],
+    permissions: ['flux:read', 'flux:write', 'caisse:read', 'caisse:write'],
+  },
+  {
+    label: 'Pharmacie',
+    permissions: ['pharmacie:read', 'pharmacie:dispense', 'pharmacie:stock'],
+  },
+  {
+    label: 'Plateau technique et bloc',
+    permissions: ['plateau:read', 'plateau:write', 'plateau:acquitter', 'bloc:read', 'bloc:write'],
   },
   { label: 'Interoperabilite', permissions: ['export:read', 'export:send'] },
   { label: 'Pilotage', permissions: ['stats:facility', 'stats:national', 'surveillance:read'] },
@@ -154,6 +159,14 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     // Il VOIT le stock — prescrire ce qui est en rupture fait revenir le
     // patient pour rien — mais il ne dispense pas et n'y touche pas.
     'pharmacie:read',
+    // Il demande les examens, lit les resultats et acquitte ce qu'on lui
+    // transmet. Il ne SAISIT pas de resultat : ce n'est pas son poste, et
+    // confondre les deux retire au laboratoire la responsabilite de ce
+    // qu'il rend.
+    'plateau:read',
+    'plateau:acquitter',
+    'bloc:read',
+    'bloc:write',
   ],
   hopital: [
     'patient:read',
@@ -165,6 +178,11 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'pharmacie:read',
     'pharmacie:dispense',
     'pharmacie:stock',
+    'plateau:read',
+    'plateau:write',
+    'plateau:acquitter',
+    'bloc:read',
+    'bloc:write',
     'export:read',
     'export:send',
     'stats:facility',

@@ -18,6 +18,8 @@
  * sur la mauvaise personne. La regle refuse, et dit pourquoi.
  */
 
+import { versIso } from '../temps.ts';
+
 /** Ou en est le patient dans l'etablissement. */
 export type StatutSejour =
   /** Attendu, pas encore arrive : hospitalisation programmee. */
@@ -337,8 +339,8 @@ export function occupation(uniteId: string, lits: Lit[], sejoursEnCours: Sejour[
  * une nuit passee dans l'etablissement serait faux des deux points de vue.
  */
 export function dureeJours(admisLe: string, sortiLe: string): number {
-  const debut = new Date(admisLe).getTime();
-  const fin = new Date(sortiLe).getTime();
+  const debut = new Date(versIso(admisLe) ?? '').getTime();
+  const fin = new Date(versIso(sortiLe) ?? '').getTime();
   if (!Number.isFinite(debut) || !Number.isFinite(fin) || fin < debut) return 0;
   return Math.max(1, Math.ceil((fin - debut) / 86_400_000));
 }

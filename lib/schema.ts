@@ -412,6 +412,154 @@ CREATE TABLE IF NOT EXISTS mouvement_stock (
 );
 CREATE INDEX IF NOT EXISTS idx_mvtstock_article ON mouvement_stock(article_id, survenu_le);
 
+-- ---------------------------------------------------------- plateau technique
+
+-- Demande d examen : laboratoire ou imagerie. Distincte de service_request,
+-- qui porte la prescription telle qu elle sort de la consultation ; celle-ci
+-- porte le CIRCUIT — prelevement, resultat, validation — et peut exister
+-- sans consultation (une demande faite au lit, un bilan d entree).
+CREATE TABLE IF NOT EXISTS demande_examen (
+  id              TEXT PRIMARY KEY,
+  patient_id      TEXT NOT NULL REFERENCES patient(id) ON DELETE CASCADE,
+  sejour_id       TEXT REFERENCES sejour(id) ON DELETE SET NULL,
+  service_request_id TEXT REFERENCES service_request(id) ON DELETE SET NULL,
+  organization_id TEXT,
+  -- laboratoire | imagerie
+  domaine         TEXT NOT NULL DEFAULT 'laboratoire',
+  examen          TEXT NOT NULL,
+  loinc_code      TEXT,
+  -- routine | urgente | vitale
+  priorite        TEXT NOT NULL DEFAULT 'routine',
+  -- demandee | prelevee | en-cours | resultat-disponible | validee | annulee
+  etat            TEXT NOT NULL DEFAULT 'demandee',
+  demandee_le     TEXT NOT NULL DEFAULT (datetime('now')),
+  prelevee_le     TEXT,
+  -- Qui a preleve, et quelle identite a ete annoncee au lit. On conserve
+  -- la trace du controle, pas seulement son resultat : apres un echange de
+  -- tubes, la question posee est « qui a verifie quoi ».
+  preleve_par     TEXT,
+  identite_verifiee INTEGER NOT NULL DEFAULT 0,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_dexamen_patient ON demande_examen(patient_id, demandee_le DESC);
+CREATE INDEX IF NOT EXISTS idx_dexamen_etat ON demande_examen(organization_id, domaine, etat);
+CREATE INDEX IF NOT EXISTS idx_dexamen_sejour ON demande_examen(sejour_id);
+
+-- Seuils critiques, par etablissement.
+--
+-- Ils ne sont PAS codes dans l application : un seuil critique depend de la
+-- population, de l automate et de ce que le service sait faire en reponse.
+-- Un seuil recopie d ailleurs engage un laboratoire qui ne l a jamais
+-- valide. Sans ligne ici, un resultat est rendu « non interprete ».
+CREATE TABLE IF NOT EXISTS seuil_critique (
+  id              TEXT PRIMARY KEY,
+  organization_id TEXT,
+  examen          TEXT NOT NULL,
+  unite           TEXT NOT NULL,
+  borne_basse     REAL,
+  borne_haute     REAL,
+  -- Minutes de stabilite de l echantillon ; NULL si sans objet (imagerie).
+  stabilite_min   INTEGER,
+  valide_par      TEXT,
+  valide_le       TEXT,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_seuil_examen ON seuil_critique(organization_id, examen);
+
+-- Resultat. APPEND-ONLY : une correction cree une nouvelle ligne et marque
+-- la precedente remplacee. Un clinicien a pu prescrire sur la foi de
+-- l ancienne valeur, et l effacer efface la raison de ce qu il a fait.
+CREATE TABLE IF NOT EXISTS resultat_examen (
+  id              TEXT PRIMARY KEY,
+  demande_id      TEXT NOT NULL REFERENCES demande_examen(id) ON DELETE CASCADE,
+  valeur_num      REAL,
+  valeur_texte    TEXT,
+  unite           TEXT,
+  -- normal | anormal | critique | non-interprete
+  interpretation  TEXT NOT NULL DEFAULT 'non-interprete',
+  -- Vrai tant qu une valeur critique n a pas ete acquittee nommement.
+  a_transmettre   INTEGER NOT NULL DEFAULT 0,
+  rendu_par       TEXT,
+  rendu_le        TEXT NOT NULL DEFAULT (datetime('now')),
+  -- Version remplacee par une correction, et son motif.
+  remplace_par    TEXT REFERENCES resultat_examen(id) ON DELETE SET NULL,
+  motif_correction TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_resultat_demande ON resultat_examen(demande_id, rendu_le);
+-- Pour la question qui compte : quelles valeurs critiques attendent encore.
+CREATE INDEX IF NOT EXISTS idx_resultat_transmettre
+  ON resultat_examen(a_transmettre) WHERE a_transmettre = 1;
+
+-- Acquittement d une valeur critique. Le destinataire est NOT NULL : un
+-- acquittement anonyme n acquitte rien, et c est exactement ce qu on
+-- retrouve dans les dossiers apres un accident.
+CREATE TABLE IF NOT EXISTS acquittement_critique (
+  id           TEXT PRIMARY KEY,
+  resultat_id  TEXT NOT NULL REFERENCES resultat_examen(id) ON DELETE CASCADE,
+  transmis_a   TEXT NOT NULL,
+  transmis_par TEXT,
+  commentaire  TEXT,
+  transmis_le  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_acquit_resultat ON acquittement_critique(resultat_id);
+
+-- ------------------------------------------------------------ bloc operatoire
+
+CREATE TABLE IF NOT EXISTS salle_operatoire (
+  id              TEXT PRIMARY KEY,
+  organization_id TEXT,
+  code            TEXT NOT NULL,
+  nom             TEXT NOT NULL,
+  actif           INTEGER NOT NULL DEFAULT 1,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_salle_org ON salle_operatoire(organization_id, actif);
+
+-- Intervention. Les horodatages REELS sont distincts du creneau prevu :
+-- mesurer l occupation du bloc sur le programme revient a ne rien mesurer,
+-- car le programme ne glisse jamais et la realite si.
+CREATE TABLE IF NOT EXISTS intervention (
+  id              TEXT PRIMARY KEY,
+  patient_id      TEXT NOT NULL REFERENCES patient(id) ON DELETE CASCADE,
+  sejour_id       TEXT REFERENCES sejour(id) ON DELETE SET NULL,
+  salle_id        TEXT NOT NULL REFERENCES salle_operatoire(id) ON DELETE CASCADE,
+  organization_id TEXT,
+  geste           TEXT NOT NULL,
+  -- Le geste porte-t-il sur un organe pair ou un membre ?
+  lateralise      INTEGER NOT NULL DEFAULT 0,
+  -- droite | gauche | bilateral | sans-objet. Jamais NULL : « sans-objet »
+  -- est un choix explicite, une absence n en est pas un.
+  lateralite      TEXT NOT NULL DEFAULT 'sans-objet',
+  debut_prevu     TEXT NOT NULL,
+  fin_prevue      TEXT NOT NULL,
+  -- programmee | patient-au-bloc | en-cours | terminee | annulee | deprogrammee
+  etat            TEXT NOT NULL DEFAULT 'programmee',
+  operateur_id    TEXT,
+  entree_le       TEXT,
+  incise_le       TEXT,
+  termine_le      TEXT,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_interv_salle ON intervention(salle_id, debut_prevu);
+CREATE INDEX IF NOT EXISTS idx_interv_patient ON intervention(patient_id, debut_prevu DESC);
+CREATE INDEX IF NOT EXISTS idx_interv_etat ON intervention(organization_id, etat, debut_prevu);
+
+-- Points de checklist coches. Une ligne par point : on sait QUI a coche
+-- QUOI et QUAND. Une colonne « checklist_faite » ne dit rien le jour ou il
+-- faut comprendre ce qui a ete reellement verifie.
+CREATE TABLE IF NOT EXISTS checklist_bloc (
+  id              TEXT PRIMARY KEY,
+  intervention_id TEXT NOT NULL REFERENCES intervention(id) ON DELETE CASCADE,
+  -- avant-induction | avant-incision | avant-sortie
+  temps           TEXT NOT NULL,
+  point           TEXT NOT NULL,
+  coche_par       TEXT,
+  coche_le        TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (intervention_id, point)
+);
+CREATE INDEX IF NOT EXISTS idx_checklist_interv ON checklist_bloc(intervention_id, temps);
+
 -- Ce que l application a appris des corrections du praticien.
 --
 -- Une ligne = un couple « la machine a entendu ceci, il fallait cela ». Elle

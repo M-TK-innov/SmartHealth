@@ -15,6 +15,8 @@
  * parametre, pour que l'attente se teste sans attendre.
  */
 
+import { minutesEntre } from '../temps.ts';
+
 /**
  * Niveaux de triage, du plus grave au moins grave.
  *
@@ -73,13 +75,6 @@ function rangEffectif(gravite: Gravite, attenteMinutes: number): number {
   if (gravite === 'vitale') return RANG.vitale;
   const brut = RANG[gravite];
   return attenteMinutes >= ANCIENNETE_MINUTES ? Math.max(1, brut - 1) : brut;
-}
-
-function minutesEntre(depuis: string, jusqua: string): number {
-  const a = new Date(depuis).getTime();
-  const b = new Date(jusqua).getTime();
-  if (!Number.isFinite(a) || !Number.isFinite(b)) return 0;
-  return Math.max(0, Math.round((b - a) / 60_000));
 }
 
 /**
