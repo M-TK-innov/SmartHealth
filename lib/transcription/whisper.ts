@@ -1,6 +1,8 @@
 'use client';
 
 import { PitchTracker, medianPitch } from '@/lib/audio/pitch';
+import { nettoyer } from './nettoyage';
+import { DetecteurParole } from './silence';
 import type { EngineStatus, TranscriptionChunk, TranscriptionEngine } from './types';
 
 /**
@@ -37,10 +39,35 @@ async function modeleServiLocalement(): Promise<boolean> {
     return false;
   }
 }
+/**
+ * Recupere l'amorce de biaisage aupres du serveur local.
+ *
+ * Un echec n'est PAS une erreur : le moteur transcrit tres bien sans
+ * amorce, simplement un peu moins bien sur les noms de molecules. Faire
+ * echouer une consultation parce qu'une optimisation n'a pas repondu
+ * serait disproportionne.
+ */
+async function chargerAmorce(): Promise<string> {
+  try {
+    const res = await fetch('/api/transcription/amorce');
+    if (!res.ok) return '';
+    const data = (await res.json()) as { amorce?: string };
+    return typeof data.amorce === 'string' ? data.amorce : '';
+  } catch {
+    return '';
+  }
+}
+
 const SAMPLE_RATE = 16000;
 
-/** Seuil d'energie sous lequel on considere qu'il n'y a plus de parole. */
-const SILENCE_RMS = 0.008;
+/**
+ * La detection de parole passe par DetecteurParole, a seuil adaptatif.
+ *
+ * Un seuil fixe tenait dans un bureau ferme et nulle part ailleurs : sous
+ * un ventilateur, le bruit de fond le depassait en permanence, plus aucun
+ * silence n'etait detecte, et l'extrait n'etait decoupe qu'au bout des
+ * vingt secondes de securite.
+ */
 /** Duree de silence qui clot un tour de parole. */
 const SILENCE_MS = 700;
 /** En deca, l'extrait est trop court pour etre transcrit utilement. */
@@ -69,7 +96,25 @@ export class WhisperLocalEngine implements TranscriptionEngine {
   private startedAt = 0;
   private segmentStartMs = 0;
   private tracker: PitchTracker | null = null;
+  private detecteur = new DetecteurParole();
   private transcribing = false;
+  /**
+   * Amorce de biaisage : les termes que le moteur doit s'attendre a
+   * entendre. Elle etait deja calculee pour les moteurs serveur, mais
+   * n'arrivait pas jusqu'ici — c'est-a-dire pas jusqu'au seul moteur qui
+   * tourne hors ligne, celui qui en a le plus besoin.
+   */
+  private amorce = '';
+  /**
+   * Gestionnaires retenus, pour que le dernier tour de parole parte bien
+   * a l'arret. Ils etaient perdus : stop() redecoupait l'extrait final
+   * puis le remettait a un gestionnaire vide, et la fin de consultation —
+   * ou se dit la conduite a tenir — n'entrait jamais au dossier.
+   */
+  private handlers: {
+    onChunk: (c: TranscriptionChunk) => void;
+    onStatus: (s: EngineStatus) => void;
+  } | null = null;
   private queue: { samples: Float32Array; startMs: number; endMs: number; pitchHz: number | null }[] = [];
 
   constructor(private readonly language: string = 'french') {}
@@ -136,6 +181,9 @@ export class WhisperLocalEngine implements TranscriptionEngine {
     onStatus: (s: EngineStatus) => void;
   }): Promise<void> {
     await this.prepare(handlers.onStatus);
+    this.handlers = handlers;
+    this.detecteur.reset();
+    this.amorce = await chargerAmorce();
 
     this.stream = await navigator.mediaDevices.getUserMedia({
       audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
@@ -159,7 +207,7 @@ export class WhisperLocalEngine implements TranscriptionEngine {
       let sumSquares = 0;
       for (let i = 0; i < frame.length; i++) sumSquares += frame[i] * frame[i];
       const rms = Math.sqrt(sumSquares / frame.length);
-      const speaking = rms >= SILENCE_RMS;
+      const speaking = this.detecteur.observer(rms);
 
       if (speaking) {
         if (this.speechMs === 0) this.segmentStartMs = Date.now() - this.startedAt;
@@ -237,14 +285,20 @@ export class WhisperLocalEngine implements TranscriptionEngine {
             task: 'transcribe',
             chunk_length_s: 30,
             stride_length_s: 5,
+            // Les termes que le moteur doit s'attendre a entendre. Sans
+            // cela il rend « arthemeter » la ou le formulaire dit
+            // « artemether », et la correction retombe sur le praticien.
+            ...(this.amorce ? { prompt: this.amorce } : {}),
           });
           const text = (Array.isArray(output) ? output.map((o) => o.text).join(' ') : output.text).trim();
 
-          // Whisper produit ces mentions sur du silence ou du bruit : ce ne sont
-          // pas des paroles, elles n'ont rien a faire dans un dossier medical.
-          if (text && !/^[\s.]*$/.test(text) && !/^\(?(musique|silence|sous-titr|bruit)/i.test(text)) {
+          // Whisper ne se tait pas quand on se tait : sur du silence il
+          // produit du texte venu de ses donnees d'entrainement. Le tri
+          // vit dans nettoyage.ts, ou il est eprouve.
+          const propre = nettoyer(text, this.amorce);
+          if (propre.garder) {
             onChunk({
-              text,
+              text: propre.texte,
               isFinal: true,
               startMs: job.startMs,
               endMs: job.endMs,
@@ -265,12 +319,12 @@ export class WhisperLocalEngine implements TranscriptionEngine {
   }
 
   async stop(): Promise<void> {
-    // Le dernier tour de parole ne doit pas etre perdu a l'arret.
-    if (this.speechMs >= MIN_SPEECH_MS) {
-      this.flushSegment(
-        () => undefined,
-        () => undefined,
-      );
+    // Le dernier tour de parole ne doit pas etre perdu a l'arret — et il
+    // l'etait : on redecoupait l'extrait puis on le remettait a deux
+    // gestionnaires vides. La fin d'une consultation est pourtant l'endroit
+    // ou se dit la conduite a tenir.
+    if (this.speechMs >= MIN_SPEECH_MS && this.handlers) {
+      this.flushSegment(this.handlers.onChunk, this.handlers.onStatus);
     }
 
     this.processor?.disconnect();
@@ -283,6 +337,7 @@ export class WhisperLocalEngine implements TranscriptionEngine {
     this.stream = null;
     this.audioContext = null;
     this.tracker?.reset();
+    this.detecteur.reset();
   }
 
   dispose(): void {
