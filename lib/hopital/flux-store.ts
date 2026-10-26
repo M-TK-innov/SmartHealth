@@ -12,6 +12,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { all, audit, get, insert, run, tx } from '../db.ts';
+import { versIso, versIsoRequis } from '../temps.ts';
 import {
   appeler,
   marquerParti,
@@ -44,9 +45,9 @@ const versPassage = (p: LignePassage): Passage => ({
   posteId: p.poste_id,
   gravite: p.gravite,
   etat: p.etat,
-  arriveLe: p.arrive_le,
-  prisEnChargeLe: p.pris_en_charge_le,
-  termineLe: p.termine_le,
+  arriveLe: versIsoRequis(p.arrive_le),
+  prisEnChargeLe: versIso(p.pris_en_charge_le),
+  termineLe: versIso(p.termine_le),
 });
 
 export interface Poste {

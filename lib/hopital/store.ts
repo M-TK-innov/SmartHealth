@@ -15,6 +15,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { all, audit, get, insert, run, tx, update } from '../db.ts';
+import { versIso } from '../temps.ts';
 import {
   admettre,
   fairesortir,
@@ -66,8 +67,8 @@ const versSejour = (s: LigneSejour): Sejour => ({
   type: s.type,
   statut: s.statut,
   litId: s.lit_id,
-  admisLe: s.admis_le,
-  sortiLe: s.sorti_le,
+  admisLe: versIso(s.admis_le),
+  sortiLe: versIso(s.sorti_le),
 });
 
 // ------------------------------------------------------------------ lecture
