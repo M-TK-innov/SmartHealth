@@ -37,3 +37,4 @@ __pycache__/
 
 # Poids des modeles : 240 Mo de binaires, recuperes par « npm run modeles ».
 public/modeles/
+.claude/
