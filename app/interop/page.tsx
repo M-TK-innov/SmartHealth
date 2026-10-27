@@ -62,7 +62,7 @@ export default async function InteropPage() {
       <header className="card-pad">
         <h1 className="text-xl font-bold">Interoperabilite</h1>
         <p className="mt-1 max-w-4xl text-sm text-ink-soft">
-          Les donnees produites par ParleDocteur ne restent pas prisonnieres de l application. Chaque consultation est
+          Les donnees produites par SmartHealth ne restent pas prisonnieres de l application. Chaque consultation est
           projetable dans les formats attendus par les systemes de sante africains et internationaux, sans
           retraitement manuel.
         </p>

@@ -44,7 +44,7 @@ console.log('Semis de la base de demonstration...');
 execFileSync(
   process.execPath,
   ['--experimental-strip-types', path.join(racine, 'scripts', 'seed.mjs'), '--reset'],
-  { env: { ...process.env, PARLEDOCTEUR_DB: basePath }, stdio: 'pipe' },
+  { env: { ...process.env, SMARTHEALTH_DB: basePath }, stdio: 'pipe' },
 );
 
 const db = new DatabaseSync(basePath, { readOnly: true });

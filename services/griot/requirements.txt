@@ -1,4 +1,4 @@
-# Service de transcription Griot — ParleDocteur
+# Service de transcription Griot — SmartHealth
 #
 # PyTorch n'est pas epingle : la roue a installer depend de la machine
 # (CPU seul, CUDA, ROCm). Installez-le d'abord en suivant pytorch.org,

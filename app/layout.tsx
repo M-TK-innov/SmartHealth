@@ -9,12 +9,12 @@ import { auth } from '@/lib/auth/session';
 import { ROLE_LABELS } from '@/lib/auth/roles';
 
 export const metadata: Metadata = {
-  title: 'ParleDocteur — scribe medical IA',
+  title: 'SmartHealth — scribe medical IA',
   description:
     'Ecoute la consultation, structure les donnees cliniques, enrichit le dossier medical et prepare une ordonnance que le medecin valide. Interoperable FHIR R4 / HL7 v2 / DHIS2.',
-  applicationName: 'ParleDocteur',
+  applicationName: 'SmartHealth',
   manifest: '/manifest.webmanifest',
-  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'ParleDocteur' },
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'SmartHealth' },
   formatDetection: { telephone: false },
   icons: {
     icon: [
@@ -56,7 +56,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 &#9673;
               </span>
               <span className="min-w-0">
-                <span className="block text-[15px] font-bold leading-none">ParleDocteur</span>
+                <span className="block text-[15px] font-bold leading-none">SmartHealth</span>
                 <span className="hidden text-[11px] leading-tight text-ink-soft sm:block">Scribe medical IA</span>
               </span>
             </Link>
@@ -88,7 +88,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <main className="mx-auto max-w-[1400px] px-4 py-4 pb-24 sm:px-6 sm:py-6 md:pb-6">{children}</main>
 
         <footer className="no-print mx-auto max-w-[1400px] px-4 pb-24 pt-4 text-xs leading-relaxed text-ink-soft sm:px-6 md:pb-10">
-          ParleDocteur est un outil d aide a la documentation clinique. Toute donnee proposee par l intelligence
+          SmartHealth est un outil d aide a la documentation clinique. Toute donnee proposee par l intelligence
           artificielle doit etre relue et validee par un professionnel de sante avant integration au dossier ou
           delivrance d une ordonnance. La responsabilite medicale demeure entierement celle du praticien.
         </footer>

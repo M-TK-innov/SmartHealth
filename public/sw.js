@@ -1,5 +1,5 @@
 /**
- * Service worker de ParleDocteur.
+ * Service worker de SmartHealth.
  *
  * Contexte : centres de sante a connectivite intermittente. L'objectif n'est
  * pas de rendre l'application utilisable hors-ligne dans son integralite — le
@@ -16,7 +16,7 @@
  */
 
 const VERSION = 'v1';
-const STATIC_CACHE = `parledocteur-static-${VERSION}`;
+const STATIC_CACHE = `smarthealth-static-${VERSION}`;
 const OFFLINE_URL = '/hors-ligne';
 
 const PRECACHE = [OFFLINE_URL, '/icons/icon-192.png', '/icons/icon-512.png', '/manifest.webmanifest'];

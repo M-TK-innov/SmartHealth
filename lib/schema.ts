@@ -6,7 +6,7 @@
  * sources, et un chemin relatif casserait l ouverture de la base.
  */
 
-export const SCHEMA_SQL = `-- ParleDocteur - Schema du dossier medical electronique
+export const SCHEMA_SQL = `-- SmartHealth - Schema du dossier medical electronique
 -- Aligne sur les ressources FHIR R4 : Patient, Practitioner, Encounter, Condition,
 -- Observation, AllergyIntolerance, MedicationRequest, ServiceRequest, Composition.
 

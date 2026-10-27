@@ -38,7 +38,7 @@ if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
   process.exit(1);
 }
 
-const DB_PATH = process.env.PARLEDOCTEUR_DB || path.join(process.cwd(), 'data', 'parledocteur.db');
+const DB_PATH = process.env.SMARTHEALTH_DB || path.join(process.cwd(), 'data', 'smarthealth.db');
 mkdirSync(path.dirname(DB_PATH), { recursive: true });
 const db = new DatabaseSync(DB_PATH);
 db.exec(SCHEMA_SQL);
@@ -65,7 +65,7 @@ if (!platform) {
   const id = randomUUID();
   db.prepare(
     'INSERT INTO organization (id, type, name, code, country, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-  ).run(id, 'platform', 'ParleDocteur', 'PD-PLATFORM', process.env.FACILITY_COUNTRY || 'BJ', 'active', now(), now());
+  ).run(id, 'platform', 'SmartHealth', 'PD-PLATFORM', process.env.FACILITY_COUNTRY || 'BJ', 'active', now(), now());
   platform = { id };
 }
 

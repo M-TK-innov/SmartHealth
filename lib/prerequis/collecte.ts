@@ -80,7 +80,7 @@ function python(dossierService: string): { commande: string; args: string[] } | 
     ? path.join(dossierService, '.venv', 'Scripts', 'python.exe')
     : path.join(dossierService, '.venv', 'bin', 'python');
   if (existsSync(venv)) candidats.push({ commande: venv, args: [] });
-  const impose = process.env.PARLEDOCTEUR_PYTHON?.trim();
+  const impose = process.env.SMARTHEALTH_PYTHON?.trim();
   if (impose) candidats.push({ commande: impose, args: [] });
   if (WIN) candidats.push({ commande: 'py', args: ['-3'] });
   candidats.push({ commande: 'python3', args: [] }, { commande: 'python', args: [] });
