@@ -12,7 +12,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { all, audit, get, insert, run, tx } from '../db.ts';
-import { versIso, versIsoRequis } from '../temps.ts';
+import { dansLeJour, jourCivil, jourPrecedent, jourSuivant, versIso, versIsoRequis } from '../temps.ts';
 import {
   appeler,
   marquerParti,
@@ -73,12 +73,29 @@ export function passageParId(id: string): Passage | null {
   return p ? versPassage(p) : null;
 }
 
-/** Tous les passages d'un poste sur les dernieres 24 h : la file et son histoire. */
-export function passagesDuPoste(posteId: string, depuis: string): Passage[] {
+/**
+ * Les passages d'un poste sur une journee civile.
+ *
+ * La requete ratisse LARGE — la veille et le lendemain — puis le tri fin
+ * se fait en memoire. Deux raisons, et aucune n'est du confort :
+ *
+ *   - la journee de l'etablissement n'est pas la journee UTC. Borner la
+ *     requete sur minuit UTC ferait commencer la journee a une heure du
+ *     matin a Cotonou, et a dix-neuf heures la veille a Lima ;
+ *   - la colonne porte selon l'ecrivain de l'ISO ou la forme SQLite, qui
+ *     ne se comparent pas comme des chaines. Des bornes en dates nues
+ *     attrapent les deux, et l'index reste utilise.
+ *
+ * Le volume est celui d'un poste sur trois jours : le tri en memoire ne
+ * coute rien, et il est le seul a connaitre le fuseau.
+ */
+export function passagesDuPoste(posteId: string, jour: string, fuseau?: string): Passage[] {
   return all<LignePassage>(
-    'SELECT * FROM passage WHERE poste_id = ? AND arrive_le >= ? ORDER BY arrive_le',
-    [posteId, depuis],
-  ).map(versPassage);
+    'SELECT * FROM passage WHERE poste_id = ? AND arrive_le >= ? AND arrive_le < ? ORDER BY arrive_le',
+    [posteId, jourPrecedent(jour), jourSuivant(jourSuivant(jour))],
+  )
+    .map(versPassage)
+    .filter((p) => dansLeJour(p.arriveLe, jour, fuseau));
 }
 
 /** Passages encore ouverts pour un sejour, tous postes confondus. */
@@ -91,11 +108,11 @@ export function passagesOuvertsDuSejour(sejourId: string): Passage[] {
 
 /** La file ordonnee d'un poste : qui passe ensuite, et pourquoi. */
 export function fileDuPoste(posteId: string, maintenant = new Date().toISOString()): PassageClasse[] {
-  return ordonner(passagesDuPoste(posteId, debutDeJournee(maintenant)), maintenant);
+  return ordonner(passagesDuPoste(posteId, jourCivil(maintenant)), maintenant);
 }
 
 export function prochainDuPoste(posteId: string, maintenant = new Date().toISOString()): PassageClasse | null {
-  return prochain(passagesDuPoste(posteId, debutDeJournee(maintenant)), maintenant);
+  return prochain(passagesDuPoste(posteId, jourCivil(maintenant)), maintenant);
 }
 
 export interface TensionAffichee extends TensionPoste {
@@ -112,30 +129,13 @@ export function tableauTension(
   organizationId: string | null,
   maintenant = new Date().toISOString(),
 ): TensionAffichee[] {
-  const depuis = debutDeJournee(maintenant);
+  const jour = jourCivil(maintenant);
   return postes(organizationId).map((p) => ({
-    ...tension(p.id, passagesDuPoste(p.id, depuis), maintenant),
+    ...tension(p.id, passagesDuPoste(p.id, jour), maintenant),
     code: p.code,
     nom: p.nom,
     categorie: p.categorie,
   }));
-}
-
-/**
- * Les files se lisent sur la journee en cours, pas sur tout l'historique.
- *
- * Une attente de la veille non cloturee fausserait la mediane du jour et
- * ferait remonter par anciennete un patient qui n'est plus la.
- *
- * La borne est une DATE NUE — « 2026-10-27 » — et non un horodatage. La
- * colonne porte selon l'ecrivain de l'ISO (« ...T01:20 ») ou la forme
- * SQLite (« ... 01:20 »), et ces deux formes ne se comparent pas comme des
- * chaines : l'espace precede le « T » dans l'ordre lexical. Avec une borne
- * en ISO, toutes les lignes en forme SQLite tombaient hors plage, et la
- * file s'affichait vide alors que des patients y attendaient.
- */
-function debutDeJournee(maintenant: string): string {
-  return (versIso(maintenant) ?? maintenant).slice(0, 10);
 }
 
 // ------------------------------------------------------------------ ecriture

@@ -73,3 +73,83 @@ export function minutesEntre(depuis: string | null, jusqua: string | null): numb
   if (!Number.isFinite(a) || !Number.isFinite(b)) return 0;
   return Math.max(0, Math.round((b - a) / 60_000));
 }
+
+// --------------------------------------------------------------- jour civil
+
+/**
+ * Le jour tel que le vit l'etablissement, et non tel que le compte UTC.
+ *
+ * LE DEFAUT QUE CECI CORRIGE : « aujourd'hui » etait calcule sur minuit
+ * UTC. Une file d'attente, un programme operatoire ou un rayon de
+ * pharmacie se comptent pourtant sur la journee du service, qui commence
+ * a minuit CHEZ LUI.
+ *
+ * A Cotonou — UTC+1, le terrain vise — la journee basculait donc a une
+ * heure du matin : entre minuit et une heure, les ecrans montraient encore
+ * les patients de la veille. A Lima — UTC-5 — la bascule tombe a dix-neuf
+ * heures, en plein programme operatoire du soir : les interventions de la
+ * fin de journee se rangeaient sous le lendemain, et le programme du jour
+ * paraissait vide a ceux qui y travaillaient encore.
+ *
+ * Le fuseau est celui de la MACHINE par defaut, parce qu'un serveur de
+ * dispensaire tourne dans le dispensaire. Il se force par reglage pour le
+ * cas inverse — une demonstration servie depuis un centre de donnees
+ * lointain, ou un serveur mutualise.
+ */
+export function jourCivil(instant: Date | string = new Date(), fuseau?: string): string {
+  const d = typeof instant === 'string' ? new Date(versIso(instant) ?? instant) : instant;
+  if (!Number.isFinite(d.getTime())) return '';
+
+  // « en-CA » rend AAAA-MM-JJ, la forme que porte la base. Construire la
+  // date a la main a partir des composantes locales serait faux des que le
+  // serveur et l'etablissement ne sont pas dans le meme fuseau.
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: fuseau || fuseauMachine(),
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d);
+}
+
+/** Cet horodatage tombe-t-il dans la journee civile indiquee ? */
+export function dansLeJour(horodatage: string | null, jour: string, fuseau?: string): boolean {
+  const iso = versIso(horodatage);
+  if (!iso) return false;
+  return jourCivil(iso, fuseau) === jour;
+}
+
+/** Le jour civil precedent, pour border une fenetre de requete. */
+export function jourPrecedent(jour: string): string {
+  return decaler(jour, -1);
+}
+
+/** Le jour civil suivant. */
+export function jourSuivant(jour: string): string {
+  return decaler(jour, 1);
+}
+
+function decaler(jour: string, jours: number): string {
+  // Lecture et arithmetique en UTC explicite, de bout en bout : le fuseau
+  // de la machine n'entre jamais dans le calcul, et le resultat est le
+  // meme partout. Une premiere version decalait depuis midi « par
+  // securite » — une precaution contre un danger qui n'existait pas, le
+  // « Z » suffisant a l'ecarter.
+  const d = new Date(`${jour}T00:00:00Z`);
+  if (!Number.isFinite(d.getTime())) return jour;
+  d.setUTCDate(d.getUTCDate() + jours);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Fuseau de la machine, ou UTC si l'environnement n'en declare aucun.
+ *
+ * Seul endroit impur de ce module, isole a dessein : toutes les fonctions
+ * ci-dessus acceptent un fuseau explicite, et les tests le passent.
+ */
+export function fuseauMachine(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}

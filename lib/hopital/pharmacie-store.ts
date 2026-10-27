@@ -16,6 +16,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { all, audit, get, insert, run, tx } from '../db.ts';
+import { jourCivil } from '../temps.ts';
 import {
   alerteStock,
   dispenser,
@@ -58,8 +59,14 @@ const versLot = (l: LigneLot): Lot => ({
   quantite: l.quantite,
 });
 
-/** Le jour, au format AAAA-MM-JJ, tel que les regles l'attendent. */
-export const jour = (d = new Date()) => d.toISOString().slice(0, 10);
+/**
+ * Le jour, au format AAAA-MM-JJ, tel que les regles l'attendent.
+ *
+ * Jour CIVIL de l'etablissement, et non jour UTC : une boite qui perime
+ * aujourd'hui doit cesser d'etre servable a minuit ici, pas a minuit a
+ * Greenwich.
+ */
+export const jour = (d = new Date()) => jourCivil(d);
 
 // ------------------------------------------------------------------ lecture
 
