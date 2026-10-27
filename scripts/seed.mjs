@@ -16,6 +16,11 @@ import path from 'node:path';
 import { SCHEMA_SQL } from '../lib/schema.ts';
 import { hashPassword } from '../lib/auth/password.ts';
 import { DEFAULT_ROLE_PERMISSIONS, ROLES } from '../lib/auth/roles.ts';
+import {
+  SEUILS_DEMONSTRATION,
+  parcoursDemonstration,
+  recapitulatif,
+} from '../lib/demo/scenario.ts';
 
 const DB_PATH = process.env.PARLEDOCTEUR_DB || path.join(process.cwd(), 'data', 'parledocteur.db');
 const reset = process.argv.includes('--reset');
@@ -411,8 +416,10 @@ const medicaments = [
   },
 ];
 
+const rayon = {};
 for (const m of medicaments) {
   const articleId = randomUUID();
+  rayon[m.dci] = { id: articleId, lots: [] };
   insert('article', {
     id: articleId,
     organization_id: facilityId,
@@ -430,6 +437,12 @@ for (const m of medicaments) {
       article_id: articleId,
       numero: l.numero,
       perime_le: l.perimeLe,
+      quantite: l.quantite,
+    });
+    rayon[m.dci].lots.push({
+      id: lotId,
+      numero: l.numero,
+      perimeLe: l.perimeLe,
       quantite: l.quantite,
     });
     insert('mouvement_stock', {
@@ -451,16 +464,7 @@ for (const m of medicaments) {
 // utilisation reelle, et c'est pour cela que la table porte les colonnes
 // valide_par et valide_le, laissees vides ici.
 
-const seuils = [
-  { examen: 'Kaliemie', unite: 'mmol/l', bas: 2.8, haut: 6.0, stabilite: 60 },
-  { examen: 'Glycemie', unite: 'g/l', bas: 0.4, haut: 4.0, stabilite: 120 },
-  { examen: 'Hemoglobine', unite: 'g/dl', bas: 6.0, haut: null, stabilite: 480 },
-  { examen: 'Creatininemie', unite: 'mg/l', bas: null, haut: 50, stabilite: 480 },
-  // Sans seuil : la goutte epaisse se rend en parasitemie, et le seuil
-  // d'alerte depend du contexte de transmission. L'absence est volontaire,
-  // et l'ecran dira « non interprete » plutot que « normal ».
-  { examen: 'Goutte epaisse', unite: 'parasites/ul', bas: null, haut: null, stabilite: 240 },
-];
+const seuils = SEUILS_DEMONSTRATION;
 
 for (const s of seuils) {
   insert('seuil_critique', {
@@ -490,8 +494,9 @@ insert('demande_examen', {
   prelevee_le: now(),
   identite_verifiee: 1,
 });
+const demandeEchographie = randomUUID();
 insert('demande_examen', {
-  id: randomUUID(),
+  id: demandeEchographie,
   patient_id: p1,
   organization_id: facilityId,
   domaine: 'imagerie',
@@ -519,9 +524,16 @@ for (const s of sallesBloc) {
 
 // Une intervention lateralisee au programme du jour : c'est le cas ou
 // l'affichage du cote compte, et il doit etre visible des la demonstration.
-const aujourdhui = new Date().toISOString().slice(0, 10);
+//
+// LES CRENEAUX SONT RELATIFS A MAINTENANT, et non poses a huit heures du
+// matin. Une demonstration faite a seize heures montrerait sinon un
+// programme entierement passe, avec un patient « entre au bloc » six heures
+// apres la fin de son creneau. Le bloc se regarde au present.
+const creneau = (minutes) =>
+  new Date(Date.now() + minutes * 60000).toISOString().replace('T', ' ').slice(0, 19);
+const interventionHernie = randomUUID();
 insert('intervention', {
-  id: randomUUID(),
+  id: interventionHernie,
   patient_id: p3,
   sejour_id: sejourId,
   salle_id: salleId['BO-1'],
@@ -529,8 +541,11 @@ insert('intervention', {
   geste: 'Cure de hernie inguinale',
   lateralise: 1,
   lateralite: 'droite',
-  debut_prevu: `${aujourdhui}T08:00:00.000Z`,
-  fin_prevue: `${aujourdhui}T10:00:00.000Z`,
+  // Creneau commence il y a un quart d'heure : le parcours fera entrer le
+  // patient en salle, et l'ecart entre le prevu et le reel est precisement
+  // ce que le bloc doit savoir mesurer.
+  debut_prevu: creneau(-15),
+  fin_prevue: creneau(105),
   etat: 'programmee',
   operateur_id: drId,
 });
@@ -542,11 +557,52 @@ insert('intervention', {
   geste: 'Cesarienne programmee',
   lateralise: 0,
   lateralite: 'sans-objet',
-  debut_prevu: `${aujourdhui}T10:30:00.000Z`,
-  fin_prevue: `${aujourdhui}T12:00:00.000Z`,
+  debut_prevu: creneau(150),
+  fin_prevue: creneau(240),
   etat: 'programmee',
   operateur_id: drId,
 });
+
+// ------------------------------------------------- le parcours de demonstration
+//
+// Tout ce qui precede est le DECOR : des unites, des lits, un rayon, des
+// salles. Ce qui suit est le PARCOURS — des gens qui attendent, une facture
+// a moitie reglee, une boite sortie du bon lot, une valeur critique corrigee
+// puis transmise, une checklist incomplete. Le decor se regarde ; le
+// parcours se demontre.
+//
+// Il est decrit dans `lib/demo/scenario.ts`, module pur dont les invariants
+// sont verifies par `npm test` — c'est-a-dire qu'une demonstration cassee se
+// voit avant la salle, et non devant elle.
+
+function appliquer(ecriture) {
+  if (ecriture.op === 'inserer') {
+    insert(ecriture.table, ecriture.ligne);
+    return;
+  }
+  const champs = Object.keys(ecriture.champs);
+  db.prepare(
+    `UPDATE ${ecriture.table} SET ${champs.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`,
+  ).run(...champs.map((c) => ecriture.champs[c]), ecriture.id);
+}
+
+const parcours = parcoursDemonstration({
+  organizationId: facilityId,
+  practitionerId: drId,
+  praticienNom: 'Dr Ama Sossou',
+  patients: { adjoa: p1, koffi: p2, bernard: p3 },
+  sejourBernard: sejourId,
+  postes: posteId,
+  articles: rayon,
+  demandeKaliemie,
+  demandeEchographie,
+  interventionHernie,
+  maintenant: new Date(),
+  id: randomUUID,
+});
+
+for (const ecriture of parcours) appliquer(ecriture);
+const poses = recapitulatif(parcours);
 
 // ------------------------------------------------------------------ comptes
 //
@@ -619,6 +675,28 @@ console.log(
   `  plateau     : ${seuils.length} seuils (1 volontairement sans borne), 2 demandes en cours`,
 );
 console.log(`  bloc        : ${sallesBloc.length} salles, 2 interventions au programme du jour`);
+console.log('');
+console.log('Parcours de demonstration (relatif a maintenant) :');
+console.log(
+  `  files       : ${poses.passage} passages, dont 1 urgence vitale arrivee en dernier,`,
+);
+console.log('                2 remontes par anciennete et 1 parti sans avoir ete vu');
+console.log(
+  `  caisse      : ${poses.facture} factures, ${poses.paiement} paiements — une soldee,`,
+);
+console.log('                une a 17 500 F de reste a charge sur un acte programmable');
+console.log(
+  `  ordonnance  : validee, ${poses.prescription_item} lignes, dont 1 en rupture au rayon`,
+);
+console.log('  pharmacie   : 21 comprimes servis sur le lot qui perime le premier');
+console.log(
+  `  plateau     : ${poses.resultat_examen} resultats — 1 kaliemie corrigee (l ancienne`,
+);
+console.log('                version conservee) et acquittee, 1 hemoglobine critique');
+console.log('                NON transmise, 1 goutte epaisse sans seuil donc non interpretee');
+console.log(
+  `  bloc        : patient au bloc, ${poses.checklist_bloc} points coches, « avant incision » incomplet`,
+);
 console.log('');
 console.log('Comptes de demonstration (mot de passe commun : ' + DEMO_PASSWORD + ') :');
 console.log('  super@parledocteur.local   super-administrateur : tout, y compris base et serveurs');

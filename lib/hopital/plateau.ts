@@ -294,6 +294,16 @@ export function interpreter(
   if (valeur === null) return 'non-interprete';
   const s = seuils.find((x) => memeExamen(x.examen, examen));
   if (!s) return 'non-interprete';
+  // UNE LIGNE SANS AUCUNE BORNE NE CONFIGURE RIEN. L'examen est declare —
+  // on sait l'unite dans laquelle il se rend — mais aucune borne n'a ete
+  // posee, souvent parce qu'elle depend du contexte : la parasitemie d'une
+  // goutte epaisse ne s'alerte pas au meme niveau partout.
+  //
+  // Rendre « normal » reviendrait alors a affirmer une absence de danger
+  // que personne n'a etablie, et le declarer serait PIRE que de n'avoir
+  // aucune ligne du tout : la presence de la ligne laisse croire que le
+  // laboratoire s'est prononce.
+  if (s.bas === null && s.haut === null) return 'non-interprete';
   if (s.bas !== null && valeur <= s.bas) return 'critique';
   if (s.haut !== null && valeur >= s.haut) return 'critique';
   return 'normal';
