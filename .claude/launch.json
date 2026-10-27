@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 3000
+    },
+    {
+      "name": "ma-carriere-bj",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--disable-warning=ExperimentalWarning", "C:/Users/HomePC/Documents/CIT/CarrieresBenin/server.mjs"],
+      "port": 3800
     }
   ]
 }

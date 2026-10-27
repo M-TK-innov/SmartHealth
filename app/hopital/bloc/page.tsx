@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { requirePermission } from '@/lib/auth/guard';
 import { programmeDuJour } from '@/lib/hopital/bloc-store';
+import { jourCivil } from '@/lib/temps';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,7 +37,7 @@ export default async function BlocPage({
 }) {
   const ctx = await requirePermission('bloc:read', '/hopital/bloc');
   const { jour: demande } = await searchParams;
-  const jour = /^\d{4}-\d{2}-\d{2}$/.test(demande ?? '') ? demande! : new Date().toISOString().slice(0, 10);
+  const jour = /^\d{4}-\d{2}-\d{2}$/.test(demande ?? '') ? demande! : jourCivil();
 
   const programme = programmeDuJour(ctx.user.organization_id ?? null, jour);
   const total = programme.reduce((n, p) => n + p.interventions.length, 0);
