@@ -1,29 +1,19 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-
-  "// services": "Un seul service deploye ici : le serveur Next.js. Le service de transcription « griot » (services/griot) N'EST PAS deploye sur Vercel — PyTorch et plusieurs gigaoctets de poids ne tiennent pas dans une fonction a systeme de fichiers ephemere, qui les retelechargerait a chaque demarrage a froid. Il s'heberge ailleurs, et l'application le rejoint par la variable GRIOT_ENDPOINT. Voir services/griot/DEPLOIEMENT.md.",
   "services": {
     "smarthealth": {
       "root": ".",
       "framework": "nextjs",
-
-      "// buildCommand": "npm run build et non next build : l'etape prebuild genere les icones, qui ne sont pas dans le depot parce qu'elles sont reproductibles. Avec next build seul, l'application se deploie sans aucune icone.",
       "buildCommand": "npm run build",
       "installCommand": "npm install"
     }
   },
-
-  "// rewrites": "Tout le trafic public va a l'application. Un service non vise par une rewrite ne recoit aucun trafic : c'est ainsi que griot restera interne le jour ou il sera ajoute ici.",
   "rewrites": [
     {
       "source": "/(.*)",
       "destination": { "service": "smarthealth" }
     }
   ],
-
-  "// variables": "SMARTHEALTH_DEMO=1 se pose dans Settings > Environment Variables, et non ici. Sans elle, l'application cherche un fichier SQLite — qui ne persiste pas sur une plateforme sans disque. GRIOT_ENDPOINT s'y pose aussi, le jour ou un service griot tourne quelque part.",
-
-  "// headers": "noindex : une application medicale remplie de donnees fictives n'a rien a faire dans un moteur de recherche. Quelqu'un finirait par tomber dessus en cherchant un vrai service.",
   "headers": [
     {
       "source": "/(.*)",

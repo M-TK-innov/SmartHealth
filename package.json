@@ -26,6 +26,7 @@
     "mesure": "node scripts/mesurer.mjs",
     "modeles": "node scripts/modeles.mjs",
     "demo:dump": "node scripts/demo-dump.mjs",
+    "verifier:vercel": "python scripts/valider-vercel.py",
     "demo:dev": "node scripts/demo.mjs"
   },
   "engines": {

@@ -608,6 +608,53 @@ scripts/
 
 ---
 
+## Déploiement
+
+### Vercel — l'application seule
+
+`vercel.json` déclare un service, `smarthealth`, seul visé par la rewrite
+publique. Les clés de construction vivent **dans** le service : en mode
+services, elles ne sont plus valides au niveau supérieur.
+
+Le fichier ne porte aucun commentaire, et ce n'est pas un oubli. Le schéma de
+Vercel pose `additionalProperties: false` au niveau supérieur **et** dans chaque
+service : une clé inconnue — un `"// note"` par exemple — fait refuser le
+déploiement entier avec « la propriété supplémentaire … ne doit PAS être
+présente ». Les explications vivent donc ici, et un script les protège :
+
+```bash
+npm run verifier:vercel
+```
+
+Il relit le schéma publié, vérifie qu'aucune propriété inconnue ne s'est
+glissée, que le nom de chaque service respecte le motif attendu, que les
+rewrites ne visent que des services déclarés et que les bindings sont complets.
+
+`buildCommand` vaut `npm run build` et non `next build` : l'étape `prebuild`
+génère les icônes, qui ne sont pas dans le dépôt parce qu'elles sont
+reproductibles. Avec `next build` seul, l'application se déploie sans aucune
+icône.
+
+**Deux variables se posent dans Settings → Environment Variables**, et non dans
+le fichier — un service n'accepte pas de clé `env` :
+
+| Variable | Pourquoi |
+|---|---|
+| `SMARTHEALTH_DEMO=1` | Base SQLite **en mémoire**, semée au démarrage. Sans elle, l'application cherche un fichier, qui ne persiste pas sur une plateforme sans disque. |
+| `SMARTHEALTH_FUSEAU` | Le fuseau de l'établissement. Sur Vercel la machine est dans un centre de données lointain : sans ce réglage, la journée des files et du programme opératoire serait celle du centre de données. |
+
+### Griot — ailleurs, et pourquoi
+
+Le service de transcription en fon **n'est pas déployable en fonction
+serverless**, et le chiffre le dit : la seule roue `torch` pèse 433 Mo
+compressée, quand le plafond de Netlify Functions est de 250 Mo décompressés —
+une limite AWS qui ne se relève pas. Vercel est plus généreux, mais les poids du
+modèle pèsent plusieurs gigaoctets sur un système de fichiers éphémère, que
+chaque démarrage à froid retéléchargerait.
+
+Un `Dockerfile` et la marche à suivre sont dans
+[`services/griot/DEPLOIEMENT.md`](services/griot/DEPLOIEMENT.md).
+
 ## Avant un usage clinique réel
 
 Cette version est complète fonctionnellement mais délibérément dépourvue de trois briques qui
