@@ -733,6 +733,11 @@ CREATE TABLE IF NOT EXISTS organization (
   phone       TEXT,
   email       TEXT,
   status      TEXT NOT NULL DEFAULT 'pending',   -- pending | active | suspended | rejected
+  -- Fuseau de l etablissement, detecte au premier demarrage depuis la
+  -- machine qui sert l application. Il fixe la journee civile : files
+  -- d attente, programme operatoire, peremptions. Un etablissement a UNE
+  -- journee, et c est celle-ci. Vide tant que rien n a ete detecte.
+  fuseau      TEXT,
   created_at  TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );

@@ -13,6 +13,7 @@
 import { randomUUID } from 'node:crypto';
 import { all, audit, get, insert, run, tx } from '../db.ts';
 import { dansLeJour, jourCivil, jourPrecedent, jourSuivant, versIso, versIsoRequis } from '../temps.ts';
+import { fuseauDe } from '../localisation-store.ts';
 import {
   POINTS,
   entrerAuBloc,
@@ -127,10 +128,13 @@ export interface LigneProgramme {
 /** Le programme du jour, salle par salle. */
 export function programmeDuJour(
   organizationId: string | null,
-  jour = jourCivil(),
+  jour?: string,
 ): LigneProgramme[] {
+  const fuseau = fuseauDe(organizationId);
+  const leJour = jour ?? jourCivil(new Date(), fuseau);
+
   return salles(organizationId).map((salle) => {
-    const toutes = interventionsDeLaSalle(salle.id, jour);
+    const toutes = interventionsDeLaSalle(salle.id, leJour, fuseau);
     const p = programmeDeLaSalle(salle.id, toutes);
     const noms = nomsPatients(p.interventions.map((i) => i.patientId));
     return {

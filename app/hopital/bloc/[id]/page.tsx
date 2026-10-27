@@ -5,6 +5,8 @@ import { checklistDe, interventionParId } from '@/lib/hopital/bloc-store';
 import { POINTS } from '@/lib/hopital/bloc';
 import { ChecklistBloc } from '@/components/hopital/ChecklistBloc';
 import { get } from '@/lib/db';
+import { fuseauDe } from '@/lib/localisation-store';
+import { formaterInstant } from '@/lib/localisation';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,6 +37,8 @@ export default async function InterventionPage({ params }: { params: Promise<{ i
   );
   if (!patient) notFound();
 
+  const fuseau = fuseauDe(ctx.user.organization_id ?? null);
+  const heure = (iso: string | null) => formaterInstant(iso, fuseau, 'heure');
   const checklist = checklistDe(id);
   const cote = COTE[intervention.lateralite];
 
@@ -60,9 +64,9 @@ export default async function InterventionPage({ params }: { params: Promise<{ i
           )}
         </div>
         <p className="mt-3 text-xs text-ink-soft">
-          {intervention.debutPrevu.slice(11, 16)}–{intervention.finPrevue.slice(11, 16)} ·{' '}
+          {heure(intervention.debutPrevu)}–{heure(intervention.finPrevue)} ·{' '}
           {intervention.etat}
-          {intervention.inciseLe ? ` · incision a ${intervention.inciseLe.slice(11, 16)}` : ''}
+          {intervention.inciseLe ? ` · incision a ${heure(intervention.inciseLe)}` : ''}
         </p>
       </section>
 
