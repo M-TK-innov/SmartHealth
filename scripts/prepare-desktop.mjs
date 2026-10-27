@@ -78,7 +78,7 @@ for (const { from, to, label } of copies) {
 
 // -------------------------------------------------- purge des donnees de sante
 //
-// Le traceur de fichiers de Next suit la reference a ./data/parledocteur.db
+// Le traceur de fichiers de Next suit la reference a ./data/smarthealth.db
 // presente dans lib/db.ts et recopie la base dans la sortie standalone.
 // `outputFileTracingExcludes` ne l'en empeche pas. Sans cette purge, un
 // installateur construit sur un poste de production embarquerait et

@@ -22,7 +22,7 @@ import {
   recapitulatif,
 } from '../lib/demo/scenario.ts';
 
-const DB_PATH = process.env.PARLEDOCTEUR_DB || path.join(process.cwd(), 'data', 'parledocteur.db');
+const DB_PATH = process.env.SMARTHEALTH_DB || path.join(process.cwd(), 'data', 'smarthealth.db');
 const reset = process.argv.includes('--reset');
 
 if (reset) {
@@ -69,7 +69,7 @@ const facilityId = randomUUID();
 insert('organization', {
   id: platformId,
   type: 'platform',
-  name: 'ParleDocteur',
+  name: 'SmartHealth',
   code: 'PD-PLATFORM',
   country: process.env.FACILITY_COUNTRY || 'BJ',
   status: 'active',
@@ -611,7 +611,7 @@ const poses = recapitulatif(parcours);
 // en production, les comptes se creent depuis la console (mot de passe genere)
 // ou avec `node scripts/create-admin.mjs`.
 
-const DEMO_PASSWORD = process.env.SEED_PASSWORD || 'ParleDocteur2026!';
+const DEMO_PASSWORD = process.env.SEED_PASSWORD || 'SmartHealth2026!';
 
 function account({ email, fullName, role, organizationId, practitionerId, licenseNumber }) {
   const { hash, salt, algo } = hashPassword(DEMO_PASSWORD);
@@ -637,8 +637,8 @@ function account({ email, fullName, role, organizationId, practitionerId, licens
 }
 
 const accounts = [
-  account({ email: 'super@parledocteur.local', fullName: 'Super Administrateur', role: 'super_admin', organizationId: platformId }),
-  account({ email: 'admin@parledocteur.local', fullName: 'Administrateur Plateforme', role: 'admin', organizationId: platformId }),
+  account({ email: 'super@smarthealth.local', fullName: 'Super Administrateur', role: 'super_admin', organizationId: platformId }),
+  account({ email: 'admin@smarthealth.local', fullName: 'Administrateur Plateforme', role: 'admin', organizationId: platformId }),
   account({ email: 'ministere@sante.bj', fullName: 'Direction des Systemes d Information', role: 'ministere', organizationId: ministryId }),
   account({ email: 'direction@csc.bj', fullName: 'Direction du Centre de Sante', role: 'hopital', organizationId: facilityId }),
   account({
@@ -699,8 +699,8 @@ console.log(
 );
 console.log('');
 console.log('Comptes de demonstration (mot de passe commun : ' + DEMO_PASSWORD + ') :');
-console.log('  super@parledocteur.local   super-administrateur : tout, y compris base et serveurs');
-console.log('  admin@parledocteur.local   administrateur plateforme : organisations et comptes');
+console.log('  super@smarthealth.local   super-administrateur : tout, y compris base et serveurs');
+console.log('  admin@smarthealth.local   administrateur plateforme : organisations et comptes');
 console.log('  ministere@sante.bj         ministere : indicateurs agreges, aucun dossier nominatif');
 console.log('  direction@csc.bj           etablissement : valide ses medecins, suit son activite');
 console.log('  a.sossou@example.bj        medecin : consultations, dossiers, ordonnances');

@@ -1,5 +1,5 @@
 /**
- * Lancement de ParleDocteur : services auxiliaires et serveur web, ensemble.
+ * Lancement de SmartHealth : services auxiliaires et serveur web, ensemble.
  *
  *   node scripts/lancer.mjs             developpement      (npm run dev)
  *   node scripts/lancer.mjs --prod      serveur de production (npm start)
@@ -110,7 +110,7 @@ if (DESKTOP) {
   try {
     await attendre(PORT);
     lancer(ELECTRON, ['.'], {
-      env: { ...process.env, PARLEDOCTEUR_DEV_URL: `http://localhost:${PORT}` },
+      env: { ...process.env, SMARTHEALTH_DEV_URL: `http://localhost:${PORT}` },
     }).on('exit', () => arreter(0));
   } catch (e) {
     console.error(String(e.message ?? e));

@@ -1,4 +1,4 @@
-# ParleDocteur
+# SmartHealth
 
 **Scribe médical assisté par IA.** L'application écoute la consultation, en extrait les données
 cliniques codées, rédige le compte rendu, enrichit le dossier médical du patient et prépare une
@@ -47,7 +47,7 @@ L'application desktop n'est pas une fenêtre pointant vers un site : elle **emba
 et la base SQLite**. Un centre de santé sans connexion installe l'exécutable et travaille.
 
 - serveur lancé sur un port libre, en local uniquement (`127.0.0.1`) ;
-- base stockée dans le dossier de données utilisateur (`%APPDATA%\ParleDocteur\donnees`), donc
+- base stockée dans le dossier de données utilisateur (`%APPDATA%\SmartHealth\donnees`), donc
   préservée lors des mises à jour ;
 - instance unique : deux serveurs sur la même base ne peuvent pas coexister ;
 - liens externes ouverts dans le navigateur du système, jamais dans la fenêtre du dossier.
@@ -630,5 +630,5 @@ relèvent du déploiement, pas du produit :
    la décision revient au responsable de traitement — ce qui empêche les erreurs de configuration
    qu'on sait nommer, sans valoir attestation de conformité.
 
-**ParleDocteur est un outil d'aide à la documentation clinique.** Il ne pose pas de diagnostic et
+**SmartHealth est un outil d'aide à la documentation clinique.** Il ne pose pas de diagnostic et
 ne prescrit pas. La responsabilité médicale demeure entièrement celle du praticien.

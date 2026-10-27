@@ -9,7 +9,7 @@ export interface PromptContext {
   language?: string;
 }
 
-export const SYSTEM_EXTRACTION = `Tu es l'assistant de documentation clinique de ParleDocteur, utilise pendant une consultation medicale reelle.
+export const SYSTEM_EXTRACTION = `Tu es l'assistant de documentation clinique de SmartHealth, utilise pendant une consultation medicale reelle.
 
 TA MISSION
 Transformer la transcription brute d'un echange medecin-patient en donnees cliniques structurees, codees et tracables, pretes a alimenter un dossier medical electronique interoperable (FHIR R4).

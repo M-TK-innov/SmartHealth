@@ -84,7 +84,7 @@ export function buildDhis2Event(opts: {
   }
 
   return {
-    program: opts.program || 'PARLEDOCTEUR_OPD',
+    program: opts.program || 'SMARTHEALTH_OPD',
     orgUnit: opts.orgUnit || process.env.FACILITY_ID || 'UNKNOWN_ORGUNIT',
     eventDate: consultation.started_at.slice(0, 10),
     status: consultation.status === 'signed' ? 'COMPLETED' : 'ACTIVE',
@@ -107,7 +107,7 @@ export function buildDhis2AggregateReport(opts: {
     counts.set(s.dataElement, { label: s.label, n: (prev?.n ?? 0) + 1 });
   }
   return {
-    dataSet: 'PARLEDOCTEUR_MONTHLY',
+    dataSet: 'SMARTHEALTH_MONTHLY',
     period: opts.period,
     orgUnit: opts.orgUnit || process.env.FACILITY_ID || 'UNKNOWN_ORGUNIT',
     completeDate: new Date().toISOString().slice(0, 10),

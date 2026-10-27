@@ -1,5 +1,5 @@
 {
-  "name": "parledocteur",
+  "name": "smarthealth",
   "version": "0.2.0",
   "private": true,
   "description": "Scribe medical IA multiplateforme - synthese de consultation, dossier medical, ordonnance numerique, interoperabilite FHIR R4 / HL7 v2 / DHIS2",
@@ -49,9 +49,9 @@
     "typescript": "^5.7.0"
   },
   "build": {
-    "appId": "bj.semecity.parledocteur",
-    "productName": "ParleDocteur",
-    "copyright": "ParleDocteur",
+    "appId": "bj.semecity.smarthealth",
+    "productName": "SmartHealth",
+    "copyright": "SmartHealth",
     "directories": {
       "output": "dist-desktop",
       "buildResources": "electron"
@@ -81,7 +81,7 @@
         }
       ],
       "icon": "electron/icon.ico",
-      "artifactName": "ParleDocteur-${version}-installateur.${ext}"
+      "artifactName": "SmartHealth-${version}-installateur.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -89,7 +89,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "ParleDocteur",
+      "shortcutName": "SmartHealth",
       "installerLanguages": [
         "fr_FR"
       ]

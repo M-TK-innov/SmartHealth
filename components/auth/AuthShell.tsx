@@ -24,7 +24,7 @@ export function AuthShell({
         <div className="mb-5">
           <Link href="/" className="mb-4 inline-flex items-center gap-2.5">
             <span className="grid h-9 w-9 place-items-center rounded-lg bg-brand text-lg text-white">&#9673;</span>
-            <span className="text-[15px] font-bold">ParleDocteur</span>
+            <span className="text-[15px] font-bold">SmartHealth</span>
           </Link>
           <h1 className="text-xl font-bold">{title}</h1>
           <p className="mt-1 text-sm text-ink-soft">{subtitle}</p>

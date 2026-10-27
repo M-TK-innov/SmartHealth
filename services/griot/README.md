@@ -4,7 +4,7 @@ Transcription d'une consultation tenue en **fon**, à partir du modèle ouvert
 [`bivariant/Griot-ASR-W-0.8-ALL`](https://huggingface.co/bivariant/Griot-ASR-W-0.8-ALL),
 entraîné sur des langues africaines.
 
-C'est le quatrième moteur de transcription de ParleDocteur, et le seul qui sache
+C'est le quatrième moteur de transcription de SmartHealth, et le seul qui sache
 écouter une consultation qui ne se tient pas dans une langue que Whisper couvre.
 
 > **Le modèle de parole ne traduit pas.** L'adaptateur « fon » rend du **texte
@@ -69,7 +69,7 @@ passent tous par `scripts/services.mjs`, qui :
   compris** — un service survivant serait adopté au lancement suivant alors
   qu'il porte le code d'avant.
 
-Rien de tout cela n'est bloquant : un poste sans Python ouvre ParleDocteur
+Rien de tout cela n'est bloquant : un poste sans Python ouvre SmartHealth
 normalement et garde ses trois autres moteurs. Le message dit ce qui manque et
 comment l'installer.
 
@@ -115,7 +115,7 @@ et réglables : `GRIOT_NUM_BEAMS` (4), `GRIOT_REPETITION_PENALTY` (1.0),
 `GRIOT_NO_REPEAT_NGRAM` (14), `GRIOT_MAX_NEW_TOKENS` (440),
 `GRIOT_LENGTH_PENALTY` (1.2).
 
-## Branchement dans ParleDocteur
+## Branchement dans SmartHealth
 
 Dans le `.env.local` de l'application :
 

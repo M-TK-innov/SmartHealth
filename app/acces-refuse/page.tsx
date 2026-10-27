@@ -4,7 +4,7 @@ import { ROLE_LABELS } from '@/lib/auth/roles';
 import { PERMISSIONS } from '@/lib/auth/roles';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Acces refuse — ParleDocteur' };
+export const metadata = { title: 'Acces refuse — SmartHealth' };
 
 export default async function AccessDeniedPage({ searchParams }: { searchParams: Promise<{ droit?: string }> }) {
   const { droit } = await searchParams;

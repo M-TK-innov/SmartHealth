@@ -392,7 +392,7 @@ function ApplicationCard({ data, canDerogate, reload }: { data: Payload; canDero
             id="public-url"
             className="input"
             value={form.app_public_url}
-            placeholder="https://parledocteur.hopital.bj"
+            placeholder="https://smarthealth.hopital.bj"
             onChange={(e) => setForm({ ...form, app_public_url: e.target.value })}
           />
           <p className="mt-1 text-[11px] text-ink-soft">Laisser vide pour utiliser l origine de la requete.</p>
@@ -544,7 +544,7 @@ function DatabaseCard({ data, canDerogate, reload }: { data: Payload; canDerogat
       <h2 className="section-title mb-1">Adresse de la base de donnees</h2>
       <p className="mb-4 max-w-4xl text-sm text-ink-soft">
         La base est un fichier SQLite embarque : pas de serveur de base a joindre, pas de mot de passe reseau.
-        Son emplacement effectif est fixe au demarrage par <code>PARLEDOCTEUR_DB</code> ; le champ ci-dessous
+        Son emplacement effectif est fixe au demarrage par <code>SMARTHEALTH_DB</code> ; le champ ci-dessous
         enregistre l emplacement de reference de la structure et sert aux controles.
       </p>
 
@@ -568,7 +568,7 @@ function DatabaseCard({ data, canDerogate, reload }: { data: Payload; canDerogat
             id="backup-dir"
             className="input"
             value={form.db_backup_dir}
-            placeholder="D:\\sauvegardes\\parledocteur"
+            placeholder="D:\\sauvegardes\\smarthealth"
             onChange={(e) => setForm({ ...form, db_backup_dir: e.target.value })}
           />
         </div>
