@@ -5,6 +5,8 @@ import { BottomNav, TopNav, UserMenu } from '@/components/Nav';
 import { navItemsFor } from '@/lib/auth/nav-items';
 import { PwaRuntime } from '@/components/Pwa';
 import { BandeauDemo } from '@/components/BandeauDemo';
+import { EcartFuseau } from '@/components/EcartFuseau';
+import { fuseauDe } from '@/lib/localisation-store';
 import { auth } from '@/lib/auth/session';
 import { ROLE_LABELS } from '@/lib/auth/roles';
 
@@ -42,12 +44,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const ctx = await auth();
   const items = ctx ? navItemsFor([...ctx.permissions]) : [];
   const facility = ctx?.organization?.name ?? process.env.FACILITY_NAME ?? 'Structure de sante';
+  // Le fuseau de l'etablissement, detecte seul au premier demarrage. Il
+  // descend jusqu'au navigateur pour qu'un poste mal regle le sache.
+  const fuseau = ctx ? fuseauDe(ctx.user.organization_id ?? null) : null;
 
   return (
     <html lang="fr">
       <body>
         <PwaRuntime />
         <BandeauDemo />
+        {fuseau && <EcartFuseau fuseau={fuseau} />}
 
         <header className="no-print sticky top-0 z-30 border-b border-line bg-white/95 backdrop-blur">
           <div className="mx-auto flex max-w-[1400px] items-center gap-3 px-4 py-2.5 sm:gap-5 sm:px-6 sm:py-3">

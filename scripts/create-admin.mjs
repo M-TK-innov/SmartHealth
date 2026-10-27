@@ -13,9 +13,10 @@
  */
 
 import { DatabaseSync } from 'node:sqlite';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
+import { FICHIER_ANCIEN, FICHIER_COURANT, choisirBase, reglage } from '../lib/heritage.ts';
 import { SCHEMA_SQL } from '../lib/schema.ts';
 import { hashPassword, checkPasswordStrength, generateTemporaryPassword } from '../lib/auth/password.ts';
 import { DEFAULT_ROLE_PERMISSIONS, ROLES } from '../lib/auth/roles.ts';
@@ -38,7 +39,20 @@ if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
   process.exit(1);
 }
 
-const DB_PATH = process.env.SMARTHEALTH_DB || path.join(process.cwd(), 'data', 'smarthealth.db');
+/**
+ * Meme resolution que l'application, et pour la meme raison : un script
+ * qui calcule son chemin dans son coin seme ou purge une AUTRE base que
+ * celle que le serveur ouvre. On l'a vu — une base de demonstration
+ * creee a cote de la vraie, que le serveur a aussitot preferee parce
+ * qu'elle portait le nom courant.
+ */
+const DB_PATH =
+  reglage('DB', process.env) ??
+  choisirBase(
+    path.join(process.cwd(), 'data', `${FICHIER_COURANT}.db`),
+    path.join(process.cwd(), 'data', `${FICHIER_ANCIEN}.db`),
+    existsSync,
+  ).chemin;
 mkdirSync(path.dirname(DB_PATH), { recursive: true });
 const db = new DatabaseSync(DB_PATH);
 db.exec(SCHEMA_SQL);

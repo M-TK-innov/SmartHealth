@@ -6,6 +6,8 @@ import {
   tableauPlateau,
 } from '@/lib/hopital/plateau-store';
 import { AcquitterCritique } from '@/components/hopital/AcquitterCritique';
+import { fuseauDe } from '@/lib/localisation-store';
+import { formaterInstant } from '@/lib/localisation';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +38,7 @@ export default async function PlateauPage() {
   const ctx = await requirePermission('plateau:read', '/hopital/plateau');
   const orgId = ctx.user.organization_id ?? null;
 
+  const fuseau = fuseauDe(orgId);
   const critiques = critiquesNonTransmises(orgId);
   const demandes = demandesEnCours(orgId);
   const tension = tableauPlateau(orgId);
@@ -64,7 +67,7 @@ export default async function PlateauPage() {
                   <p className="text-sm text-danger">
                     {c.examen} : <b>{c.valeur_num ?? '—'}</b> {c.unite ?? ''}
                     <span className="ml-2 text-xs text-ink-soft">
-                      rendu {new Date(c.rendu_le.replace(' ', 'T')).toLocaleString('fr-FR')}
+                      rendu {formaterInstant(c.rendu_le, fuseau)}
                     </span>
                   </p>
                 </div>
@@ -121,7 +124,7 @@ export default async function PlateauPage() {
                   </span>
                 </Link>
                 <span className="shrink-0 text-xs text-ink-soft">
-                  {new Date(d.demandeeLe.replace(' ', 'T')).toLocaleString('fr-FR')}
+                  {formaterInstant(d.demandeeLe, fuseau)}
                 </span>
               </li>
             ))}

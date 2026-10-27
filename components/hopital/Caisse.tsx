@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { francs } from '@/lib/hopital/caisse';
+import { formaterInstant } from '@/lib/localisation';
 import type { AvisPaiement, Facture, Solde } from '@/lib/hopital/caisse';
 
 /**
@@ -32,12 +33,16 @@ export function Caisse({
   avis,
   patientNom,
   peutEncaisser,
+  fuseau,
 }: {
   facture: Facture;
   solde: Solde;
   avis: AvisPaiement;
   patientNom: string;
   peutEncaisser: boolean;
+  /** Fuseau de l'etablissement : les heures affichees sont les siennes,
+   *  pas celles du poste depuis lequel on regarde. */
+  fuseau: string;
 }) {
   const router = useRouter();
   const [enCours, demarrer] = useTransition();
@@ -145,7 +150,7 @@ export function Caisse({
                   <span>
                     {MOYENS.find(([v]) => v === p.moyen)?.[1] ?? p.moyen}
                     <span className="ml-2 text-xs text-ink-soft">
-                      {new Date(p.recuLe).toLocaleString('fr-FR')}
+                      {formaterInstant(p.recuLe, fuseau)}
                     </span>
                   </span>
                   <span className="font-medium tabular-nums">{francs(p.montant)}</span>

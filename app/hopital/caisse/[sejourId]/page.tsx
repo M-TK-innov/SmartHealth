@@ -4,6 +4,7 @@ import { avisPourSejour, factureOuverteDuSejour } from '@/lib/hopital/caisse-sto
 import { solde, type Urgence } from '@/lib/hopital/caisse';
 import { Caisse } from '@/components/hopital/Caisse';
 import { get } from '@/lib/db';
+import { fuseauDe } from '@/lib/localisation-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,6 +60,7 @@ export default async function CaissePage({
       avis={avisPourSejour(sejourId, urgence)}
       patientNom={`${patient.given_name} ${patient.family_name}`}
       peutEncaisser={ctx.can('caisse:write')}
+      fuseau={fuseauDe(ctx.user.organization_id ?? null)}
     />
   );
 }

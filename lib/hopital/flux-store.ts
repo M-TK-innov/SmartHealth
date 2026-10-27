@@ -13,6 +13,7 @@
 import { randomUUID } from 'node:crypto';
 import { all, audit, get, insert, run, tx } from '../db.ts';
 import { dansLeJour, jourCivil, jourPrecedent, jourSuivant, versIso, versIsoRequis } from '../temps.ts';
+import { fuseauDe } from '../localisation-store.ts';
 import {
   appeler,
   marquerParti,
@@ -107,12 +108,22 @@ export function passagesOuvertsDuSejour(sejourId: string): Passage[] {
 }
 
 /** La file ordonnee d'un poste : qui passe ensuite, et pourquoi. */
-export function fileDuPoste(posteId: string, maintenant = new Date().toISOString()): PassageClasse[] {
-  return ordonner(passagesDuPoste(posteId, jourCivil(maintenant)), maintenant);
+export function fileDuPoste(
+  posteId: string,
+  maintenant = new Date().toISOString(),
+  organizationId: string | null = null,
+): PassageClasse[] {
+  const fuseau = fuseauDe(organizationId);
+  return ordonner(passagesDuPoste(posteId, jourCivil(maintenant, fuseau), fuseau), maintenant);
 }
 
-export function prochainDuPoste(posteId: string, maintenant = new Date().toISOString()): PassageClasse | null {
-  return prochain(passagesDuPoste(posteId, jourCivil(maintenant)), maintenant);
+export function prochainDuPoste(
+  posteId: string,
+  maintenant = new Date().toISOString(),
+  organizationId: string | null = null,
+): PassageClasse | null {
+  const fuseau = fuseauDe(organizationId);
+  return prochain(passagesDuPoste(posteId, jourCivil(maintenant, fuseau), fuseau), maintenant);
 }
 
 export interface TensionAffichee extends TensionPoste {
@@ -129,9 +140,10 @@ export function tableauTension(
   organizationId: string | null,
   maintenant = new Date().toISOString(),
 ): TensionAffichee[] {
-  const jour = jourCivil(maintenant);
+  const fuseau = fuseauDe(organizationId);
+  const jour = jourCivil(maintenant, fuseau);
   return postes(organizationId).map((p) => ({
-    ...tension(p.id, passagesDuPoste(p.id, jour), maintenant),
+    ...tension(p.id, passagesDuPoste(p.id, jour, fuseau), maintenant),
     code: p.code,
     nom: p.nom,
     categorie: p.categorie,

@@ -33,6 +33,11 @@ export const COLONNES_AJOUTEES: [table: string, colonne: string, definition: str
   // Nullable : une consultation externe n'appartient a aucun sejour, et
   // c'est une situation normale, pas une donnee manquante.
   ['consultation', 'sejour_id', 'TEXT'],
+  // Fuseau de l'etablissement, detecte au premier demarrage depuis la
+  // machine qui sert l'application — un serveur de dispensaire tourne
+  // dans le dispensaire. Nullable : tant qu'il est vide, la detection
+  // repasse, et un responsable peut le corriger depuis la console.
+  ['organization', 'fuseau', 'TEXT'],
 ];
 
 /**
