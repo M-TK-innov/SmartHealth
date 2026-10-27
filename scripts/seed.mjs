@@ -16,6 +16,11 @@ import path from 'node:path';
 import { SCHEMA_SQL } from '../lib/schema.ts';
 import { hashPassword } from '../lib/auth/password.ts';
 import { DEFAULT_ROLE_PERMISSIONS, ROLES } from '../lib/auth/roles.ts';
+import {
+  SEUILS_DEMONSTRATION,
+  parcoursDemonstration,
+  recapitulatif,
+} from '../lib/demo/scenario.ts';
 
 const DB_PATH = process.env.PARLEDOCTEUR_DB || path.join(process.cwd(), 'data', 'parledocteur.db');
 const reset = process.argv.includes('--reset');
@@ -275,6 +280,330 @@ const transcript = DEMO.map(([s, t]) => {
 }).join('\n');
 db.prepare('UPDATE consultation SET transcript_full = ? WHERE id = ?').run(transcript, cId);
 
+// ------------------------------------------------- unites, lits et postes
+//
+// Les chiffres sont ceux d'un centre de sante de commune, pas d'un CHU : une
+// dizaine de lits par unite, un seul bloc de consultation. Un jeu de
+// demonstration surdimensionne donne une fausse idee de ce que l'ecran doit
+// supporter — et cache les cas etroits, comme une unite ou il ne reste qu'un
+// lit libre.
+
+const unites = [
+  { code: 'MED', nom: 'Medecine generale', categorie: 'hospitalisation', lits: 10 },
+  { code: 'MAT', nom: 'Maternite', categorie: 'obstetrique', lits: 8 },
+  { code: 'PED', nom: 'Pediatrie', categorie: 'pediatrie', lits: 6 },
+  { code: 'URG', nom: 'Urgences — observation', categorie: 'urgences', lits: 4 },
+];
+
+const litsParUnite = {};
+for (const u of unites) {
+  const uniteId = randomUUID();
+  insert('unite_soins', {
+    id: uniteId,
+    organization_id: facilityId,
+    code: u.code,
+    nom: u.nom,
+    categorie: u.categorie,
+    actif: 1,
+  });
+
+  litsParUnite[u.code] = [];
+  for (let i = 1; i <= u.lits; i++) {
+    const litId = randomUUID();
+    // Un lit hors service par unite a partir de la troisieme place, et un lit
+    // a preparer : l'ecran doit montrer ces deux etats des la demonstration,
+    // parce que ce sont eux qui font diverger « places » et « lits ».
+    const etat = i === 3 ? 'hors-service' : i === 4 ? 'a-preparer' : 'libre';
+    insert('lit', {
+      id: litId,
+      unite_id: uniteId,
+      chambre: `${u.code}-${Math.ceil(i / 2)}`,
+      code: `${u.code}-${String(i).padStart(2, '0')}`,
+      etat,
+      isolement: i === u.lits ? 1 : 0,
+    });
+    litsParUnite[u.code].push({ id: litId, etat });
+  }
+}
+
+const postes = [
+  { code: 'ACC', nom: 'Accueil', categorie: 'accueil' },
+  { code: 'TRI', nom: 'Triage', categorie: 'triage' },
+  { code: 'CONS-1', nom: 'Consultation 1', categorie: 'consultation' },
+  { code: 'CAISSE', nom: 'Caisse', categorie: 'caisse' },
+  { code: 'PHARM', nom: 'Pharmacie', categorie: 'pharmacie' },
+  { code: 'LABO', nom: 'Laboratoire', categorie: 'laboratoire' },
+];
+
+const posteId = {};
+for (const p of postes) {
+  posteId[p.code] = randomUUID();
+  insert('poste', {
+    id: posteId[p.code],
+    organization_id: facilityId,
+    code: p.code,
+    nom: p.nom,
+    categorie: p.categorie,
+    actif: 1,
+  });
+}
+
+// Un sejour en cours, pour que l'occupation et les files ne soient pas vides
+// au premier ecran.
+const sejourId = randomUUID();
+const litMed = litsParUnite.MED.find((l) => l.etat === 'libre');
+insert('sejour', {
+  id: sejourId,
+  patient_id: p3,
+  organization_id: facilityId,
+  type: 'hospitalisation',
+  statut: 'en-cours',
+  lit_id: litMed.id,
+  motif: 'Desequilibre glycemique',
+  mode_entree: 'urgences',
+  admis_le: daysAgo(1),
+});
+db.prepare("UPDATE lit SET etat = 'occupe' WHERE id = ?").run(litMed.id);
+insert('mouvement', {
+  id: randomUUID(),
+  sejour_id: sejourId,
+  lit_id: litMed.id,
+  type: 'admission',
+  survenu_le: daysAgo(1),
+});
+
+// ------------------------------------------------------------- pharmacie
+//
+// Le rayon porte volontairement les quatre etats que l'ecran doit savoir
+// montrer : suffisant, bas, rupture, et entierement perime. Un jeu de
+// demonstration ou tout va bien ne prouve rien — et surtout pas que le
+// refus de servir un lot perime fonctionne.
+
+const dansNJours = (n) =>
+  new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+
+const medicaments = [
+  {
+    dci: 'Amoxicilline', forme: 'comprime', dosage: '500 mg', seuil: 200,
+    lots: [
+      { numero: 'AMX-2605', perimeLe: dansNJours(420), quantite: 600 },
+      { numero: 'AMX-2512', perimeLe: dansNJours(21), quantite: 150 },
+    ],
+  },
+  {
+    dci: 'Artemether/lumefantrine', forme: 'comprime', dosage: '20/120 mg', seuil: 120,
+    lots: [{ numero: 'ALU-2603', perimeLe: dansNJours(260), quantite: 480 }],
+  },
+  {
+    // Stock bas : au seuil exact, pour que l'ecran le signale des maintenant
+    // et non le jour ou il tombe en dessous.
+    dci: 'Paracetamol', forme: 'comprime', dosage: '500 mg', seuil: 300,
+    lots: [{ numero: 'PAR-2611', perimeLe: dansNJours(180), quantite: 300 }],
+  },
+  {
+    // Entierement perime : les boites sont encore en rayon, et c'est
+    // exactement la situation ou quelqu'un les sert sans regarder.
+    dci: 'Ceftriaxone', forme: 'injectable', dosage: '1 g', seuil: 40,
+    lots: [{ numero: 'CEF-2409', perimeLe: dansNJours(-35), quantite: 60 }],
+  },
+  {
+    // Rupture franche : aucun lot.
+    dci: 'Sulfadoxine/pyrimethamine', forme: 'comprime', dosage: '500/25 mg', seuil: 100, lots: [],
+  },
+  {
+    dci: 'Sels de rehydratation orale', forme: 'sachet', dosage: null, seuil: 150,
+    lots: [{ numero: 'SRO-2607', perimeLe: dansNJours(540), quantite: 900 }],
+  },
+];
+
+const rayon = {};
+for (const m of medicaments) {
+  const articleId = randomUUID();
+  rayon[m.dci] = { id: articleId, lots: [] };
+  insert('article', {
+    id: articleId,
+    organization_id: facilityId,
+    dci: m.dci,
+    forme: m.forme,
+    dosage: m.dosage,
+    unite: m.forme === 'sachet' ? 'sachet' : 'unite',
+    seuil_alerte: m.seuil,
+    actif: 1,
+  });
+  for (const l of m.lots) {
+    const lotId = randomUUID();
+    insert('lot', {
+      id: lotId,
+      article_id: articleId,
+      numero: l.numero,
+      perime_le: l.perimeLe,
+      quantite: l.quantite,
+    });
+    rayon[m.dci].lots.push({
+      id: lotId,
+      numero: l.numero,
+      perimeLe: l.perimeLe,
+      quantite: l.quantite,
+    });
+    insert('mouvement_stock', {
+      id: randomUUID(),
+      lot_id: lotId,
+      article_id: articleId,
+      type: 'entree',
+      quantite: l.quantite,
+      motif: 'Dotation initiale',
+    });
+  }
+}
+
+// --------------------------------------------- plateau technique et bloc
+//
+// LES SEUILS SONT UNE DONNEE DE L'ETABLISSEMENT, pas une constante de
+// l'application. Ceux-ci sont un point de depart pour la demonstration :
+// ils doivent etre revus et valides par le biologiste du site avant toute
+// utilisation reelle, et c'est pour cela que la table porte les colonnes
+// valide_par et valide_le, laissees vides ici.
+
+const seuils = SEUILS_DEMONSTRATION;
+
+for (const s of seuils) {
+  insert('seuil_critique', {
+    id: randomUUID(),
+    organization_id: facilityId,
+    examen: s.examen,
+    unite: s.unite,
+    borne_basse: s.bas,
+    borne_haute: s.haut,
+    stabilite_min: s.stabilite,
+  });
+}
+
+// Deux demandes en cours, pour que l'ecran ne soit pas vide : une prelevee
+// qui attend son resultat, une qui attend son prelevement.
+const demandeKaliemie = randomUUID();
+insert('demande_examen', {
+  id: demandeKaliemie,
+  patient_id: p3,
+  sejour_id: sejourId,
+  organization_id: facilityId,
+  domaine: 'laboratoire',
+  examen: 'Kaliemie',
+  priorite: 'urgente',
+  etat: 'prelevee',
+  demandee_le: now(),
+  prelevee_le: now(),
+  identite_verifiee: 1,
+});
+const demandeEchographie = randomUUID();
+insert('demande_examen', {
+  id: demandeEchographie,
+  patient_id: p1,
+  organization_id: facilityId,
+  domaine: 'imagerie',
+  examen: 'Echographie obstetricale',
+  priorite: 'routine',
+  etat: 'demandee',
+  demandee_le: now(),
+});
+
+const sallesBloc = [
+  { code: 'BO-1', nom: 'Bloc 1 — chirurgie generale' },
+  { code: 'BO-2', nom: 'Bloc 2 — obstetrique' },
+];
+const salleId = {};
+for (const s of sallesBloc) {
+  salleId[s.code] = randomUUID();
+  insert('salle_operatoire', {
+    id: salleId[s.code],
+    organization_id: facilityId,
+    code: s.code,
+    nom: s.nom,
+    actif: 1,
+  });
+}
+
+// Une intervention lateralisee au programme du jour : c'est le cas ou
+// l'affichage du cote compte, et il doit etre visible des la demonstration.
+//
+// LES CRENEAUX SONT RELATIFS A MAINTENANT, et non poses a huit heures du
+// matin. Une demonstration faite a seize heures montrerait sinon un
+// programme entierement passe, avec un patient « entre au bloc » six heures
+// apres la fin de son creneau. Le bloc se regarde au present.
+const creneau = (minutes) =>
+  new Date(Date.now() + minutes * 60000).toISOString().replace('T', ' ').slice(0, 19);
+const interventionHernie = randomUUID();
+insert('intervention', {
+  id: interventionHernie,
+  patient_id: p3,
+  sejour_id: sejourId,
+  salle_id: salleId['BO-1'],
+  organization_id: facilityId,
+  geste: 'Cure de hernie inguinale',
+  lateralise: 1,
+  lateralite: 'droite',
+  // Creneau commence il y a un quart d'heure : le parcours fera entrer le
+  // patient en salle, et l'ecart entre le prevu et le reel est precisement
+  // ce que le bloc doit savoir mesurer.
+  debut_prevu: creneau(-15),
+  fin_prevue: creneau(105),
+  etat: 'programmee',
+  operateur_id: drId,
+});
+insert('intervention', {
+  id: randomUUID(),
+  patient_id: p1,
+  salle_id: salleId['BO-2'],
+  organization_id: facilityId,
+  geste: 'Cesarienne programmee',
+  lateralise: 0,
+  lateralite: 'sans-objet',
+  debut_prevu: creneau(150),
+  fin_prevue: creneau(240),
+  etat: 'programmee',
+  operateur_id: drId,
+});
+
+// ------------------------------------------------- le parcours de demonstration
+//
+// Tout ce qui precede est le DECOR : des unites, des lits, un rayon, des
+// salles. Ce qui suit est le PARCOURS — des gens qui attendent, une facture
+// a moitie reglee, une boite sortie du bon lot, une valeur critique corrigee
+// puis transmise, une checklist incomplete. Le decor se regarde ; le
+// parcours se demontre.
+//
+// Il est decrit dans `lib/demo/scenario.ts`, module pur dont les invariants
+// sont verifies par `npm test` — c'est-a-dire qu'une demonstration cassee se
+// voit avant la salle, et non devant elle.
+
+function appliquer(ecriture) {
+  if (ecriture.op === 'inserer') {
+    insert(ecriture.table, ecriture.ligne);
+    return;
+  }
+  const champs = Object.keys(ecriture.champs);
+  db.prepare(
+    `UPDATE ${ecriture.table} SET ${champs.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`,
+  ).run(...champs.map((c) => ecriture.champs[c]), ecriture.id);
+}
+
+const parcours = parcoursDemonstration({
+  organizationId: facilityId,
+  practitionerId: drId,
+  praticienNom: 'Dr Ama Sossou',
+  patients: { adjoa: p1, koffi: p2, bernard: p3 },
+  sejourBernard: sejourId,
+  postes: posteId,
+  articles: rayon,
+  demandeKaliemie,
+  demandeEchographie,
+  interventionHernie,
+  maintenant: new Date(),
+  id: randomUUID,
+});
+
+for (const ecriture of parcours) appliquer(ecriture);
+const poses = recapitulatif(parcours);
+
 // ------------------------------------------------------------------ comptes
 //
 // Un compte par role, pour pouvoir eprouver la hierarchie de bout en bout.
@@ -328,13 +657,46 @@ insert('audit_log', {
   actor_label: 'seed',
   action: 'create',
   entity: 'dataset',
-  detail: `Jeu de demonstration : 3 organisations, ${accounts.length} comptes, 3 patients.`,
+  detail: `Jeu de demonstration : 3 organisations, ${accounts.length} comptes, 3 patients, ${unites.length} unites, ${postes.length} postes.`,
 });
 
 console.log(`Base initialisee : ${DB_PATH}`);
 console.log(`  praticien   : Dr Ama Sossou`);
 console.log(`  patients    : 3 (${p1.slice(0, 8)}, ${p2.slice(0, 8)}, ${p3.slice(0, 8)})`);
 console.log(`  consultation: /consultations/${cId}`);
+const totalLits = unites.reduce((n, u) => n + u.lits, 0);
+console.log(
+  `  hopital     : ${unites.length} unites (${totalLits} lits), ${postes.length} postes, 1 sejour en cours`,
+);
+console.log(
+  `  pharmacie   : ${medicaments.length} references, dont 1 en rupture, 1 au seuil et 1 entierement perimee`,
+);
+console.log(
+  `  plateau     : ${seuils.length} seuils (1 volontairement sans borne), 2 demandes en cours`,
+);
+console.log(`  bloc        : ${sallesBloc.length} salles, 2 interventions au programme du jour`);
+console.log('');
+console.log('Parcours de demonstration (relatif a maintenant) :');
+console.log(
+  `  files       : ${poses.passage} passages, dont 1 urgence vitale arrivee en dernier,`,
+);
+console.log('                2 remontes par anciennete et 1 parti sans avoir ete vu');
+console.log(
+  `  caisse      : ${poses.facture} factures, ${poses.paiement} paiements — une soldee,`,
+);
+console.log('                une a 17 500 F de reste a charge sur un acte programmable');
+console.log(
+  `  ordonnance  : validee, ${poses.prescription_item} lignes, dont 1 en rupture au rayon`,
+);
+console.log('  pharmacie   : 21 comprimes servis sur le lot qui perime le premier');
+console.log(
+  `  plateau     : ${poses.resultat_examen} resultats — 1 kaliemie corrigee (l ancienne`,
+);
+console.log('                version conservee) et acquittee, 1 hemoglobine critique');
+console.log('                NON transmise, 1 goutte epaisse sans seuil donc non interpretee');
+console.log(
+  `  bloc        : patient au bloc, ${poses.checklist_bloc} points coches, « avant incision » incomplet`,
+);
 console.log('');
 console.log('Comptes de demonstration (mot de passe commun : ' + DEMO_PASSWORD + ') :');
 console.log('  super@parledocteur.local   super-administrateur : tout, y compris base et serveurs');

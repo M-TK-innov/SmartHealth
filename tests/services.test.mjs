@@ -123,13 +123,26 @@ describe('cycle de vie d un service reellement lance', () => {
     // Un service minimal : il ecoute, c'est tout ce qu'on lui demande ici.
     // Le vrai Griot chargerait plusieurs gigaoctets de poids, hors de portee
     // d'un test — mais le trajet lancement/adresse/arret est le meme.
+    //
+    // Socket brut, et NON http.server : HTTPServer.server_bind appelle
+    // socket.getfqdn(), une resolution DNS inverse qui prend 3 secondes sur
+    // un cache froid et zero ensuite. Le test devenait intermittent selon
+    // l'etat du cache DNS du poste — il echouait sur une lenteur de
+    // resolution de nom, pas sur le lancement du service qu'il pretend
+    // verifier.
     const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'pd-service-'));
     fs.writeFileSync(
       path.join(dossier, 'server.py'),
       [
-        'import http.server, os',
+        'import socket, os',
         'port = int(os.environ["GRIOT_PORT"])',
-        'http.server.HTTPServer(("127.0.0.1", port), http.server.BaseHTTPRequestHandler).serve_forever()',
+        's = socket.socket()',
+        's.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)',
+        's.bind(("127.0.0.1", port))',
+        's.listen(8)',
+        'while True:',
+        '    conn, _ = s.accept()',
+        '    conn.close()',
       ].join('\n') + '\n',
     );
 

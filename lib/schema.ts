@@ -129,6 +129,14 @@ CREATE TABLE IF NOT EXISTS consultation (
   report_markdown   TEXT,
   report_edited     INTEGER NOT NULL DEFAULT 0,
   organization_id   TEXT,             -- cloisonnement : etablissement de la rencontre
+  -- Sejour pendant lequel la consultation a eu lieu. NULL pour une
+  -- consultation externe, ce qui est une situation normale et non une
+  -- donnee manquante.
+  --
+  -- Son index est declare dans lib/migrations.ts et NON ici : sur une base
+  -- deja installee, la colonne n'existe qu'apres l'ALTER TABLE, et un index
+  -- pose ici s'executerait avant — la base ne s'ouvrirait plus.
+  sejour_id         TEXT,
   created_at        TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -159,6 +167,398 @@ CREATE TABLE IF NOT EXISTS transcript_segment (
   created_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_segment_consult ON transcript_segment(consultation_id, seq);
+
+-- ===================================================================== HOPITAL
+--
+-- Le sejour est la colonne vertebrale de la plateforme hospitaliere : la
+-- gestion des lits, le flux, la caisse et la pharmacie s'y accrochent. Sans
+-- lui, chaque module tiendrait son propre etat du monde, et deux services
+-- finiraient par ne plus dire la meme chose du meme patient.
+
+-- Unite de soins : medecine, chirurgie, maternite, urgences... -> FHIR Location (ward)
+CREATE TABLE IF NOT EXISTS unite_soins (
+  id              TEXT PRIMARY KEY,
+  organization_id TEXT,
+  code            TEXT NOT NULL,
+  nom             TEXT NOT NULL,
+  -- hospitalisation | urgences | consultation | plateau-technique
+  categorie       TEXT NOT NULL DEFAULT 'hospitalisation',
+  actif           INTEGER NOT NULL DEFAULT 1,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_unite_org ON unite_soins(organization_id, actif);
+
+-- Lit -> FHIR Location (bed). La colonne etat est une donnee DERIVEE, utile
+-- pour afficher un plan d'occupation ; ce qui fait foi pour savoir si un lit
+-- est pris, c'est qu'un sejour en cours le declare. Se fier a la seule colonne
+-- etat laisserait passer la double occupation apres un incident.
+CREATE TABLE IF NOT EXISTS lit (
+  id         TEXT PRIMARY KEY,
+  unite_id   TEXT NOT NULL REFERENCES unite_soins(id) ON DELETE CASCADE,
+  chambre    TEXT,
+  code       TEXT NOT NULL,              -- lisible par un soignant : « MED-12-B »
+  -- libre | occupe | a-preparer | hors-service
+  etat       TEXT NOT NULL DEFAULT 'libre',
+  isolement  INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_lit_unite ON lit(unite_id, etat);
+
+-- Sejour -> FHIR Encounter. De l'entree a la sortie.
+CREATE TABLE IF NOT EXISTS sejour (
+  id              TEXT PRIMARY KEY,
+  patient_id      TEXT NOT NULL REFERENCES patient(id) ON DELETE CASCADE,
+  organization_id TEXT,
+  -- externe | urgence | hospitalisation
+  type            TEXT NOT NULL DEFAULT 'hospitalisation',
+  -- prevu | en-cours | sorti | annule
+  statut          TEXT NOT NULL DEFAULT 'prevu',
+  lit_id          TEXT REFERENCES lit(id) ON DELETE SET NULL,
+  motif           TEXT,
+  mode_entree     TEXT,                  -- domicile, transfert, urgences...
+  mode_sortie     TEXT,                  -- domicile, transfert, contre-avis, deces
+  admis_le        TEXT,
+  sorti_le        TEXT,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_sejour_patient ON sejour(patient_id, admis_le DESC);
+CREATE INDEX IF NOT EXISTS idx_sejour_statut  ON sejour(statut, organization_id);
+-- Un lit ne porte qu'un sejour EN COURS. L'index partiel fait tenir
+-- l'invariant par la base elle-meme, et pas seulement par le code qui
+-- l'appelle : deux chemins d'ecriture concurrents ne peuvent pas le violer.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sejour_lit_unique
+  ON sejour(lit_id) WHERE statut = 'en-cours' AND lit_id IS NOT NULL;
+
+-- Mouvement : chaque passage dans un lit. C'est l'historique qui permet de
+-- reconstituer un parcours, pas seulement l'etat courant.
+CREATE TABLE IF NOT EXISTS mouvement (
+  id         TEXT PRIMARY KEY,
+  sejour_id  TEXT NOT NULL REFERENCES sejour(id) ON DELETE CASCADE,
+  lit_id     TEXT REFERENCES lit(id) ON DELETE SET NULL,
+  unite_id   TEXT REFERENCES unite_soins(id) ON DELETE SET NULL,
+  -- admission | transfert | sortie
+  type       TEXT NOT NULL,
+  motif      TEXT,
+  acteur_id  TEXT,
+  survenu_le TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_mouvement_sejour ON mouvement(sejour_id, survenu_le);
+
+-- Poste : un point de passage dans l etablissement (accueil, triage,
+-- consultation, caisse, pharmacie, laboratoire). Chaque poste a sa file.
+CREATE TABLE IF NOT EXISTS poste (
+  id              TEXT PRIMARY KEY,
+  organization_id TEXT,
+  code            TEXT NOT NULL,         -- lisible : ACC, TRI, CONS-1, CAISSE
+  nom             TEXT NOT NULL,
+  -- accueil | triage | consultation | caisse | pharmacie | laboratoire | imagerie
+  categorie       TEXT NOT NULL DEFAULT 'consultation',
+  actif           INTEGER NOT NULL DEFAULT 1,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_poste_org ON poste(organization_id, actif);
+
+-- Passage : un patient dans la file d un poste.
+--
+-- L etat parti n est PAS un synonyme de termine. La part de patients qui
+-- repartent sans avoir ete vus est l indicateur le plus direct d un poste
+-- sature ; les confondre efface cette mesure.
+CREATE TABLE IF NOT EXISTS passage (
+  id                TEXT PRIMARY KEY,
+  sejour_id         TEXT NOT NULL REFERENCES sejour(id) ON DELETE CASCADE,
+  poste_id          TEXT NOT NULL REFERENCES poste(id) ON DELETE CASCADE,
+  -- vitale | urgente | standard | differable
+  gravite           TEXT NOT NULL DEFAULT 'standard',
+  -- en-attente | en-cours | termine | parti
+  etat              TEXT NOT NULL DEFAULT 'en-attente',
+  arrive_le         TEXT NOT NULL DEFAULT (datetime('now')),
+  pris_en_charge_le TEXT,
+  termine_le        TEXT,
+  acteur_id         TEXT,
+  created_at        TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_passage_file ON passage(poste_id, etat, arrive_le);
+CREATE INDEX IF NOT EXISTS idx_passage_sejour ON passage(sejour_id, arrive_le DESC);
+-- Un patient n attend qu a un seul endroit a la fois. Sans cet index, une
+-- double saisie afficherait le meme patient dans deux files : chaque poste
+-- l attendrait, aucun ne l aurait, et l attente mesuree serait fausse aux
+-- deux endroits.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_passage_ouvert_unique
+  ON passage(sejour_id) WHERE etat IN ('en-attente', 'en-cours');
+
+-- Facture : les actes d un sejour et ce qui a ete paye.
+--
+-- Montants en FRANCS CFA ENTIERS, jamais en flottant : une caisse qui derive
+-- d un centime par ligne finit par ne plus tomber juste.
+CREATE TABLE IF NOT EXISTS facture (
+  id              TEXT PRIMARY KEY,
+  sejour_id       TEXT NOT NULL REFERENCES sejour(id) ON DELETE CASCADE,
+  organization_id TEXT,
+  part_tiers      INTEGER NOT NULL DEFAULT 0,
+  tiers_nom       TEXT,                  -- mutuelle, assurance, programme
+  close           INTEGER NOT NULL DEFAULT 0,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_facture_sejour ON facture(sejour_id);
+CREATE INDEX IF NOT EXISTS idx_facture_ouverte ON facture(organization_id, close);
+
+CREATE TABLE IF NOT EXISTS facture_ligne (
+  id          TEXT PRIMARY KEY,
+  facture_id  TEXT NOT NULL REFERENCES facture(id) ON DELETE CASCADE,
+  libelle     TEXT NOT NULL,
+  montant     INTEGER NOT NULL,          -- unitaire, francs entiers
+  quantite    INTEGER NOT NULL DEFAULT 1,
+  -- vitale | urgente | programmable : decide si un impaye peut bloquer l acte
+  urgence     TEXT NOT NULL DEFAULT 'programmable',
+  acteur_id   TEXT,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_fligne_facture ON facture_ligne(facture_id);
+
+-- Un paiement ne se modifie pas et ne se supprime pas : il s annule par un
+-- autre mouvement. Une caisse dont les lignes s editent ne prouve rien.
+CREATE TABLE IF NOT EXISTS paiement (
+  id          TEXT PRIMARY KEY,
+  facture_id  TEXT NOT NULL REFERENCES facture(id) ON DELETE CASCADE,
+  montant     INTEGER NOT NULL,
+  -- especes | mobile | carte | tiers-payant
+  moyen       TEXT NOT NULL DEFAULT 'especes',
+  reference   TEXT,                      -- numero de transaction mobile money
+  acteur_id   TEXT,
+  recu_le     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_paiement_facture ON paiement(facture_id, recu_le);
+
+-- Article de pharmacie, designe par sa DCI. Le stock, lui, vit dans les
+-- lots : un article sans lot n'a pas un stock de zero, il n'a pas de stock
+-- du tout, et la nuance compte quand on cherche pourquoi on ne sert pas.
+CREATE TABLE IF NOT EXISTS article (
+  id              TEXT PRIMARY KEY,
+  organization_id TEXT,
+  dci             TEXT NOT NULL,         -- denomination commune internationale
+  forme           TEXT,                  -- comprime, sirop, injectable...
+  dosage          TEXT,
+  atc_code        TEXT,
+  unite           TEXT NOT NULL DEFAULT 'unite',
+  seuil_alerte    INTEGER NOT NULL DEFAULT 0,
+  actif           INTEGER NOT NULL DEFAULT 1,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_article_org ON article(organization_id, actif);
+CREATE INDEX IF NOT EXISTS idx_article_dci ON article(dci);
+
+-- Lot : l'unite reelle du stock, parce que la peremption est portee par le
+-- lot et non par l'article. Un stock agrege par article ne sait pas dire ce
+-- qui est encore servable.
+CREATE TABLE IF NOT EXISTS lot (
+  id          TEXT PRIMARY KEY,
+  article_id  TEXT NOT NULL REFERENCES article(id) ON DELETE CASCADE,
+  numero      TEXT NOT NULL,             -- celui qu on lit sur la boite
+  perime_le   TEXT NOT NULL,             -- AAAA-MM-JJ
+  quantite    INTEGER NOT NULL DEFAULT 0,
+  recu_le     TEXT NOT NULL DEFAULT (datetime('now')),
+  -- Un stock negatif est toujours le signe qu on a servi ce qu on n avait
+  -- pas. L accepter « pour regulariser plus tard » rend tout l inventaire
+  -- inexploitable, donc la base le refuse.
+  CHECK (quantite >= 0)
+);
+CREATE INDEX IF NOT EXISTS idx_lot_article ON lot(article_id, perime_le);
+
+-- Dispensation : ce qui est sorti, pour qui, et ce qui manquait.
+CREATE TABLE IF NOT EXISTS dispensation (
+  id              TEXT PRIMARY KEY,
+  sejour_id       TEXT REFERENCES sejour(id) ON DELETE SET NULL,
+  patient_id      TEXT NOT NULL REFERENCES patient(id) ON DELETE CASCADE,
+  prescription_id TEXT REFERENCES prescription(id) ON DELETE SET NULL,
+  organization_id TEXT,
+  acteur_id       TEXT,
+  servi_le        TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_disp_patient ON dispensation(patient_id, servi_le DESC);
+CREATE INDEX IF NOT EXISTS idx_disp_sejour ON dispensation(sejour_id);
+
+CREATE TABLE IF NOT EXISTS dispensation_ligne (
+  id              TEXT PRIMARY KEY,
+  dispensation_id TEXT NOT NULL REFERENCES dispensation(id) ON DELETE CASCADE,
+  article_id      TEXT NOT NULL REFERENCES article(id),
+  lot_id          TEXT REFERENCES lot(id) ON DELETE SET NULL,
+  -- Le numero de lot est COPIE ici, et pas seulement reference. Un rappel de
+  -- lot se fait des annees plus tard ; la ligne doit encore savoir ce
+  -- qu'elle a servi meme si la fiche du lot a disparu.
+  numero_lot      TEXT NOT NULL,
+  perime_le       TEXT NOT NULL,
+  quantite        INTEGER NOT NULL,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_dligne_disp ON dispensation_ligne(dispensation_id);
+-- Pour retrouver tous les patients servis depuis un lot rappele.
+CREATE INDEX IF NOT EXISTS idx_dligne_lot ON dispensation_ligne(numero_lot);
+
+-- Tout mouvement de stock, y compris les entrees et les destructions. Sans
+-- ce journal, un ecart d'inventaire ne s'explique jamais.
+CREATE TABLE IF NOT EXISTS mouvement_stock (
+  id         TEXT PRIMARY KEY,
+  lot_id     TEXT REFERENCES lot(id) ON DELETE SET NULL,
+  article_id TEXT NOT NULL REFERENCES article(id) ON DELETE CASCADE,
+  -- entree | dispensation | destruction | ajustement
+  type       TEXT NOT NULL,
+  -- Signe : positif pour une entree, negatif pour une sortie.
+  quantite   INTEGER NOT NULL,
+  motif      TEXT,
+  acteur_id  TEXT,
+  survenu_le TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_mvtstock_article ON mouvement_stock(article_id, survenu_le);
+
+-- ---------------------------------------------------------- plateau technique
+
+-- Demande d examen : laboratoire ou imagerie. Distincte de service_request,
+-- qui porte la prescription telle qu elle sort de la consultation ; celle-ci
+-- porte le CIRCUIT — prelevement, resultat, validation — et peut exister
+-- sans consultation (une demande faite au lit, un bilan d entree).
+CREATE TABLE IF NOT EXISTS demande_examen (
+  id              TEXT PRIMARY KEY,
+  patient_id      TEXT NOT NULL REFERENCES patient(id) ON DELETE CASCADE,
+  sejour_id       TEXT REFERENCES sejour(id) ON DELETE SET NULL,
+  service_request_id TEXT REFERENCES service_request(id) ON DELETE SET NULL,
+  organization_id TEXT,
+  -- laboratoire | imagerie
+  domaine         TEXT NOT NULL DEFAULT 'laboratoire',
+  examen          TEXT NOT NULL,
+  loinc_code      TEXT,
+  -- routine | urgente | vitale
+  priorite        TEXT NOT NULL DEFAULT 'routine',
+  -- demandee | prelevee | en-cours | resultat-disponible | validee | annulee
+  etat            TEXT NOT NULL DEFAULT 'demandee',
+  demandee_le     TEXT NOT NULL DEFAULT (datetime('now')),
+  prelevee_le     TEXT,
+  -- Qui a preleve, et quelle identite a ete annoncee au lit. On conserve
+  -- la trace du controle, pas seulement son resultat : apres un echange de
+  -- tubes, la question posee est « qui a verifie quoi ».
+  preleve_par     TEXT,
+  identite_verifiee INTEGER NOT NULL DEFAULT 0,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_dexamen_patient ON demande_examen(patient_id, demandee_le DESC);
+CREATE INDEX IF NOT EXISTS idx_dexamen_etat ON demande_examen(organization_id, domaine, etat);
+CREATE INDEX IF NOT EXISTS idx_dexamen_sejour ON demande_examen(sejour_id);
+
+-- Seuils critiques, par etablissement.
+--
+-- Ils ne sont PAS codes dans l application : un seuil critique depend de la
+-- population, de l automate et de ce que le service sait faire en reponse.
+-- Un seuil recopie d ailleurs engage un laboratoire qui ne l a jamais
+-- valide. Sans ligne ici, un resultat est rendu « non interprete ».
+CREATE TABLE IF NOT EXISTS seuil_critique (
+  id              TEXT PRIMARY KEY,
+  organization_id TEXT,
+  examen          TEXT NOT NULL,
+  unite           TEXT NOT NULL,
+  borne_basse     REAL,
+  borne_haute     REAL,
+  -- Minutes de stabilite de l echantillon ; NULL si sans objet (imagerie).
+  stabilite_min   INTEGER,
+  valide_par      TEXT,
+  valide_le       TEXT,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_seuil_examen ON seuil_critique(organization_id, examen);
+
+-- Resultat. APPEND-ONLY : une correction cree une nouvelle ligne et marque
+-- la precedente remplacee. Un clinicien a pu prescrire sur la foi de
+-- l ancienne valeur, et l effacer efface la raison de ce qu il a fait.
+CREATE TABLE IF NOT EXISTS resultat_examen (
+  id              TEXT PRIMARY KEY,
+  demande_id      TEXT NOT NULL REFERENCES demande_examen(id) ON DELETE CASCADE,
+  valeur_num      REAL,
+  valeur_texte    TEXT,
+  unite           TEXT,
+  -- normal | anormal | critique | non-interprete
+  interpretation  TEXT NOT NULL DEFAULT 'non-interprete',
+  -- Vrai tant qu une valeur critique n a pas ete acquittee nommement.
+  a_transmettre   INTEGER NOT NULL DEFAULT 0,
+  rendu_par       TEXT,
+  rendu_le        TEXT NOT NULL DEFAULT (datetime('now')),
+  -- Version remplacee par une correction, et son motif.
+  remplace_par    TEXT REFERENCES resultat_examen(id) ON DELETE SET NULL,
+  motif_correction TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_resultat_demande ON resultat_examen(demande_id, rendu_le);
+-- Pour la question qui compte : quelles valeurs critiques attendent encore.
+CREATE INDEX IF NOT EXISTS idx_resultat_transmettre
+  ON resultat_examen(a_transmettre) WHERE a_transmettre = 1;
+
+-- Acquittement d une valeur critique. Le destinataire est NOT NULL : un
+-- acquittement anonyme n acquitte rien, et c est exactement ce qu on
+-- retrouve dans les dossiers apres un accident.
+CREATE TABLE IF NOT EXISTS acquittement_critique (
+  id           TEXT PRIMARY KEY,
+  resultat_id  TEXT NOT NULL REFERENCES resultat_examen(id) ON DELETE CASCADE,
+  transmis_a   TEXT NOT NULL,
+  transmis_par TEXT,
+  commentaire  TEXT,
+  transmis_le  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_acquit_resultat ON acquittement_critique(resultat_id);
+
+-- ------------------------------------------------------------ bloc operatoire
+
+CREATE TABLE IF NOT EXISTS salle_operatoire (
+  id              TEXT PRIMARY KEY,
+  organization_id TEXT,
+  code            TEXT NOT NULL,
+  nom             TEXT NOT NULL,
+  actif           INTEGER NOT NULL DEFAULT 1,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_salle_org ON salle_operatoire(organization_id, actif);
+
+-- Intervention. Les horodatages REELS sont distincts du creneau prevu :
+-- mesurer l occupation du bloc sur le programme revient a ne rien mesurer,
+-- car le programme ne glisse jamais et la realite si.
+CREATE TABLE IF NOT EXISTS intervention (
+  id              TEXT PRIMARY KEY,
+  patient_id      TEXT NOT NULL REFERENCES patient(id) ON DELETE CASCADE,
+  sejour_id       TEXT REFERENCES sejour(id) ON DELETE SET NULL,
+  salle_id        TEXT NOT NULL REFERENCES salle_operatoire(id) ON DELETE CASCADE,
+  organization_id TEXT,
+  geste           TEXT NOT NULL,
+  -- Le geste porte-t-il sur un organe pair ou un membre ?
+  lateralise      INTEGER NOT NULL DEFAULT 0,
+  -- droite | gauche | bilateral | sans-objet. Jamais NULL : « sans-objet »
+  -- est un choix explicite, une absence n en est pas un.
+  lateralite      TEXT NOT NULL DEFAULT 'sans-objet',
+  debut_prevu     TEXT NOT NULL,
+  fin_prevue      TEXT NOT NULL,
+  -- programmee | patient-au-bloc | en-cours | terminee | annulee | deprogrammee
+  etat            TEXT NOT NULL DEFAULT 'programmee',
+  operateur_id    TEXT,
+  entree_le       TEXT,
+  incise_le       TEXT,
+  termine_le      TEXT,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_interv_salle ON intervention(salle_id, debut_prevu);
+CREATE INDEX IF NOT EXISTS idx_interv_patient ON intervention(patient_id, debut_prevu DESC);
+CREATE INDEX IF NOT EXISTS idx_interv_etat ON intervention(organization_id, etat, debut_prevu);
+
+-- Points de checklist coches. Une ligne par point : on sait QUI a coche
+-- QUOI et QUAND. Une colonne « checklist_faite » ne dit rien le jour ou il
+-- faut comprendre ce qui a ete reellement verifie.
+CREATE TABLE IF NOT EXISTS checklist_bloc (
+  id              TEXT PRIMARY KEY,
+  intervention_id TEXT NOT NULL REFERENCES intervention(id) ON DELETE CASCADE,
+  -- avant-induction | avant-incision | avant-sortie
+  temps           TEXT NOT NULL,
+  point           TEXT NOT NULL,
+  coche_par       TEXT,
+  coche_le        TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (intervention_id, point)
+);
+CREATE INDEX IF NOT EXISTS idx_checklist_interv ON checklist_bloc(intervention_id, temps);
 
 -- Ce que l application a appris des corrections du praticien.
 --
@@ -390,6 +790,19 @@ CREATE TABLE IF NOT EXISTS role_permission (
   role       TEXT NOT NULL,
   permission TEXT NOT NULL,
   PRIMARY KEY (role, permission)
+);
+
+-- Permissions deja amorcees au moins une fois.
+--
+-- Sans cette table, une mise a jour qui ajoute une permission ne l accorde a
+-- personne : l amorcage ne s execute que sur une matrice vide, et un
+-- etablissement deja installe decouvrirait le nouveau module par un refus
+-- d acces sans explication. Avec elle, on distingue « jamais introduite »,
+-- qu il faut amorcer, de « retiree par un administrateur », qu il faut
+-- respecter.
+CREATE TABLE IF NOT EXISTS permission_amorcee (
+  permission TEXT PRIMARY KEY,
+  amorcee_le TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Derogation individuelle : accorde ou retire une permission a un compte

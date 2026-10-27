@@ -16,8 +16,23 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 const SESSION_COOKIE = 'pd_session';
 
-/** Accessibles sans session. */
-const PUBLIC_PATHS = ['/connexion', '/inscription', '/acces-refuse', '/hors-ligne', '/bienvenue'];
+/**
+ * Accessibles sans session.
+ *
+ * `/demo` en fait partie : c'est la page qui explique ce qu'est la
+ * demonstration et donne les comptes d'essai. La placer derriere la
+ * connexion demanderait de connaitre les identifiants pour apprendre ou
+ * les trouver. Elle n'expose aucune donnee de patient — uniquement des
+ * consignes et des adresses de comptes fictifs.
+ */
+const PUBLIC_PATHS = [
+  '/connexion',
+  '/inscription',
+  '/acces-refuse',
+  '/hors-ligne',
+  '/bienvenue',
+  '/demo',
+];
 
 /** Routes d'API ouvertes : authentification et liste publique des etablissements. */
 const PUBLIC_API = [

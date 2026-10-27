@@ -3,6 +3,9 @@ import { mkdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { SCHEMA_SQL } from './schema';
+import { appliquerMigrations } from './migrations';
+import { DONNEES_DEMO } from './demo/donnees';
+import { resoudre } from './demo/horodatage';
 
 /**
  * Acces SQLite via le module natif `node:sqlite` (Node >= 22.5).
@@ -18,55 +21,69 @@ import { SCHEMA_SQL } from './schema';
 
 const DB_PATH = process.env.PARLEDOCTEUR_DB || path.join(process.cwd(), 'data', 'parledocteur.db');
 
+/**
+ * Mode demonstration.
+ *
+ * La base vit EN MEMOIRE et est semee a chaque demarrage. C'est le seul
+ * mode qui tienne sur une plateforme sans disque persistant — Vercel et
+ * assimiles — ou un fichier ecrit par une requete a disparu a la suivante.
+ *
+ * Ce que cela implique, et qui doit etre dit a l'ecran plutot que decouvert
+ * par un visiteur : ce qu'on saisit disparait au recyclage de l'instance,
+ * et deux visiteurs servis par deux instances ne voient pas les memes
+ * modifications. Une demonstration, donc, et pas un deploiement.
+ */
+export const MODE_DEMO = process.env.PARLEDOCTEUR_DEMO === '1';
+
 type GlobalWithDb = typeof globalThis & { __parledocteurDb?: DatabaseSync };
 const g = globalThis as GlobalWithDb;
 
 function open(): DatabaseSync {
+  if (MODE_DEMO) return ouvrirDemo();
+
   const dir = path.dirname(DB_PATH);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 
   const database = new DatabaseSync(DB_PATH);
   database.exec(SCHEMA_SQL);
-  migrate(database);
+  appliquerMigrations(database);
   return database;
 }
 
-/**
- * Migrations additives.
- *
- * `CREATE TABLE IF NOT EXISTS` ne touche pas une table deja creee : une base
- * installee avant l'ajout d'une colonne ne l'aurait jamais. On ajoute donc
- * explicitement les colonnes manquantes. Uniquement des ajouts : on ne
- * supprime ni ne renomme rien dans une base de dossiers medicaux.
- */
-function migrate(database: DatabaseSync) {
-  const columns = (table: string): string[] => {
-    try {
-      return (database.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((c) => c.name);
-    } catch {
-      return [];
-    }
-  };
+function ouvrirDemo(): DatabaseSync {
+  const database = new DatabaseSync(':memory:');
+  database.exec(SCHEMA_SQL);
+  appliquerMigrations(database);
 
-  const additions: [table: string, column: string, definition: string][] = [
-    ['patient', 'organization_id', 'TEXT'],
-    ['consultation', 'organization_id', 'TEXT'],
-    ['transcript_segment', 'speaker_source', "TEXT DEFAULT 'auto'"],
-    ['transcript_segment', 'speaker_confidence', 'REAL'],
-    ['transcript_segment', 'pitch_hz', 'REAL'],
-    ['transcript_segment', 'source_text', 'TEXT'],
-    ['transcript_segment', 'source_language', 'TEXT'],
-  ];
-
-  for (const [table, column, definition] of additions) {
-    const existing = columns(table);
-    if (existing.length && !existing.includes(column)) {
-      database.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
-    }
+  // Le vidage est trie par nom de table, donc un enfant y precede parfois
+  // son parent. On suspend le controle des cles le temps du chargement —
+  // puis on le RETABLIT et on VERIFIE. Suspendre sans verifier
+  // reviendrait a parier que le vidage est coherent ; ici on le constate,
+  // et un vidage casse se signale au demarrage plutot que des semaines
+  // plus tard sur un ecran vide.
+  database.exec('PRAGMA foreign_keys = OFF');
+  try {
+    // Les horodatages du vidage sont des jetons relatifs : resolus ici, la
+    // demonstration est toujours « aujourd'hui », quel que soit le jour ou
+    // on l'ouvre.
+    database.exec(resoudre(DONNEES_DEMO));
+  } finally {
+    database.exec('PRAGMA foreign_keys = ON');
   }
+
+  const orphelins = database.prepare('PRAGMA foreign_key_check').all();
+  if (orphelins.length > 0) {
+    const tables = [...new Set(orphelins.map((o) => String((o as { table: string }).table)))];
+    throw new Error(
+      `Jeu de demonstration incoherent : ${orphelins.length} ligne(s) orpheline(s) sur ${tables.join(', ')}. ` +
+        'Regenerer avec « npm run demo:dump ».',
+    );
+  }
+
+  return database;
 }
 
-export const databasePath = () => DB_PATH;
+export const databasePath = () => (MODE_DEMO ? ':memory: (demonstration)' : DB_PATH);
 
 export function db(): DatabaseSync {
   if (!g.__parledocteurDb) g.__parledocteurDb = open();
