@@ -16,6 +16,21 @@ const isDesktop = process.env.BUILD_TARGET === 'desktop';
 const nextConfig = {
   output: isDesktop ? 'standalone' : undefined,
 
+  /**
+   * Repertoire de sortie, surchargeable.
+   *
+   * Deux processus Next qui partagent `.next` se marchent dessus : celui
+   * qui construit reecrit le manifeste de types pendant que l'autre le
+   * lit, et la construction echoue sur un fichier de types « introuvable »
+   * qui n'a rien a voir avec le code. Le symptome est deroutant, et la
+   * reaction naturelle — supprimer `.next` — interrompt le serveur de
+   * developpement d'a cote.
+   *
+   * Avec NEXT_DIST_DIR, on construit ailleurs sans toucher a l'existant.
+   * Valeur par defaut inchangee : rien ne bouge pour qui n'en a pas besoin.
+   */
+  distDir: process.env.NEXT_DIST_DIR || '.next',
+
   serverExternalPackages: ['node:sqlite'],
 
   // transformers.js tire onnxruntime-node et sharp, deux paquets natifs lourds

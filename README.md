@@ -205,6 +205,40 @@ npm run dev
 Ouvrez <http://localhost:3000>. Le jeu de démonstration contient un praticien, trois patients aux
 profils cliniques contrastés et une consultation pédiatrique prête à analyser.
 
+#### Le décor, et le parcours
+
+Le décor — unités, lits, postes, rayon de pharmacie, salles d'opération — se regarde. Le
+**parcours** se démontre, et c'est lui qui remplit les écrans du séjour hospitalier
+(`lib/demo/scenario.ts`). Chaque ligne y est posée pour faire apparaître un cas **étroit**,
+jamais le cas moyen :
+
+| Ce qu'on ouvre | Ce qu'on doit y voir |
+|---|---|
+| File d'attente | une urgence vitale **arrivée en dernier** et appelée en premier ; deux patients remontés par ancienneté sans jamais dépasser un cas plus grave ; un patient **parti sans avoir été vu** |
+| Caisse | 17 500 F de reste à charge, mutuelle déduite — l'avis **bloque l'acte programmable et lui seul**, jamais l'acte vital |
+| Ordonnance | validée et horodatée, deux lignes, dont une **en rupture franche** au rayon |
+| Pharmacie | 21 comprimés servis sur le lot qui **périme le premier**, pas sur le plus gros ; numéro de lot recopié sur la ligne, pour un rappel des années plus tard |
+| Laboratoire | une kaliémie rendue normale puis **corrigée en valeur critique**, l'ancienne version conservée avec son motif, la nouvelle acquittée par quelqu'un de **nommé** ; une hémoglobine critique qui **attend encore** sa transmission ; une goutte épaisse sans seuil, donc **non interprétée** |
+| Bloc opératoire | patient entré en salle, « avant induction » complet, « avant incision » **incomplet** — l'écran nomme les deux points qui manquent |
+
+La consultation pédiatrique, elle, reste **sans analyse, sans diagnostic et sans ordonnance** :
+c'est celle qu'on analyse en direct. La préremplir montrerait un résultat déjà écrit.
+
+Chacune de ces situations est vérifiée par `npm test`, **avec les vrais modules de règles** et non
+par relecture des données (`tests/demo-scenario.test.mjs`). Un jeu de démonstration pourrit en
+silence : on déplace une heure d'arrivée, on retouche un tarif, et le jour venu l'urgence vitale
+passe en troisième sans que rien ne plante. Le test tombe deux semaines avant la salle, plutôt que
+devant elle.
+
+> Cette vérification a déjà servi : confronter les interprétations du jeu de données à la règle a
+> montré qu'un seuil **déclaré sans aucune borne** rendait « normal » au lieu de « non interprété ».
+> L'écran aurait affirmé une absence de danger que personne n'avait établie — et la présence de la
+> ligne laissait croire que le laboratoire s'était prononcé. Corrigé dans `lib/hopital/plateau.ts`.
+
+Les horodatages du parcours sont **relatifs à l'instant de l'amorçage** : une démonstration rejouée
+trois semaines plus tard reste « aujourd'hui ». Les dates qui ne doivent pas bouger — une date de
+naissance — ne bougent pas (`lib/demo/horodatage.ts`).
+
 Cette commande démarre aussi les **services auxiliaires** que l'application sait piloter — à ce
 jour le service de transcription en fon (`services/griot/`), qui demande PyTorch et tourne donc
 dans un processus Python séparé. Un poste qui ne l'a pas installé démarre normalement : le message
@@ -562,7 +596,7 @@ scripts/
 | `npm run services` | les services auxiliaires seuls (avant une démonstration) |
 | `npm run dev:next` / `npm run start:next` | serveur web seul, sans les services |
 | `npm run typecheck` | vérification TypeScript |
-| `npm test` | 189 tests : apprentissage local, prérequis, invariant d'attribution, réseau, rôles |
+| `npm test` | 451 tests : apprentissage local, prérequis, invariant d'attribution, réseau, rôles, parcours de démonstration |
 | `npm run modeles` | dépose les poids du moteur sur appareil (240 Mo) pour un usage hors ligne |
 | `npm run mesure` | recalcule les mesures d'attribution sur corpus annoté |
 | `npm run seed -- --reset` | réinitialise la base de démonstration (un compte par rôle) |

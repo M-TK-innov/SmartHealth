@@ -126,11 +126,16 @@ export function tableauTension(
  *
  * Une attente de la veille non cloturee fausserait la mediane du jour et
  * ferait remonter par anciennete un patient qui n'est plus la.
+ *
+ * La borne est une DATE NUE — « 2026-10-27 » — et non un horodatage. La
+ * colonne porte selon l'ecrivain de l'ISO (« ...T01:20 ») ou la forme
+ * SQLite (« ... 01:20 »), et ces deux formes ne se comparent pas comme des
+ * chaines : l'espace precede le « T » dans l'ordre lexical. Avec une borne
+ * en ISO, toutes les lignes en forme SQLite tombaient hors plage, et la
+ * file s'affichait vide alors que des patients y attendaient.
  */
 function debutDeJournee(maintenant: string): string {
-  const d = new Date(maintenant);
-  d.setUTCHours(0, 0, 0, 0);
-  return d.toISOString();
+  return (versIso(maintenant) ?? maintenant).slice(0, 10);
 }
 
 // ------------------------------------------------------------------ ecriture
