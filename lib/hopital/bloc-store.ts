@@ -79,10 +79,26 @@ export function interventionParId(id: string): Intervention | null {
   return i ? versIntervention(i) : null;
 }
 
+/**
+ * Les interventions d'une salle pour un jour donne.
+ *
+ * Les bornes sont des DATES NUES — « 2026-10-27 » et le lendemain — et non
+ * des horodatages complets. La colonne porte selon l'ecrivain de l'ISO
+ * (« ...T08:00 ») ou la forme SQLite (« ... 08:00 »), et ces deux formes ne
+ * se comparent pas comme des chaines : l'espace precede le « T » dans
+ * l'ordre lexical. Avec une borne en ISO, les lignes en forme SQLite
+ * tombaient toutes hors plage, et le programme du bloc s'affichait vide.
+ *
+ * Une date nue precede les deux formes, donc la plage les attrape l'une et
+ * l'autre — et l'index sur (salle_id, debut_prevu) reste utilise.
+ */
 export function interventionsDeLaSalle(salleId: string, jour: string): Intervention[] {
+  const lendemain = new Date(`${jour}T00:00:00Z`);
+  lendemain.setUTCDate(lendemain.getUTCDate() + 1);
+
   return all<LigneIntervention>(
     'SELECT * FROM intervention WHERE salle_id = ? AND debut_prevu >= ? AND debut_prevu < ? ORDER BY debut_prevu',
-    [salleId, `${jour}T00:00:00.000Z`, `${jour}T23:59:59.999Z`],
+    [salleId, jour, lendemain.toISOString().slice(0, 10)],
   ).map(versIntervention);
 }
 

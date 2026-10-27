@@ -1,5 +1,8 @@
 node_modules/
 .next/
+# Sorties de construction paralleles (NEXT_DIST_DIR), pour ne pas marcher
+# sur le .next d un serveur de developpement deja en cours.
+.next-*/
 out/
 # Donnees de sante : tout le dossier, sous-repertoires compris (les sauvegardes
 # produites depuis la console d administration atterrissent dans data/sauvegardes/).
