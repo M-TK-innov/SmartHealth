@@ -143,6 +143,18 @@ describe('interpretation', () => {
     assert.equal(interpreter('Kaliemie', null, SEUILS), 'non-interprete');
   });
 
+  test('une ligne de seuil SANS AUCUNE BORNE n interprete pas davantage', () => {
+    // Le cas qu on n avait pas vu, et le plus trompeur des deux : la ligne
+    // existe — l examen est declare, son unite aussi — mais aucune borne
+    // n a ete posee. Rendre « normal » laisserait croire que le
+    // laboratoire s est prononce, alors qu il a justement choisi de ne pas
+    // le faire. La goutte epaisse du jeu de demonstration est exactement
+    // dans ce cas.
+    const sansBorne = [{ examen: 'Goutte epaisse', unite: 'parasites/ul', bas: null, haut: null }];
+    assert.equal(interpreter('Goutte epaisse', 2400, sansBorne), 'non-interprete');
+    assert.equal(interpreter('Goutte epaisse', 0, sansBorne), 'non-interprete');
+  });
+
   test('un seuil a une seule borne fonctionne', () => {
     const unSeul = [{ examen: 'Parasitemie', unite: '%', bas: null, haut: 5 }];
     assert.equal(interpreter('Parasitemie', 8, unSeul), 'critique');
