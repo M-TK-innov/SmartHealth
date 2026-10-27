@@ -5,6 +5,7 @@ chaque service. Une cle inconnue — un commentaire « // … », par exemple �
 fait refuser le deploiement entier, pas seulement ignorer la ligne.
 """
 import json
+import os
 import re
 import sys
 import urllib.request
@@ -55,6 +56,20 @@ for nom, service in conf.get('services', {}).items():
             erreurs.append(f'binding de « {nom} » : champs manquants {manquants}')
         if b.get('service') and b['service'] not in declares:
             erreurs.append(f'binding de « {nom} » vers « {b["service"]} », non declare')
+
+# --- le mode services n accepte aucun runtime Edge
+#
+# Regle apprise a nos depens : la construction reussit, et c est la
+# PUBLICATION qui refuse — « Edge Runtime is not supported in services ».
+# Un middleware Next tourne sur l Edge par defaut, donc declarer un service
+# dans un projet qui a un middleware casse le deploiement sans que rien
+# n apparaisse dans le journal de construction.
+if declares and os.path.exists('middleware.ts'):
+    erreurs.append(
+        'services declares alors que middleware.ts existe : Vercel refuse de '
+        'publier un service qui produit une fonction Edge. Retirer « services » '
+        '(et les rewrites qui le visent), ou sortir le middleware.'
+    )
 
 print(f'services declares : {", ".join(sorted(declares)) or "(aucun)"}')
 print(f'services publics  : {", ".join(sorted(vises)) or "(aucun)"}')

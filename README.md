@@ -612,15 +612,26 @@ scripts/
 
 ### Vercel — l'application seule
 
-`vercel.json` déclare un service, `smarthealth`, seul visé par la rewrite
-publique. Les clés de construction vivent **dans** le service : en mode
-services, elles ne sont plus valides au niveau supérieur.
+`vercel.json` déclare un projet Next.js ordinaire. Il **ne déclare pas de
+service**, et c'est une correction, pas un oubli.
 
-Le fichier ne porte aucun commentaire, et ce n'est pas un oubli. Le schéma de
-Vercel pose `additionalProperties: false` au niveau supérieur **et** dans chaque
-service : une clé inconnue — un `"// note"` par exemple — fait refuser le
-déploiement entier avec « la propriété supplémentaire … ne doit PAS être
-présente ». Les explications vivent donc ici, et un script les protège :
+Le mode *services* de Vercel a été essayé, et il échoue ici d'une façon qui
+trompe : la construction réussit entièrement, puis la publication s'arrête sur
+
+> Edge Runtime is not supported in services. Service « smarthealth » produced
+> Edge Function output « middleware ».
+
+Un middleware Next tourne sur l'Edge par défaut. Le nôtre n'est que du confort
+de navigation — il regarde si un cookie de session existe, jamais s'il est
+valide — mais il suffit à faire refuser la publication. Et le mode services
+n'enveloppait qu'un seul service, Griot étant délibérément déployé ailleurs : il
+coûtait le déploiement sans rien rapporter. Il redeviendra utile le jour où un
+second service tournera vraiment sur Vercel.
+
+Le fichier ne porte aucun commentaire non plus. Le schéma de Vercel pose
+`additionalProperties: false` : une clé inconnue — un `"// note"` par exemple —
+fait refuser le déploiement entier avec « la propriété supplémentaire … ne doit
+PAS être présente ». Les explications vivent donc ici, et un script les protège :
 
 ```bash
 npm run verifier:vercel
@@ -628,15 +639,16 @@ npm run verifier:vercel
 
 Il relit le schéma publié, vérifie qu'aucune propriété inconnue ne s'est
 glissée, que le nom de chaque service respecte le motif attendu, que les
-rewrites ne visent que des services déclarés et que les bindings sont complets.
+rewrites ne visent que des services déclarés, que les bindings sont complets —
+et **refuse un service tant que `middleware.ts` existe**, parce que ce
+refus-là n'apparaît dans aucun journal de construction.
 
 `buildCommand` vaut `npm run build` et non `next build` : l'étape `prebuild`
 génère les icônes, qui ne sont pas dans le dépôt parce qu'elles sont
 reproductibles. Avec `next build` seul, l'application se déploie sans aucune
 icône.
 
-**Deux variables se posent dans Settings → Environment Variables**, et non dans
-le fichier — un service n'accepte pas de clé `env` :
+**Deux variables se posent dans Settings → Environment Variables :**
 
 | Variable | Pourquoi |
 |---|---|
