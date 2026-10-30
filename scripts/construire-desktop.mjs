@@ -19,9 +19,12 @@
  */
 
 import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 const essai = process.argv.includes('--essai');
+const { version } = JSON.parse(readFileSync('package.json', 'utf8'));
 
 const prepare = spawnSync(
   process.execPath,
@@ -36,9 +39,45 @@ const nom = essai
 
 console.log(`\nConstruction de l'installateur : ${essai ? "VERSION D'ESSAI (7 jours)" : 'version complete'}`);
 
+// On appelle le CLI d'electron-builder par son fichier, et non par `npx`.
+// Sous Windows, `npx.cmd` passe par un interpreteur : Node l'a signale
+// (DEP0190), l'etape a ete avalee sans un mot et le script a rendu 0 sans
+// avoir rien construit. Un succes silencieux qui ne produit pas de fichier
+// est pire qu'un echec : on livre l'installateur de la fois d'avant.
+const cli = createRequire(import.meta.url).resolve('electron-builder/cli.js');
+
 const builder = spawnSync(
-  process.platform === 'win32' ? 'npx.cmd' : 'npx',
-  ['electron-builder', '--win', '--publish', 'never', `--config.artifactName=${nom}`],
+  process.execPath,
+  [cli, '--win', '--publish', 'never', `--config.artifactName=${nom}`],
   { stdio: 'inherit' },
 );
-process.exit(builder.status ?? 1);
+
+if (builder.error) {
+  console.error("\nARRET : electron-builder n'a pas pu etre lance —", builder.error.message);
+  process.exit(1);
+}
+
+const attendu = path.join(
+  'dist-desktop',
+  nom.replace('${version}', version).replace('${ext}', 'exe'),
+);
+// La SEULE preuve de livraison est le fichier. Un code de sortie n'en est
+// pas une : une premiere version annoncait l'installateur sur la foi du code
+// rendu, et l'a annonce une fois alors qu'electron-builder venait d'echouer
+// — le dossier contenait encore le paquet de la fois d'avant, qu'on aurait
+// livre sans rien remarquer.
+if (!existsSync(attendu)) {
+  console.error(
+    `\nARRET : ${attendu} n'existe pas` +
+      (builder.status === 0 ? ', alors qu electron-builder a rendu 0.' : '.'),
+  );
+  process.exit(1);
+}
+
+if (builder.status !== 0) {
+  console.error(`\nARRET : electron-builder a echoue (code ${builder.status}).`);
+  process.exit(builder.status ?? 1);
+}
+
+console.log(`\nInstallateur : ${attendu}`);
+console.log(`Saveur       : ${essai ? "essai, sept jours" : 'version complete'}`);

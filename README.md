@@ -608,6 +608,60 @@ scripts/
 
 ---
 
+## Version d'essai
+
+Un médecin ou un responsable d'établissement peut juger la plateforme sur ses
+propres cas pendant **sept jours**, avec toutes les fonctionnalités et sa base
+sur sa machine. La page publique `/essai` explique les deux chemins : la
+démonstration en ligne pour regarder, l'installation locale pour juger.
+
+### Le huitième jour
+
+La saisie se ferme. **La lecture et l'export restent ouverts**, et une
+sauvegarde complète de la base est posée automatiquement dans `sauvegardes/`,
+à côté du fichier de données.
+
+Ce n'est pas une générosité commerciale. Un testeur finira par saisir un vrai
+dossier malgré les avertissements — on teste avec ce qu'on a sous la main — et
+verrouiller l'ensemble reviendrait à le confisquer. Une facture impayée se
+recouvre ; un dossier enfermé ne se récupère pas.
+
+La copie passe par `VACUUM INTO` et non par une copie de fichier : SQLite écrit
+alors une base cohérente même si des pages sont encore dans le journal
+d'écriture. Si elle échoue, l'échéance n'est pas retardée et l'écran dit que la
+sauvegarde n'a pas pu être posée — annoncer une sauvegarde qui n'existe pas
+serait pire que de ne rien annoncer.
+
+### Trois choix, et leur raison
+
+| Choix | Pourquoi |
+|---|---|
+| Le délai se compte en **jours civils** à l'heure de l'établissement | Un essai ouvert à 23 h 50 ne doit pas perdre une journée sur un arrondi. |
+| L'autorisation après échéance est une **liste blanche** | Une permission ajoutée plus tard est refusée par défaut. L'oubli dans l'autre sens ouvrirait l'écriture à vie. |
+| Reculer l'horloge **ne rend pas de jours** | On retient le jour le plus avancé jamais observé. Protection contre le geste facile, pas contre un attaquant — il n'en existe pas de locale. |
+
+Le compte part de la **première ouverture**, pas de la construction du paquet :
+un installateur téléchargé en mars et installé en juin donnerait sinon un essai
+déjà clos.
+
+### Construire les deux paquets
+
+```bash
+npm run desktop:build          # version complète, sans limite
+npm run desktop:build:essai    # version d'essai, sept jours
+```
+
+Les deux ne portent pas le même nom de fichier, à dessein : deux installateurs
+identiques dont l'un expire, c'est une livraison qui part en essai sans que
+personne ne s'en aperçoive avant le huitième jour.
+
+La saveur est écrite dans `electron/saveur.json`, **embarqué dans le paquet** :
+seul ce qui voyage avec lui sera vrai sur le poste du testeur, et une variable
+d'environnement posée sur sa machine ne peut pas lever la limite. Le fichier est
+réécrit à chaque préparation, y compris sans `--essai` — un marqueur oublié
+transformerait la construction suivante, celle que l'on vend, en version qui se
+verrouille. Absent, l'application retient la version complète : le défaut sûr.
+
 ## Déploiement
 
 ### Vercel — l'application seule
