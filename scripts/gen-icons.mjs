@@ -7,8 +7,13 @@
  * de rendu graphique : l'icone est une forme geometrique simple, et le projet
  * doit rester installable sur un poste hors-ligne.
  *
- * La marque reprend le symbole du bandeau : un disque cerne d'un anneau, en
- * blanc sur le vert de l'application.
+ * La marque reprend celle de l'ecran (`components/Logo.tsx`) : une croix de
+ * sante blanche sur le vert de l'application, dans un carre arrondi dont le
+ * coin bas-gauche reste droit — la pointe d'une bulle de parole.
+ *
+ * Les proportions sont celles du trace SVG, rapportees au cote : rayon 7/32,
+ * epaisseur de croix 7/32, longueur 19/32. Toute modification doit etre portee
+ * dans les deux fichiers, sans quoi l'icone cesse de ressembler a l'ecran.
  */
 
 import { deflateSync } from 'node:zlib';
@@ -103,6 +108,8 @@ function drawIcon(size, { inset = 0, rounded = true } = {}) {
   const radius = size * 0.22; // rayon des coins arrondis
   const inRoundedSquare = (x, y) => {
     if (!rounded) return true;
+    // Le coin bas-gauche reste droit : c'est la pointe de la bulle.
+    if (x <= radius && y >= size - radius) return true;
     const dx = Math.max(radius - x, 0, x - (size - radius));
     const dy = Math.max(radius - y, 0, y - (size - radius));
     return dx * dx + dy * dy <= radius * radius;
@@ -116,22 +123,20 @@ function drawIcon(size, { inset = 0, rounded = true } = {}) {
     }
   }
 
-  // marque : disque central + anneau, dans la zone de securite
+  // marque : la croix de sante, dans la zone de securite
   const usable = (size / 2) * (1 - inset);
-  const rDisc = usable * 0.34;
-  const rRingOuter = usable * 0.74;
-  const rRingInner = usable * 0.56;
+  const demiEpaisseur = usable * (3.5 / 16);
+  const demiLongueur = usable * (9.5 / 16);
 
-  const dist2 = (x, y) => (x - c) * (x - c) + (y - c) * (y - c);
-  const inDisc = (x, y) => dist2(x, y) <= rDisc * rDisc;
-  const inRing = (x, y) => {
-    const d = dist2(x, y);
-    return d <= rRingOuter * rRingOuter && d >= rRingInner * rRingInner;
+  const inCross = (x, y) => {
+    const dx = Math.abs(x - c);
+    const dy = Math.abs(y - c);
+    return (dx <= demiEpaisseur && dy <= demiLongueur) || (dy <= demiEpaisseur && dx <= demiLongueur);
   };
 
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      const a = Math.max(coverage(x, y, inDisc), coverage(x, y, inRing));
+      const a = coverage(x, y, inCross);
       if (a > 0) blend(px, (y * size + x) * 4, WHITE, a);
     }
   }

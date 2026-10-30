@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Logo from '@/components/Logo';
 import { auth } from '@/lib/auth/session';
 import { ROLE_LABELS } from '@/lib/auth/roles';
 import { PERMISSIONS } from '@/lib/auth/roles';
@@ -13,9 +14,7 @@ export default async function AccessDeniedPage({ searchParams }: { searchParams:
 
   return (
     <div className="mx-auto max-w-lg py-10 text-center">
-      <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-warn-soft text-3xl text-warn">
-        &#9673;
-      </div>
+      <Logo className="mx-auto h-16 w-16 text-warn" />
       <h1 className="mt-5 text-xl font-bold">Acces refuse</h1>
       <p className="mt-2 text-sm leading-relaxed text-ink-soft">
         Votre compte n a pas les droits necessaires pour cette page. Ce n est pas une erreur : le cloisonnement des

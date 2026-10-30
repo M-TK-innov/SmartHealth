@@ -6,6 +6,7 @@ import { navItemsFor } from '@/lib/auth/nav-items';
 import { PwaRuntime } from '@/components/Pwa';
 import { BandeauDemo } from '@/components/BandeauDemo';
 import { EcartFuseau } from '@/components/EcartFuseau';
+import Logo from '@/components/Logo';
 import { fuseauDe } from '@/lib/localisation-store';
 import { auth } from '@/lib/auth/session';
 import { ROLE_LABELS } from '@/lib/auth/roles';
@@ -58,9 +59,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <header className="no-print sticky top-0 z-30 border-b border-line bg-white/95 backdrop-blur">
           <div className="mx-auto flex max-w-[1400px] items-center gap-3 px-4 py-2.5 sm:gap-5 sm:px-6 sm:py-3">
             <Link href="/" className="flex shrink-0 items-center gap-2.5">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand text-lg text-white">
-                &#9673;
-              </span>
+              <Logo className="h-9 w-9 shrink-0 text-brand" />
               <span className="min-w-0">
                 <span className="block text-[15px] font-bold leading-none">SmartHealth</span>
                 <span className="hidden text-[11px] leading-tight text-ink-soft sm:block">Scribe medical IA</span>
