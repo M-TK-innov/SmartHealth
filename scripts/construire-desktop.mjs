@@ -46,9 +46,21 @@ console.log(`\nConstruction de l'installateur : ${essai ? "VERSION D'ESSAI (7 jo
 // est pire qu'un echec : on livre l'installateur de la fois d'avant.
 const cli = createRequire(import.meta.url).resolve('electron-builder/cli.js');
 
+// La cle a surcharger est `win.artifactName` et non `artifactName` : c'est
+// dans `build.win` que ce projet la declare, et la cle specifique a la
+// plateforme l'emporte sur la generique. Surcharger la mauvaise ne provoque
+// aucune erreur — electron-builder produit simplement un paquet d'essai sous
+// le nom de la version vendue. On passe donc les deux.
 const builder = spawnSync(
   process.execPath,
-  [cli, '--win', '--publish', 'never', `--config.artifactName=${nom}`],
+  [
+    cli,
+    '--win',
+    '--publish',
+    'never',
+    `--config.artifactName=${nom}`,
+    `--config.win.artifactName=${nom}`,
+  ],
   { stdio: 'inherit' },
 );
 
