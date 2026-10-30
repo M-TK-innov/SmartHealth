@@ -38,3 +38,7 @@ __pycache__/
 # Poids des modeles : 240 Mo de binaires, recuperes par « npm run modeles ».
 public/modeles/
 .claude/
+
+# Saveur du paquet desktop, ecrite a chaque preparation. Absente,
+# electron/main.js retient la version COMPLETE : le defaut sur.
+electron/saveur.json

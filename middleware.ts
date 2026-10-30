@@ -32,6 +32,13 @@ const PUBLIC_PATHS = [
   '/hors-ligne',
   '/bienvenue',
   '/demo',
+  // La page d'essai s'adresse a quelqu'un qui n'a pas encore de compte : la
+  // placer derriere la connexion demanderait d'etre installe pour apprendre
+  // comment s'installer. Elle n'expose aucune donnee.
+  '/essai',
+  // L'etat de l'essai, pour la meme raison : le bandeau y renvoie, y compris
+  // depuis l'ecran de connexion.
+  '/essai-termine',
 ];
 
 /** Routes d'API ouvertes : authentification et liste publique des etablissements. */

@@ -3,6 +3,7 @@
  *
  *   node scripts/prepare-desktop.mjs            (construit puis assemble)
  *   node scripts/prepare-desktop.mjs --no-build (assemble une sortie existante)
+ *   node scripts/prepare-desktop.mjs --essai    (paquet a duree limitee)
  *
  * Next produit un serveur autonome dans .next/standalone, mais laisse hors de
  * ce dossier les fichiers statiques et le contenu de public/. On les y recopie
@@ -14,12 +15,27 @@
  * doit se construire aussi bien sous Windows que sous Linux ou macOS.
  */
 
-import { cpSync, existsSync, rmSync, mkdirSync, readdirSync } from 'node:fs';
+import { cpSync, existsSync, rmSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 
 const root = process.cwd();
 const standalone = path.join(root, '.next', 'standalone');
+
+/**
+ * Saveur du paquet : essai a duree limitee, ou version complete.
+ *
+ * Le marqueur est un FICHIER embarque, pas une variable d'environnement : seul
+ * ce qui voyage dans le paquet sera vrai sur le poste du testeur.
+ *
+ * Il est reecrit a CHAQUE preparation, y compris sans --essai. Sans cela, un
+ * marqueur laisse par une construction d'essai transformerait la construction
+ * suivante — celle que l'on vend — en version qui se verrouille au bout de
+ * sept jours. Le defaut doit etre le plus sur, et c'est l'absence de limite.
+ */
+const essai = process.argv.includes('--essai');
+writeFileSync(path.join(root, 'electron', 'saveur.json'), JSON.stringify({ essai }, null, 2) + String.fromCharCode(10));
+console.log(`  saveur: ${essai ? "ESSAI (sept jours)" : "version complete, sans limite"}`);
 
 // Les icones sont produites par un script, donc hors depot : on les regenere
 // avant de construire, sinon un clone neuf produirait un paquet sans icone.

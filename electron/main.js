@@ -20,6 +20,20 @@ const isDev = !app.isPackaged;
 const DEV_URL = process.env.SMARTHEALTH_DEV_URL || 'http://localhost:3000';
 
 /**
+ * Saveur du paquet, ecrite par scripts/prepare-desktop.mjs.
+ *
+ * Absente ou illisible, on retient la version COMPLETE : un fichier manquant
+ * ne doit pas verrouiller l'application d'un etablissement qui a paye.
+ */
+function saveur() {
+  try {
+    return require('./saveur.json');
+  } catch {
+    return { essai: false };
+  }
+}
+
+/**
  * Racine ou chercher les services auxiliaires (services/griot...).
  *
  * En developpement c'est le depot. Dans l'application installee, ces services
@@ -152,6 +166,11 @@ async function startServer() {
       PORT: String(port),
       HOSTNAME: '127.0.0.1',
       SMARTHEALTH_DB: basePath,
+      // Saveur du paquet. Lue dans un fichier embarque plutot que dans
+      // l'environnement du poste : un testeur ne doit pas pouvoir lever la
+      // limite en posant une variable, et une version complete ne doit pas
+      // se verrouiller parce qu'une variable traine sur la machine.
+      ...(saveur().essai ? { SMARTHEALTH_ESSAI: '1' } : {}),
       ELECTRON_RUN_AS_NODE: '1',
     },
     stdio: ['ignore', 'pipe', 'pipe', 'ipc'],

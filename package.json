@@ -18,7 +18,7 @@
     "icons": "node scripts/gen-icons.mjs",
     "desktop:dev": "node scripts/lancer.mjs --desktop",
     "desktop:prepare": "node scripts/prepare-desktop.mjs",
-    "desktop:build": "npm run desktop:prepare && electron-builder --win --publish never",
+    "desktop:build": "node scripts/construire-desktop.mjs",
     "desktop:dir": "npm run desktop:prepare && electron-builder --win --dir --publish never",
     "services": "node scripts/services.mjs --autonome",
     "start:next": "next start -p 3000",
@@ -27,7 +27,8 @@
     "modeles": "node scripts/modeles.mjs",
     "demo:dump": "node scripts/demo-dump.mjs",
     "verifier:vercel": "python scripts/valider-vercel.py",
-    "demo:dev": "node scripts/demo.mjs"
+    "demo:dev": "node scripts/demo.mjs",
+    "desktop:build:essai": "node scripts/construire-desktop.mjs --essai"
   },
   "engines": {
     "node": "24.x"
