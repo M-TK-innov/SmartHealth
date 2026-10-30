@@ -91,5 +91,28 @@ if (builder.status !== 0) {
   process.exit(builder.status ?? 1);
 }
 
+// Derniere verification, et la plus importante : la saveur REELLEMENT
+// embarquee, lue dans l'archive produite et non dans le dossier de travail.
+//
+// Tout le reste peut etre juste et ce point faux : une preparation faite
+// dans un autre terminal, un asar repris d'une construction precedente, un
+// --essai oublie. On ne saurait alors qu'au huitieme jour, chez le client.
+const asar = path.join('dist-desktop', 'win-unpacked', 'resources', 'app.asar');
+try {
+  const { extractFile } = createRequire(import.meta.url)('@electron/asar');
+  const embarquee = JSON.parse(extractFile(asar, 'electron/saveur.json').toString('utf8'));
+  if (Boolean(embarquee.essai) !== essai) {
+    console.error(
+      `\nARRET : le paquet annonce « ${essai ? 'essai' : 'version complete'} » ` +
+        `mais embarque essai=${embarquee.essai}.`,
+    );
+    process.exit(1);
+  }
+  console.log(`\nSaveur embarquee verifiee dans ${asar} : essai=${embarquee.essai}`);
+} catch (e) {
+  console.error('\nARRET : saveur embarquee illisible —', e instanceof Error ? e.message : e);
+  process.exit(1);
+}
+
 console.log(`\nInstallateur : ${attendu}`);
 console.log(`Saveur       : ${essai ? "essai, sept jours" : 'version complete'}`);
