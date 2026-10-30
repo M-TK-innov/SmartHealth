@@ -612,6 +612,11 @@ scripts/
 
 ### Vercel — l'application seule
 
+La démonstration tourne ici : **https://smart-health-vert.vercel.app** — page
+d'entrée `/demo`, qui donne les comptes d'essai. Les données sont fictives et la
+base vit **en mémoire** : elle repart à zéro à chaque démarrage à froid, ce qui
+est le comportement voulu et non une panne.
+
 `vercel.json` déclare un projet Next.js ordinaire. Il **ne déclare pas de
 service**, et c'est une correction, pas un oubli.
 
