@@ -39,7 +39,7 @@ La méthode dépend de votre contexte :
 Caddy est le plus court chemin : un `Caddyfile` de deux lignes obtient et renouvelle le certificat.
 
 ```
-parledocteur.votre-structure.bj {
+smarthealth.votre-structure.bj {
     reverse_proxy localhost:3000
 }
 ```
