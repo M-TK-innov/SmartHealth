@@ -7,6 +7,7 @@ import { PwaRuntime } from '@/components/Pwa';
 import { BandeauDemo } from '@/components/BandeauDemo';
 import { EcartFuseau } from '@/components/EcartFuseau';
 import Logo from '@/components/Logo';
+import { BandeauEssai } from '@/components/BandeauEssai';
 import { fuseauDe } from '@/lib/localisation-store';
 import { auth } from '@/lib/auth/session';
 import { ROLE_LABELS } from '@/lib/auth/roles';
@@ -54,6 +55,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         <PwaRuntime />
         <BandeauDemo />
+        <BandeauEssai />
         {fuseau && <EcartFuseau fuseau={fuseau} />}
 
         <header className="no-print sticky top-0 z-30 border-b border-line bg-white/95 backdrop-blur">

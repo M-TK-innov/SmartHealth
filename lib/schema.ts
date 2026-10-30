@@ -901,4 +901,19 @@ CREATE TABLE IF NOT EXISTS compliance_derogation (
   granted_at       TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE (code, target)
 );
+-- Periode d'essai. UNE seule ligne, d'ou la contrainte sur la cle : deux
+-- lignes voudraient dire deux dates de debut, et l'essai durerait ce que
+-- l'on veut.
+--
+-- La colonne jour_vu retient le jour le plus avance jamais observe. Reculer
+-- l'horloge de la machine ne rend donc pas des jours. La colonne sauvegarde_faite
+-- porte le jour ou la sauvegarde d'echeance a ete posee : elle ne doit
+-- etre faite qu'une fois, et on doit pouvoir dire qu'elle l'a ete.
+CREATE TABLE IF NOT EXISTS essai (
+  id               INTEGER PRIMARY KEY CHECK (id = 1),
+  jour_debut       TEXT NOT NULL,
+  jour_vu          TEXT NOT NULL,
+  sauvegarde_faite TEXT,
+  sauvegarde_chemin TEXT
+);
 `;

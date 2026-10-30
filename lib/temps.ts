@@ -128,6 +128,31 @@ export function jourSuivant(jour: string): string {
   return decaler(jour, 1);
 }
 
+/**
+ * Le jour civil decale de `jours`, positif ou negatif.
+ *
+ * Expose parce qu'une duree d'essai se compte en JOURS CIVILS et non en
+ * millisecondes : un essai ouvert a 23 h 50 ne doit pas perdre une journee
+ * sur un arrondi.
+ */
+export function decalerJours(jour: string, jours: number): string {
+  return decaler(jour, jours);
+}
+
+/**
+ * Nombre de jours civils de `depuis` a `jusqua`, negatif si l'ordre s'inverse.
+ *
+ * Les deux bornes sont lues en UTC explicite : la soustraction porte sur des
+ * minuits, jamais sur des instants, donc aucun changement d'heure ne peut
+ * ajouter ou retirer une journee.
+ */
+export function joursEntre(depuis: string, jusqua: string): number {
+  const a = new Date(`${depuis}T00:00:00Z`).getTime();
+  const b = new Date(`${jusqua}T00:00:00Z`).getTime();
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 0;
+  return Math.round((b - a) / 86_400_000);
+}
+
 function decaler(jour: string, jours: number): string {
   // Lecture et arithmetique en UTC explicite, de bout en bout : le fuseau
   // de la machine n'entre jamais dans le calcul, et le resultat est le
