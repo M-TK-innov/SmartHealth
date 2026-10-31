@@ -1,5 +1,7 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { all, get, insert, run, update, nowIso, audit } from '@/lib/db';
+import { MODE_DEMO, all, get, insert, run, update, nowIso, audit } from '@/lib/db';
+import { reglage } from '@/lib/heritage';
+import { signerJeton, verifierJeton } from '@/lib/demo/jeton';
 import { hashPassword, verifyPassword, type PasswordPolicy } from './password';
 import {
   ALL_PERMISSIONS,
@@ -474,6 +476,26 @@ export function changePassword(userId: string, newPassword: string, actor?: Safe
 
 // ----------------------------------------------------------------- sessions
 
+/**
+ * Secret de signature des sessions de DEMONSTRATION.
+ *
+ * Absent, on refuse d'ouvrir une session plutot que de signer avec une
+ * valeur devinable : un HMAC sans secret n'est pas une signature.
+ */
+const SECRET_DEMO = reglage('DEMO_SECRET', process.env) ?? '';
+
+/**
+ * En demonstration, la session ne peut pas vivre en base.
+ *
+ * La base y est EN MEMOIRE, et chaque route est servie par une fonction
+ * distincte avec sa propre memoire : la ligne ecrite par la connexion
+ * n'existe dans aucune autre. Le cookie doit donc se suffire a lui-meme.
+ *
+ * Ce chemin est verrouille au mode demonstration, et il doit le rester : une
+ * session sans ligne ne peut plus etre REVOQUEE cote serveur. Sur des
+ * dossiers reels, ce serait disqualifiant ; sur des donnees fictives remises
+ * a zero, c'est un compromis assume.
+ */
 const SESSION_BYTES = 32;
 const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
 
@@ -550,9 +572,24 @@ export function authenticate(
     return { ok: false, error: messages[user.status] ?? 'Compte inactif.' };
   }
 
-  const token = randomBytes(SESSION_BYTES).toString('base64url');
   const expires = new Date(Date.now() + policy.session_hours * 3600_000);
-  insert('user_session', {
+
+  let token: string;
+  if (MODE_DEMO) {
+    if (!SECRET_DEMO) {
+      return {
+        ok: false,
+        error:
+          "La demonstration n'a pas de secret de signature de session. " +
+          'Posez SMARTHEALTH_DEMO_SECRET dans les reglages du deploiement, puis reessayez.',
+      };
+    }
+    token = signerJeton({ identifiant: user.id, expireLe: expires.toISOString() }, SECRET_DEMO);
+  } else {
+    token = randomBytes(SESSION_BYTES).toString('base64url');
+  }
+
+  if (!MODE_DEMO) insert('user_session', {
     id: randomUUID(),
     user_id: user.id,
     token_hash: hashToken(token),
@@ -584,6 +621,29 @@ export function authenticate(
 
 export function resolveSession(token: string): { user: SafeUser; session: UserSession } | null {
   if (!token) return null;
+
+  if (MODE_DEMO) {
+    const porte = verifierJeton(token, SECRET_DEMO, new Date());
+    if (!porte) return null;
+    const utilisateur = getUserById(porte.identifiant);
+    if (!utilisateur || utilisateur.status !== 'active') return null;
+    // La session rendue est reconstituee depuis le jeton : aucune ligne
+    // n'existe, et l'ecran n'a pas a connaitre cette difference.
+    const session: UserSession = {
+      id: `demo-${porte.identifiant}`,
+      user_id: utilisateur.id,
+      token_hash: hashToken(token),
+      created_at: nowIso(),
+      expires_at: porte.expireLe.replace('T', ' ').slice(0, 19),
+      last_seen_at: nowIso(),
+      ip: null,
+      user_agent: null,
+      revoked_at: null,
+      revoked_reason: null,
+    };
+    return { user: toSafeUser(utilisateur), session };
+  }
+
   const session = get<UserSession>('SELECT * FROM user_session WHERE token_hash = ?', [hashToken(token)]);
   if (!session || session.revoked_at) return null;
   if (new Date(session.expires_at.replace(' ', 'T') + 'Z') <= new Date()) return null;
@@ -596,6 +656,11 @@ export function resolveSession(token: string): { user: SafeUser; session: UserSe
 }
 
 export function revokeSessionByToken(token: string, reason = 'deconnexion') {
+  // En demonstration, aucune ligne ne porte la session : la deconnexion se
+  // limite a effacer le cookie, ce que fait l'appelant. On le dit ici plutot
+  // que de laisser croire a une revocation qui n'a pas lieu.
+  if (MODE_DEMO) return;
+
   const session = get<UserSession>('SELECT * FROM user_session WHERE token_hash = ?', [hashToken(token)]);
   if (!session || session.revoked_at) return;
   update('user_session', session.id, { revoked_at: nowIso(), revoked_reason: reason });
