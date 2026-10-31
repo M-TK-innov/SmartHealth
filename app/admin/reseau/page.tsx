@@ -2,7 +2,7 @@ import { requirePermission } from '@/lib/auth/guard';
 import { NetworkPanel } from '@/components/admin/NetworkPanel';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Reseau et serveurs — ParleDocteur' };
+export const metadata = { title: 'Reseau et serveurs — SmartHealth' };
 
 export default async function AdminNetworkPage() {
   const ctx = await requirePermission('server:manage', '/admin/reseau');

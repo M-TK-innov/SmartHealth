@@ -1,6 +1,7 @@
 import Link from 'next/link';
+import Logo from '@/components/Logo';
 
-export const metadata = { title: 'Hors ligne — ParleDocteur' };
+export const metadata = { title: 'Hors ligne — SmartHealth' };
 
 /**
  * Page de repli servie par le service worker quand une navigation echoue.
@@ -10,12 +11,10 @@ export const metadata = { title: 'Hors ligne — ParleDocteur' };
 export default function OfflinePage() {
   return (
     <div className="mx-auto max-w-lg py-12 text-center">
-      <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-warn-soft text-3xl text-warn">
-        &#9673;
-      </div>
+      <Logo className="mx-auto h-16 w-16 text-warn" />
       <h1 className="mt-5 text-xl font-bold">Vous êtes hors ligne</h1>
       <p className="mt-2 text-sm leading-relaxed text-ink-soft">
-        Le serveur ParleDocteur n est pas joignable. Le dossier médical n est pas consultable tant que la connexion
+        Le serveur SmartHealth n est pas joignable. Le dossier médical n est pas consultable tant que la connexion
         n est pas rétablie — nous préférons ne rien afficher plutôt qu une version périmée d un dossier.
       </p>
       <div className="mt-5 rounded-xl border border-line bg-white p-4 text-left">

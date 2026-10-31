@@ -4,7 +4,7 @@
 
 C'est la seule dépendance non négociable, et la version compte.
 
-ParleDocteur stocke le dossier médical dans SQLite via le module **`node:sqlite`, intégré à
+SmartHealth stocke le dossier médical dans SQLite via le module **`node:sqlite`, intégré à
 Node.js**. Ce choix évite d'installer un serveur de base de données et, surtout, évite toute
 compilation C++ : l'application s'installe sur un poste de dispensaire sans chaîne de build. Mais
 `node:sqlite` n'existe qu'à partir de **Node 22.5**.
@@ -84,7 +84,7 @@ Utile sur des tablettes peu puissantes.
 ## Récupérer le code
 
 ```bash
-git clone https://github.com/turibiok/ParleDocteur.git
+git clone https://github.com/M-TK-innov/SmartHealth.git
 ```
 
 Le dépôt est privé : il faut un accès au compte propriétaire. Sans Git, téléchargez l'archive ZIP

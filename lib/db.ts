@@ -6,6 +6,13 @@ import { SCHEMA_SQL } from './schema';
 import { appliquerMigrations } from './migrations';
 import { DONNEES_DEMO } from './demo/donnees';
 import { resoudre } from './demo/horodatage';
+import {
+  FICHIER_ANCIEN,
+  FICHIER_COURANT,
+  choisirBase,
+  messageHeritage,
+  reglage,
+} from './heritage';
 
 /**
  * Acces SQLite via le module natif `node:sqlite` (Node >= 22.5).
@@ -13,13 +20,34 @@ import { resoudre } from './demo/horodatage';
  * hors-ligne ou sur un mini-serveur de dispensaire sans chaine de build C++.
  *
  * L'emplacement de la base suit la plateforme :
- *   - serveur web / developpement : ./data/parledocteur.db
+ *   - serveur web / developpement : ./data/smarthealth.db
  *   - application desktop         : dossier de donnees utilisateur, transmis
  *                                   par le processus principal Electron.
- * Dans les deux cas PARLEDOCTEUR_DB a la priorite.
+ * Dans les deux cas la variable d'environnement a la priorite — sous son
+ * nom courant ou sous celui qu'elle portait avant le renommage du produit
+ * (voir lib/heritage.ts).
  */
 
-const DB_PATH = process.env.PARLEDOCTEUR_DB || path.join(process.cwd(), 'data', 'parledocteur.db');
+const dossierDonnees = path.join(process.cwd(), 'data');
+
+/**
+ * Chemin de la base.
+ *
+ * Sans variable d'environnement, on cherche d'abord le fichier au nom
+ * courant, puis celui que portait la base avant le renommage. Ouvrir
+ * directement le nouveau nom laisserait une base pleine sur le disque et
+ * en creerait une vide a cote : l'application demarrerait sans erreur et
+ * sans aucun patient.
+ */
+const choix = reglage('DB', process.env)
+  ? { chemin: reglage('DB', process.env)!, heritee: false }
+  : choisirBase(
+      path.join(dossierDonnees, `${FICHIER_COURANT}.db`),
+      path.join(dossierDonnees, `${FICHIER_ANCIEN}.db`),
+      existsSync,
+    );
+
+const DB_PATH = choix.chemin;
 
 /**
  * Mode demonstration.
@@ -33,9 +61,9 @@ const DB_PATH = process.env.PARLEDOCTEUR_DB || path.join(process.cwd(), 'data', 
  * et deux visiteurs servis par deux instances ne voient pas les memes
  * modifications. Une demonstration, donc, et pas un deploiement.
  */
-export const MODE_DEMO = process.env.PARLEDOCTEUR_DEMO === '1';
+export const MODE_DEMO = reglage('DEMO', process.env) === '1';
 
-type GlobalWithDb = typeof globalThis & { __parledocteurDb?: DatabaseSync };
+type GlobalWithDb = typeof globalThis & { __smarthealthDb?: DatabaseSync };
 const g = globalThis as GlobalWithDb;
 
 function open(): DatabaseSync {
@@ -43,6 +71,10 @@ function open(): DatabaseSync {
 
   const dir = path.dirname(DB_PATH);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+
+  // Une base reprise sous son ancien nom se DIT. Un operateur qui ne sait
+  // pas quel fichier sert ne saura pas lequel sauvegarder.
+  if (choix.heritee) console.warn(messageHeritage(DB_PATH));
 
   const database = new DatabaseSync(DB_PATH);
   database.exec(SCHEMA_SQL);
@@ -86,8 +118,8 @@ function ouvrirDemo(): DatabaseSync {
 export const databasePath = () => (MODE_DEMO ? ':memory: (demonstration)' : DB_PATH);
 
 export function db(): DatabaseSync {
-  if (!g.__parledocteurDb) g.__parledocteurDb = open();
-  return g.__parledocteurDb;
+  if (!g.__smarthealthDb) g.__smarthealthDb = open();
+  return g.__smarthealthDb;
 }
 
 // ------------------------------------------------------------------ helpers

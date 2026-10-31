@@ -103,7 +103,7 @@ export function verifier(r: Releve): ConstatPrerequis[] {
           "L'application s'ouvrirait pour perdre tout ce qu'on y saisit.",
         remede:
           'Donner le droit d ecriture au compte qui fait tourner l application sur ce dossier, ' +
-          'ou designer un autre emplacement avec la variable PARLEDOCTEUR_DB.',
+          'ou designer un autre emplacement avec la variable SMARTHEALTH_DB.',
       }),
     );
   }

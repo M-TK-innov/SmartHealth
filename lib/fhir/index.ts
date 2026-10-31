@@ -1,5 +1,5 @@
 /**
- * Projection du dossier ParleDocteur vers HL7 FHIR R4.
+ * Projection du dossier SmartHealth vers HL7 FHIR R4.
  *
  * Le Bundle produit est de type "document" : il est auto-portant (Composition
  * en premiere entree) et peut donc etre transmis, archive ou importe dans
@@ -425,12 +425,12 @@ export function fhirComposition(opts: {
     subject: { reference: `Patient/${patient.id}` },
     encounter: { reference: `Encounter/${c.id}` },
     date: toInstant(c.signed_at ?? c.started_at),
-    author: practitioner ? [{ reference: `Practitioner/${practitioner.id}` }] : [{ display: 'ParleDocteur' }],
+    author: practitioner ? [{ reference: `Practitioner/${practitioner.id}` }] : [{ display: 'SmartHealth' }],
     title: `Consultation du ${new Date(toInstant(c.started_at)).toLocaleDateString('fr-FR')} - ${patient.given_name} ${patient.family_name}`,
     attester: c.signed_at && practitioner
       ? [{ mode: 'legal', time: toInstant(c.signed_at), party: { reference: `Practitioner/${practitioner.id}` } }]
       : undefined,
-    custodian: { display: process.env.FACILITY_NAME || 'ParleDocteur' },
+    custodian: { display: process.env.FACILITY_NAME || 'SmartHealth' },
     section: [
       {
         title: 'Compte rendu complet (SOAP)',
@@ -527,7 +527,7 @@ export function buildConsultationBundle(input: BundleInput): Record<string, unkn
     meta: {
       lastUpdated: new Date().toISOString(),
       profile: ['http://hl7.org/fhir/StructureDefinition/Bundle'],
-      tag: [{ system: `${baseUrl()}/source`, code: 'parledocteur', display: 'ParleDocteur' }],
+      tag: [{ system: `${baseUrl()}/source`, code: 'smarthealth', display: 'SmartHealth' }],
     },
     identifier: { system: `${baseUrl()}/identifier/bundle`, value: input.consultation.id },
     type: 'document',
@@ -570,10 +570,10 @@ export function capabilityStatement(): Record<string, unknown> {
     resourceType: 'CapabilityStatement',
     status: 'active',
     date: new Date().toISOString(),
-    publisher: process.env.FACILITY_NAME || 'ParleDocteur',
+    publisher: process.env.FACILITY_NAME || 'SmartHealth',
     kind: 'instance',
-    software: { name: 'ParleDocteur', version: '0.1.0' },
-    implementation: { description: 'Serveur FHIR de ParleDocteur (lecture seule)', url: baseUrl() },
+    software: { name: 'SmartHealth', version: '0.1.0' },
+    implementation: { description: 'Serveur FHIR de SmartHealth (lecture seule)', url: baseUrl() },
     fhirVersion: '4.0.1',
     format: ['application/fhir+json', 'json'],
     rest: [

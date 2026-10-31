@@ -1,0 +1,24 @@
+# Ce que le televersement vers Vercel ne doit jamais emporter.
+#
+# Sans ce fichier, la CLI se rabat sur .gitignore — qui n'ignore que
+# `data/*.db`, pas le dossier. Un fichier depose dans `data/` sans
+# extension reconnue partirait donc avec le reste. Ici on exclut le
+# dossier entier : aucun dossier medical ne quitte le poste, quel que
+# soit le nom qu'on donne au fichier.
+data/
+
+# Sorties de construction : la plateforme les refabrique.
+.next/
+.next-*/
+out/
+dist-desktop/
+
+# Poids du modele de transcription embarquee : 241 Mo, telecharges a la
+# demande par le navigateur depuis l'index public. Les televerser
+# alourdirait chaque deploiement sans rien apporter.
+public/modeles/
+
+# Configuration locale du poste, jamais celle du deploiement.
+.env.local
+.env*.local
+.claude/

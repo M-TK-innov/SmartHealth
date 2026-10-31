@@ -1,4 +1,4 @@
-# ParleDocteur
+# SmartHealth
 
 **Scribe médical assisté par IA.** L'application écoute la consultation, en extrait les données
 cliniques codées, rédige le compte rendu, enrichit le dossier médical du patient et prépare une
@@ -47,7 +47,7 @@ L'application desktop n'est pas une fenêtre pointant vers un site : elle **emba
 et la base SQLite**. Un centre de santé sans connexion installe l'exécutable et travaille.
 
 - serveur lancé sur un port libre, en local uniquement (`127.0.0.1`) ;
-- base stockée dans le dossier de données utilisateur (`%APPDATA%\ParleDocteur\donnees`), donc
+- base stockée dans le dossier de données utilisateur (`%APPDATA%\SmartHealth\donnees`), donc
   préservée lors des mises à jour ;
 - instance unique : deux serveurs sur la même base ne peuvent pas coexister ;
 - liens externes ouverts dans le navigateur du système, jamais dans la fenêtre du dossier.
@@ -608,6 +608,124 @@ scripts/
 
 ---
 
+## Version d'essai
+
+Un médecin ou un responsable d'établissement peut juger la plateforme sur ses
+propres cas pendant **sept jours**, avec toutes les fonctionnalités et sa base
+sur sa machine. La page publique `/essai` explique les deux chemins : la
+démonstration en ligne pour regarder, l'installation locale pour juger.
+
+### Le huitième jour
+
+La saisie se ferme. **La lecture et l'export restent ouverts**, et une
+sauvegarde complète de la base est posée automatiquement dans `sauvegardes/`,
+à côté du fichier de données.
+
+Ce n'est pas une générosité commerciale. Un testeur finira par saisir un vrai
+dossier malgré les avertissements — on teste avec ce qu'on a sous la main — et
+verrouiller l'ensemble reviendrait à le confisquer. Une facture impayée se
+recouvre ; un dossier enfermé ne se récupère pas.
+
+La copie passe par `VACUUM INTO` et non par une copie de fichier : SQLite écrit
+alors une base cohérente même si des pages sont encore dans le journal
+d'écriture. Si elle échoue, l'échéance n'est pas retardée et l'écran dit que la
+sauvegarde n'a pas pu être posée — annoncer une sauvegarde qui n'existe pas
+serait pire que de ne rien annoncer.
+
+### Trois choix, et leur raison
+
+| Choix | Pourquoi |
+|---|---|
+| Le délai se compte en **jours civils** à l'heure de l'établissement | Un essai ouvert à 23 h 50 ne doit pas perdre une journée sur un arrondi. |
+| L'autorisation après échéance est une **liste blanche** | Une permission ajoutée plus tard est refusée par défaut. L'oubli dans l'autre sens ouvrirait l'écriture à vie. |
+| Reculer l'horloge **ne rend pas de jours** | On retient le jour le plus avancé jamais observé. Protection contre le geste facile, pas contre un attaquant — il n'en existe pas de locale. |
+
+Le compte part de la **première ouverture**, pas de la construction du paquet :
+un installateur téléchargé en mars et installé en juin donnerait sinon un essai
+déjà clos.
+
+### Construire les deux paquets
+
+```bash
+npm run desktop:build          # version complète, sans limite
+npm run desktop:build:essai    # version d'essai, sept jours
+```
+
+Les deux ne portent pas le même nom de fichier, à dessein : deux installateurs
+identiques dont l'un expire, c'est une livraison qui part en essai sans que
+personne ne s'en aperçoive avant le huitième jour.
+
+La saveur est écrite dans `electron/saveur.json`, **embarqué dans le paquet** :
+seul ce qui voyage avec lui sera vrai sur le poste du testeur, et une variable
+d'environnement posée sur sa machine ne peut pas lever la limite. Le fichier est
+réécrit à chaque préparation, y compris sans `--essai` — un marqueur oublié
+transformerait la construction suivante, celle que l'on vend, en version qui se
+verrouille. Absent, l'application retient la version complète : le défaut sûr.
+
+## Déploiement
+
+### Vercel — l'application seule
+
+La démonstration tourne ici : **https://smart-health-vert.vercel.app** — page
+d'entrée `/demo`, qui donne les comptes d'essai. Les données sont fictives et la
+base vit **en mémoire** : elle repart à zéro à chaque démarrage à froid, ce qui
+est le comportement voulu et non une panne.
+
+`vercel.json` déclare un projet Next.js ordinaire. Il **ne déclare pas de
+service**, et c'est une correction, pas un oubli.
+
+Le mode *services* de Vercel a été essayé, et il échoue ici d'une façon qui
+trompe : la construction réussit entièrement, puis la publication s'arrête sur
+
+> Edge Runtime is not supported in services. Service « smarthealth » produced
+> Edge Function output « middleware ».
+
+Un middleware Next tourne sur l'Edge par défaut. Le nôtre n'est que du confort
+de navigation — il regarde si un cookie de session existe, jamais s'il est
+valide — mais il suffit à faire refuser la publication. Et le mode services
+n'enveloppait qu'un seul service, Griot étant délibérément déployé ailleurs : il
+coûtait le déploiement sans rien rapporter. Il redeviendra utile le jour où un
+second service tournera vraiment sur Vercel.
+
+Le fichier ne porte aucun commentaire non plus. Le schéma de Vercel pose
+`additionalProperties: false` : une clé inconnue — un `"// note"` par exemple —
+fait refuser le déploiement entier avec « la propriété supplémentaire … ne doit
+PAS être présente ». Les explications vivent donc ici, et un script les protège :
+
+```bash
+npm run verifier:vercel
+```
+
+Il relit le schéma publié, vérifie qu'aucune propriété inconnue ne s'est
+glissée, que le nom de chaque service respecte le motif attendu, que les
+rewrites ne visent que des services déclarés, que les bindings sont complets —
+et **refuse un service tant que `middleware.ts` existe**, parce que ce
+refus-là n'apparaît dans aucun journal de construction.
+
+`buildCommand` vaut `npm run build` et non `next build` : l'étape `prebuild`
+génère les icônes, qui ne sont pas dans le dépôt parce qu'elles sont
+reproductibles. Avec `next build` seul, l'application se déploie sans aucune
+icône.
+
+**Deux variables se posent dans Settings → Environment Variables :**
+
+| Variable | Pourquoi |
+|---|---|
+| `SMARTHEALTH_DEMO=1` | Base SQLite **en mémoire**, semée au démarrage. Sans elle, l'application cherche un fichier, qui ne persiste pas sur une plateforme sans disque. |
+| `SMARTHEALTH_FUSEAU` | Le fuseau de l'établissement. Sur Vercel la machine est dans un centre de données lointain : sans ce réglage, la journée des files et du programme opératoire serait celle du centre de données. |
+
+### Griot — ailleurs, et pourquoi
+
+Le service de transcription en fon **n'est pas déployable en fonction
+serverless**, et le chiffre le dit : la seule roue `torch` pèse 433 Mo
+compressée, quand le plafond de Netlify Functions est de 250 Mo décompressés —
+une limite AWS qui ne se relève pas. Vercel est plus généreux, mais les poids du
+modèle pèsent plusieurs gigaoctets sur un système de fichiers éphémère, que
+chaque démarrage à froid retéléchargerait.
+
+Un `Dockerfile` et la marche à suivre sont dans
+[`services/griot/DEPLOIEMENT.md`](services/griot/DEPLOIEMENT.md).
+
 ## Avant un usage clinique réel
 
 Cette version est complète fonctionnellement mais délibérément dépourvue de trois briques qui
@@ -630,5 +748,5 @@ relèvent du déploiement, pas du produit :
    la décision revient au responsable de traitement — ce qui empêche les erreurs de configuration
    qu'on sait nommer, sans valoir attestation de conformité.
 
-**ParleDocteur est un outil d'aide à la documentation clinique.** Il ne pose pas de diagnostic et
+**SmartHealth est un outil d'aide à la documentation clinique.** Il ne pose pas de diagnostic et
 ne prescrit pas. La responsabilité médicale demeure entièrement celle du praticien.

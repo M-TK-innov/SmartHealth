@@ -144,7 +144,7 @@ export function POST(req: Request) {
           const dir = backupDirectory();
           mkdirSync(dir, { recursive: true });
           const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-          const target = path.join(dir, `parledocteur-${stamp}.db`);
+          const target = path.join(dir, `smarthealth-${stamp}.db`);
           // VACUUM INTO produit une copie coherente sans arreter le serveur.
           database.exec(`VACUUM INTO '${target.replace(/'/g, "''")}'`);
           audit({

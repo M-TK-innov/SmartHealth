@@ -11,7 +11,7 @@
  * plante, la ou elle fait precisement son travail.
  */
 
-export const MOT_DE_PASSE_DEMO = 'ParleDocteur2026!';
+export const MOT_DE_PASSE_DEMO = 'SmartHealth2026!';
 
 export interface CompteDemo {
   email: string;
@@ -36,12 +36,12 @@ export const COMPTES: CompteDemo[] = [
     peut: "Indicateurs agreges et surveillance epidemiologique. Aucun dossier nominatif — plusieurs etapes consistent a verifier qu'il se voit refuser l'acces.",
   },
   {
-    email: 'admin@parledocteur.local',
+    email: 'admin@smarthealth.local',
     role: 'Administrateur',
     peut: 'Organisations, comptes, politique de mots de passe, sessions, journal.',
   },
   {
-    email: 'super@parledocteur.local',
+    email: 'super@smarthealth.local',
     role: 'Super-administrateur',
     peut: 'Tout, y compris la base, les serveurs et la matrice des permissions elle-meme.',
   },

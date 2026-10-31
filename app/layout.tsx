@@ -5,16 +5,20 @@ import { BottomNav, TopNav, UserMenu } from '@/components/Nav';
 import { navItemsFor } from '@/lib/auth/nav-items';
 import { PwaRuntime } from '@/components/Pwa';
 import { BandeauDemo } from '@/components/BandeauDemo';
+import { EcartFuseau } from '@/components/EcartFuseau';
+import Logo from '@/components/Logo';
+import { BandeauEssai } from '@/components/BandeauEssai';
+import { fuseauDe } from '@/lib/localisation-store';
 import { auth } from '@/lib/auth/session';
 import { ROLE_LABELS } from '@/lib/auth/roles';
 
 export const metadata: Metadata = {
-  title: 'ParleDocteur — scribe medical IA',
+  title: 'SmartHealth — scribe medical IA',
   description:
     'Ecoute la consultation, structure les donnees cliniques, enrichit le dossier medical et prepare une ordonnance que le medecin valide. Interoperable FHIR R4 / HL7 v2 / DHIS2.',
-  applicationName: 'ParleDocteur',
+  applicationName: 'SmartHealth',
   manifest: '/manifest.webmanifest',
-  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'ParleDocteur' },
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'SmartHealth' },
   formatDetection: { telephone: false },
   icons: {
     icon: [
@@ -42,21 +46,24 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const ctx = await auth();
   const items = ctx ? navItemsFor([...ctx.permissions]) : [];
   const facility = ctx?.organization?.name ?? process.env.FACILITY_NAME ?? 'Structure de sante';
+  // Le fuseau de l'etablissement, detecte seul au premier demarrage. Il
+  // descend jusqu'au navigateur pour qu'un poste mal regle le sache.
+  const fuseau = ctx ? fuseauDe(ctx.user.organization_id ?? null) : null;
 
   return (
     <html lang="fr">
       <body>
         <PwaRuntime />
         <BandeauDemo />
+        <BandeauEssai />
+        {fuseau && <EcartFuseau fuseau={fuseau} />}
 
         <header className="no-print sticky top-0 z-30 border-b border-line bg-white/95 backdrop-blur">
           <div className="mx-auto flex max-w-[1400px] items-center gap-3 px-4 py-2.5 sm:gap-5 sm:px-6 sm:py-3">
             <Link href="/" className="flex shrink-0 items-center gap-2.5">
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand text-lg text-white">
-                &#9673;
-              </span>
+              <Logo className="h-9 w-9 shrink-0 text-brand" />
               <span className="min-w-0">
-                <span className="block text-[15px] font-bold leading-none">ParleDocteur</span>
+                <span className="block text-[15px] font-bold leading-none">SmartHealth</span>
                 <span className="hidden text-[11px] leading-tight text-ink-soft sm:block">Scribe medical IA</span>
               </span>
             </Link>
@@ -88,7 +95,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <main className="mx-auto max-w-[1400px] px-4 py-4 pb-24 sm:px-6 sm:py-6 md:pb-6">{children}</main>
 
         <footer className="no-print mx-auto max-w-[1400px] px-4 pb-24 pt-4 text-xs leading-relaxed text-ink-soft sm:px-6 md:pb-10">
-          ParleDocteur est un outil d aide a la documentation clinique. Toute donnee proposee par l intelligence
+          SmartHealth est un outil d aide a la documentation clinique. Toute donnee proposee par l intelligence
           artificielle doit etre relue et validee par un professionnel de sante avant integration au dossier ou
           delivrance d une ordonnance. La responsabilite medicale demeure entierement celle du praticien.
         </footer>

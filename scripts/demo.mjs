@@ -26,7 +26,7 @@ if (!existsSync(next)) {
 }
 
 const port = process.env.PORT || '3000';
-console.log('ParleDocteur — mode DEMONSTRATION');
+console.log('SmartHealth — mode DEMONSTRATION');
 console.log('  base en memoire, semee au demarrage ; rien n est conserve.');
 console.log(`  http://localhost:${port}/demo`);
 console.log('');
@@ -34,7 +34,7 @@ console.log('');
 const enfant = spawn(process.execPath, [next, 'dev', '-p', port], {
   cwd: racine,
   stdio: 'inherit',
-  env: { ...process.env, PARLEDOCTEUR_DEMO: '1' },
+  env: { ...process.env, SMARTHEALTH_DEMO: '1' },
 });
 
 const arreter = () => {

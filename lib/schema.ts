@@ -6,7 +6,7 @@
  * sources, et un chemin relatif casserait l ouverture de la base.
  */
 
-export const SCHEMA_SQL = `-- ParleDocteur - Schema du dossier medical electronique
+export const SCHEMA_SQL = `-- SmartHealth - Schema du dossier medical electronique
 -- Aligne sur les ressources FHIR R4 : Patient, Practitioner, Encounter, Condition,
 -- Observation, AllergyIntolerance, MedicationRequest, ServiceRequest, Composition.
 
@@ -733,6 +733,11 @@ CREATE TABLE IF NOT EXISTS organization (
   phone       TEXT,
   email       TEXT,
   status      TEXT NOT NULL DEFAULT 'pending',   -- pending | active | suspended | rejected
+  -- Fuseau de l etablissement, detecte au premier demarrage depuis la
+  -- machine qui sert l application. Il fixe la journee civile : files
+  -- d attente, programme operatoire, peremptions. Un etablissement a UNE
+  -- journee, et c est celle-ci. Vide tant que rien n a ete detecte.
+  fuseau      TEXT,
   created_at  TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -895,5 +900,20 @@ CREATE TABLE IF NOT EXISTS compliance_derogation (
   granted_by_label TEXT,
   granted_at       TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE (code, target)
+);
+-- Periode d'essai. UNE seule ligne, d'ou la contrainte sur la cle : deux
+-- lignes voudraient dire deux dates de debut, et l'essai durerait ce que
+-- l'on veut.
+--
+-- La colonne jour_vu retient le jour le plus avance jamais observe. Reculer
+-- l'horloge de la machine ne rend donc pas des jours. La colonne sauvegarde_faite
+-- porte le jour ou la sauvegarde d'echeance a ete posee : elle ne doit
+-- etre faite qu'une fois, et on doit pouvoir dire qu'elle l'a ete.
+CREATE TABLE IF NOT EXISTS essai (
+  id               INTEGER PRIMARY KEY CHECK (id = 1),
+  jour_debut       TEXT NOT NULL,
+  jour_vu          TEXT NOT NULL,
+  sauvegarde_faite TEXT,
+  sauvegarde_chemin TEXT
 );
 `;

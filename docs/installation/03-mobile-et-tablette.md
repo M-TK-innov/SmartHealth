@@ -1,6 +1,6 @@
 # 03 — Mobile et tablette
 
-ParleDocteur s'installe sur téléphone et tablette **sans passer par un magasin d'applications**.
+SmartHealth s'installe sur téléphone et tablette **sans passer par un magasin d'applications**.
 C'est une PWA : le navigateur l'ajoute à l'écran d'accueil, avec son icône, en plein écran, et elle
 se lance comme n'importe quelle application.
 
@@ -9,9 +9,9 @@ l'appareil.
 
 ## Android — Chrome
 
-1. Ouvrez l'adresse du serveur dans Chrome (`https://parledocteur.votre-structure.bj` ou
+1. Ouvrez l'adresse du serveur dans Chrome (`https://smarthealth.votre-structure.bj` ou
    `http://192.168.x.x:3000`).
-2. Une invite « Installer ParleDocteur » apparaît en bas. Touchez **Installer**.
+2. Une invite « Installer SmartHealth » apparaît en bas. Touchez **Installer**.
 3. Si elle n'apparaît pas : menu **⋮** → **Ajouter à l'écran d'accueil**.
 
 ## iPhone et iPad — Safari
@@ -26,7 +26,7 @@ Safari n'affiche pas d'invite automatique, la manipulation est manuelle :
 ## Ordinateur — Chrome ou Edge
 
 Une icône d'installation apparaît à droite de la barre d'adresse. Sinon : menu **⋮** →
-**Installer ParleDocteur**.
+**Installer SmartHealth**.
 
 ## Ce que l'installation apporte
 

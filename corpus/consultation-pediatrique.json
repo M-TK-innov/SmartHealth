@@ -2,7 +2,7 @@
   "id": "consultation-pediatrique-fr",
   "langue": "fr-FR",
   "description": "Consultation pediatrique : paludisme simple chez un enfant de 13,5 kg, accompagne de sa mere.",
-  "provenance": "Consultation de demonstration redigee pour ParleDocteur, annotee a la main. Ce n est PAS une consultation reelle.",
+  "provenance": "Consultation de demonstration redigee pour SmartHealth, annotee a la main. Ce n est PAS une consultation reelle.",
   "limites": "Un seul dialogue, un seul contexte clinique, une seule langue, aucun locuteur reel. Trop faible pour une mesure de performance ; suffisant pour tenir un invariant.",
   "aucune_hauteur": "Les tours n ont pas de hauteur de voix : cette mesure n eprouve donc que le signal linguistique.",
   "tours": [

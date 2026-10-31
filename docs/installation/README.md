@@ -1,6 +1,6 @@
-# Installer ParleDocteur
+# Installer SmartHealth
 
-ParleDocteur s'installe de trois façons selon ce dont vous disposez. Les trois font tourner
+SmartHealth s'installe de trois façons selon ce dont vous disposez. Les trois font tourner
 exactement le même code : ce que vous choisissez, c'est **où vit le serveur**, pas ce que fait
 l'application.
 
@@ -64,10 +64,12 @@ aucun transfert externe autorisé.
 | | Serveur web | Application desktop |
 |---|---|---|
 | Serveur Next.js | sur le poste désigné | **embarqué dans l'exécutable** |
-| Base SQLite | `data/parledocteur.db` | `%APPDATA%\ParleDocteur\donnees` |
+| Base SQLite | `data/smarthealth.db` | `%APPDATA%\SmartHealth\donnees` |
 | Accès depuis d'autres appareils | oui, par le réseau local | non, poste unique |
 | Node.js requis sur le poste | oui | **non** |
 | Internet requis | non (sauf IA distante) | non (sauf IA distante) |
+
+Une base installée sous l'ancien nom — `parledocteur.db`, `%APPDATA%\ParleDocteur` — continue d'être ouverte telle quelle. Voir [le guide serveur](02-serveur-web.md).
 
 L'extraction clinique fonctionne **sans aucune connexion** grâce au moteur local embarqué. Une clé
 API n'est nécessaire que pour l'extraction par modèle de langage, plus fine.

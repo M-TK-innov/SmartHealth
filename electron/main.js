@@ -1,5 +1,5 @@
 /**
- * Processus principal de l'application desktop ParleDocteur.
+ * Processus principal de l'application desktop SmartHealth.
  *
  * L'application desktop n'est pas une simple fenetre pointant vers un site :
  * elle embarque le serveur Next et la base SQLite. Un centre de sante sans
@@ -17,7 +17,21 @@ const fs = require('node:fs');
 const net = require('node:net');
 
 const isDev = !app.isPackaged;
-const DEV_URL = process.env.PARLEDOCTEUR_DEV_URL || 'http://localhost:3000';
+const DEV_URL = process.env.SMARTHEALTH_DEV_URL || 'http://localhost:3000';
+
+/**
+ * Saveur du paquet, ecrite par scripts/prepare-desktop.mjs.
+ *
+ * Absente ou illisible, on retient la version COMPLETE : un fichier manquant
+ * ne doit pas verrouiller l'application d'un etablissement qui a paye.
+ */
+function saveur() {
+  try {
+    return require('./saveur.json');
+  } catch {
+    return { essai: false };
+  }
+}
 
 /**
  * Racine ou chercher les services auxiliaires (services/griot...).
@@ -77,7 +91,7 @@ function waitForServer(port, timeoutMs = 60000) {
 /**
  * Services auxiliaires, demarres avec l'application.
  *
- * Leur echec n'est jamais fatal : ParleDocteur doit s'ouvrir sur un poste sans
+ * Leur echec n'est jamais fatal : SmartHealth doit s'ouvrir sur un poste sans
  * Python comme sur un poste equipe. Le detail est ecrit dans la console, la
  * fenetre s'ouvre dans les deux cas.
  */
@@ -116,6 +130,31 @@ async function startServer() {
   const dataDir = path.join(app.getPath('userData'), 'donnees');
   fs.mkdirSync(dataDir, { recursive: true });
 
+  // Le dossier de donnees porte le NOM DU PRODUIT. Le produit a ete
+  // renomme ; une installation anterieure a donc sa base ailleurs, sous
+  // l'ancien nom, et l'ignorer ferait demarrer l'application sur une base
+  // vide a cote d'un fichier plein. Meme regle que lib/heritage.ts, recopiee
+  // ici parce que ce fichier tourne avant le bundle de l'application.
+  const basePath = (() => {
+    const courante = path.join(dataDir, 'smarthealth.db');
+    if (fs.existsSync(courante)) return courante;
+
+    const ancienne = path.join(
+      path.dirname(app.getPath('userData')),
+      ['Parle', 'Docteur'].join(''),
+      'donnees',
+      ['parle', 'docteur'].join('') + '.db',
+    );
+    if (fs.existsSync(ancienne)) {
+      console.warn(
+        `Base reprise sous son ancien nom : ${ancienne}. Elle continue de servir ` +
+          'telle quelle ; son deplacement se decide a la main, apres sauvegarde.',
+      );
+      return ancienne;
+    }
+    return courante;
+  })();
+
   serverProcess = fork(serverEntry, [], {
     cwd: path.dirname(serverEntry),
     env: {
@@ -126,7 +165,12 @@ async function startServer() {
       NODE_ENV: 'production',
       PORT: String(port),
       HOSTNAME: '127.0.0.1',
-      PARLEDOCTEUR_DB: path.join(dataDir, 'parledocteur.db'),
+      SMARTHEALTH_DB: basePath,
+      // Saveur du paquet. Lue dans un fichier embarque plutot que dans
+      // l'environnement du poste : un testeur ne doit pas pouvoir lever la
+      // limite en posant une variable, et une version complete ne doit pas
+      // se verrouiller parce qu'une variable traine sur la machine.
+      ...(saveur().essai ? { SMARTHEALTH_ESSAI: '1' } : {}),
       ELECTRON_RUN_AS_NODE: '1',
     },
     stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
@@ -136,7 +180,7 @@ async function startServer() {
   serverProcess.stderr?.on('data', (d) => process.stderr.write(`[serveur] ${d}`));
   serverProcess.on('exit', (code) => {
     if (code !== 0 && !app.isQuitting) {
-      dialog.showErrorBox('ParleDocteur', `Le serveur local s'est arrete (code ${code}).`);
+      dialog.showErrorBox('SmartHealth', `Le serveur local s'est arrete (code ${code}).`);
     }
   });
 
@@ -153,7 +197,7 @@ function createWindow(url) {
     minWidth: 380, // le poste peut etre un mini-PC ou une fenetre reduite en visite
     minHeight: 520,
     backgroundColor: '#f7f9fb',
-    title: 'ParleDocteur',
+    title: 'SmartHealth',
     icon: path.join(__dirname, 'icon.png'),
     show: false,
     autoHideMenuBar: true,
@@ -239,8 +283,8 @@ function buildMenu(url) {
           click: () =>
             dialog.showMessageBox(mainWindow, {
               type: 'info',
-              title: 'ParleDocteur',
-              message: `ParleDocteur ${app.getVersion()}`,
+              title: 'SmartHealth',
+              message: `SmartHealth ${app.getVersion()}`,
               detail:
                 "Scribe medical assiste par IA.\n\nOutil d'aide a la documentation clinique : toute donnee proposee doit etre relue et validee par un professionnel de sante. La responsabilite medicale demeure celle du praticien.",
             }),
@@ -256,7 +300,7 @@ function buildMenu(url) {
 // Marqueur de plateforme dans l'agent utilisateur : le code partage sait ainsi
 // qu'il tourne dans la coque desktop et n'y propose ni installation PWA ni
 // service worker, tous deux sans objet pour une application deja locale.
-app.userAgentFallback = app.userAgentFallback + ' ParleDocteurDesktop/' + app.getVersion();
+app.userAgentFallback = app.userAgentFallback + ' SmartHealthDesktop/' + app.getVersion();
 
 app.whenReady().then(async () => {
   // Le micro est demande par le rendu ; en local on l'autorise sans friction
@@ -271,7 +315,7 @@ app.whenReady().then(async () => {
     buildMenu(url);
     createWindow(url);
   } catch (err) {
-    dialog.showErrorBox('ParleDocteur — demarrage impossible', String(err?.message ?? err));
+    dialog.showErrorBox('SmartHealth — demarrage impossible', String(err?.message ?? err));
     app.quit();
   }
 

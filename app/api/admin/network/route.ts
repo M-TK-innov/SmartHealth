@@ -36,7 +36,7 @@ export function GET() {
       detected: networkAddresses(currentPort()),
       livePort: currentPort(),
       secrets: secretsPresent(endpoints.map((e) => e.secret_env)),
-      desktop: Boolean(process.env.PARLEDOCTEUR_DB),
+      desktop: Boolean(process.env.SMARTHEALTH_DB),
     });
   });
 }

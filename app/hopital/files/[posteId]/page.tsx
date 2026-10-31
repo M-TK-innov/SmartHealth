@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation';
 import { requirePermission } from '@/lib/auth/guard';
 import { fileDuPoste, passagesDuPoste, postes } from '@/lib/hopital/flux-store';
+import { fuseauDe } from '@/lib/localisation-store';
+import { jourCivil } from '@/lib/temps';
 import { FileAttente } from '@/components/hopital/FileAttente';
 import { all } from '@/lib/db';
 
@@ -22,10 +24,16 @@ export default async function FilePage({ params }: { params: Promise<{ posteId: 
   if (!poste) notFound();
 
   const maintenant = new Date().toISOString();
-  const file = fileDuPoste(posteId, maintenant);
-  const debut = new Date(maintenant);
-  debut.setUTCHours(0, 0, 0, 0);
-  const tous = passagesDuPoste(posteId, debut.toISOString());
+  const orgId = ctx.user.organization_id ?? null;
+  const fuseau = fuseauDe(orgId);
+  const file = fileDuPoste(posteId, maintenant, orgId);
+
+  // Le JOUR de l'etablissement, pas un horodatage : passagesDuPoste borne
+  // sa requete sur une date nue et filtre ensuite au fuseau. Lui passer un
+  // instant ISO rendait des bornes illisibles — et la liste des patients
+  // en cours de prise en charge serait restee vide sans que rien ne le
+  // signale, les deux etant des chaines.
+  const tous = passagesDuPoste(posteId, jourCivil(maintenant, fuseau), fuseau);
   const enCoursDeSoin = tous
     .filter((p) => p.etat === 'en-cours')
     .map((p) => ({ id: p.id, sejourId: p.sejourId, gravite: p.gravite }));

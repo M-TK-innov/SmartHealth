@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { requirePermission } from '@/lib/auth/guard';
 import { programmeDuJour } from '@/lib/hopital/bloc-store';
+import { jourCivil } from '@/lib/temps';
+import { fuseauDe } from '@/lib/localisation-store';
+import { formaterInstant } from '@/lib/localisation';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +23,7 @@ const COTE = {
   'sans-objet': null,
 } as const;
 
-const heure = (iso: string) => iso.slice(11, 16);
+
 
 /**
  * Le programme operatoire du jour.
@@ -36,9 +39,17 @@ export default async function BlocPage({
 }) {
   const ctx = await requirePermission('bloc:read', '/hopital/bloc');
   const { jour: demande } = await searchParams;
-  const jour = /^\d{4}-\d{2}-\d{2}$/.test(demande ?? '') ? demande! : new Date().toISOString().slice(0, 10);
+  const jour =
+    /^\d{4}-\d{2}-\d{2}$/.test(demande ?? '')
+      ? demande!
+      : jourCivil(new Date(), fuseauDe(ctx.user.organization_id ?? null));
 
+  const fuseau = fuseauDe(ctx.user.organization_id ?? null);
   const programme = programmeDuJour(ctx.user.organization_id ?? null, jour);
+  // L'heure affichee est celle du SERVICE. Decouper la chaine ISO
+  // montrait l'heure de Greenwich : une intervention de 8 h a Cotonou
+  // s'affichait a 7 h, sur le programme meme ou l'equipe se repere.
+  const heure = (iso: string) => formaterInstant(iso, fuseau, 'heure');
   const total = programme.reduce((n, p) => n + p.interventions.length, 0);
 
   return (

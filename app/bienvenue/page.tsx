@@ -5,7 +5,7 @@ import { currentPort, needsBootstrap, networkAddresses } from '@/lib/auth/bootst
 import { passwordPolicy } from '@/lib/auth/store';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Premiere installation — ParleDocteur' };
+export const metadata = { title: 'Premiere installation — SmartHealth' };
 
 export default async function BootstrapPage() {
   // Installation deja amorcee : cet ecran n'a plus lieu d'etre, et le laisser

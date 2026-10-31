@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "ParleDocteur — scribe médical IA",
-  "short_name": "ParleDocteur",
+  "name": "SmartHealth — scribe médical IA",
+  "short_name": "SmartHealth",
   "description": "Écoute la consultation, structure les données cliniques, enrichit le dossier médical et prépare une ordonnance validée par le médecin. Interopérable FHIR R4 / HL7 v2 / DHIS2.",
   "lang": "fr",
   "dir": "ltr",
