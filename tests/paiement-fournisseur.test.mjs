@@ -31,6 +31,7 @@ const CLES = [
   'SMARTHEALTH_MOMO_BASE', 'SMARTHEALTH_MOMO_ABONNEMENT', 'SMARTHEALTH_MOMO_CLE',
   'SMARTHEALTH_MOOV_BASE', 'SMARTHEALTH_MOOV_MARCHAND', 'SMARTHEALTH_MOOV_CLE',
   'SMARTHEALTH_PISPI_BASE', 'SMARTHEALTH_PISPI_MARCHAND', 'SMARTHEALTH_PISPI_CLE',
+  'SMARTHEALTH_TRESORPAY_BASE', 'SMARTHEALTH_TRESORPAY_MARCHAND', 'SMARTHEALTH_TRESORPAY_CLE',
 ];
 
 let sauvegarde;
@@ -108,5 +109,31 @@ describe('cles posees mais adaptateur absent', () => {
     // Impossible aujourd hui, aucun adaptateur n etant livre : le test
     // nomme la regle pour le jour ou il y en aura un.
     assert.equal(pourquoiIndisponible('mtn-momo').length > 0, true);
+  });
+});
+
+describe('TresorPay', () => {
+  test('il figure parmi les operateurs, avec ses trois reglages', () => {
+    const m = reglagesManquants('tresorpay');
+    assert.deepEqual(m, [
+      'SMARTHEALTH_TRESORPAY_BASE',
+      'SMARTHEALTH_TRESORPAY_MARCHAND',
+      'SMARTHEALTH_TRESORPAY_CLE',
+    ]);
+  });
+
+  test('son refus nomme ses variables et renvoie a la caisse', () => {
+    const m = refusConfiguration('tresorpay');
+    assert.match(m, /TRESORPAY_CLE/);
+    assert.match(m, /caisse/i);
+  });
+
+  test('cles posees, il reste inutilisable tant qu aucun adaptateur n existe', () => {
+    for (const k of ['SMARTHEALTH_TRESORPAY_BASE', 'SMARTHEALTH_TRESORPAY_MARCHAND', 'SMARTHEALTH_TRESORPAY_CLE']) {
+      process.env[k] = 'valeur';
+    }
+    assert.equal(operateurConfigure('tresorpay'), true);
+    assert.equal(operateurUtilisable('tresorpay'), false);
+    assert.match(pourquoiIndisponible('tresorpay'), /adaptateur/i);
   });
 });

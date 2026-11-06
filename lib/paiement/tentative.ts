@@ -29,12 +29,18 @@
 
 export type EtatTentative = 'initiee' | 'confirmee' | 'echouee' | 'expiree';
 
-export type Operateur = 'mtn-momo' | 'moov-money' | 'pi-spi';
+export type Operateur = 'mtn-momo' | 'moov-money' | 'pi-spi' | 'tresorpay';
 
 export const OPERATEURS: Record<Operateur, string> = {
   'mtn-momo': 'MTN Mobile Money',
   'moov-money': 'Moov Money',
   'pi-spi': 'Paiement instantane (PI-SPI)',
+  // Plateforme de paiement du Tresor public beninois. Elle merite d'etre
+  // citee en premier dans une formation sanitaire PUBLIQUE : les recettes
+  // d'un etablissement public ont vocation a rejoindre les comptes du
+  // Tresor, et passer par un operateur prive ajoute une etape de
+  // reversement que personne n'a demandee.
+  tresorpay: 'TresorPay',
 };
 
 export interface Tentative {

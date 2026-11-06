@@ -30,6 +30,7 @@ const REGLAGES: Record<Operateur, string[]> = {
   'mtn-momo': ['MOMO_BASE', 'MOMO_ABONNEMENT', 'MOMO_CLE'],
   'moov-money': ['MOOV_BASE', 'MOOV_MARCHAND', 'MOOV_CLE'],
   'pi-spi': ['PISPI_BASE', 'PISPI_MARCHAND', 'PISPI_CLE'],
+  tresorpay: ['TRESORPAY_BASE', 'TRESORPAY_MARCHAND', 'TRESORPAY_CLE'],
 };
 
 /** Nom complet de la variable d'environnement, prefixe compris. */
