@@ -1018,6 +1018,13 @@ CREATE TABLE IF NOT EXISTS allegement_evenement (
   jour            TEXT NOT NULL,
   type            TEXT NOT NULL,
   quantite        INTEGER NOT NULL,
+  -- Ce que l'evenement compte UNE FOIS, par exemple « rapport:202610 ».
+  -- Sert uniquement a empecher le double comptage : une ressaisie ne
+  -- s'evite qu'une fois par rapport, et un double clic la comptait deux
+  -- fois. Cette colonne ne doit JAMAIS porter d'identifiant de personne :
+  -- ce serait reintroduire par la petite porte le lien que toute cette
+  -- table est faite pour ne pas avoir.
+  reference       TEXT,
   cree_le         TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_allegement_periode ON allegement_evenement(organization_id, jour);

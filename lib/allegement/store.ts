@@ -39,18 +39,39 @@ export function compter(
   candidat: EvenementCandidat,
   organizationId: string | null,
   instant: Date = new Date(),
+  /**
+   * Ce que l'evenement compte une seule fois, par exemple « rapport:202610 ».
+   *
+   * Omise, l'evenement peut se repeter : c'est le cas normal d'une
+   * consultation a distance, qui a lieu autant de fois qu'on la fait.
+   * Fournie, un second enregistrement est refuse par la base.
+   *
+   * ELLE NE DOIT JAMAIS CONTENIR D'IDENTIFIANT DE PERSONNE. Ce serait
+   * reintroduire par la petite porte le lien que cette table est faite
+   * pour ne pas avoir.
+   */
+  reference?: string,
 ): boolean {
   if (!qualifie(candidat)) return false;
 
-  insert('allegement_evenement', {
-    id: randomUUID(),
-    organization_id: organizationId,
-    jour: jourCivil(instant, fuseau()),
-    type: candidat.type,
-    quantite: candidat.quantite,
-    cree_le: nowIso(),
-  });
-  return true;
+  try {
+    insert('allegement_evenement', {
+      id: randomUUID(),
+      organization_id: organizationId,
+      jour: jourCivil(instant, fuseau()),
+      type: candidat.type,
+      quantite: candidat.quantite,
+      reference: reference ?? null,
+      cree_le: nowIso(),
+    });
+    return true;
+  } catch (e) {
+    // Violation de l'index unique : l'allegement a deja ete compte. Ce
+    // n'est pas une erreur, c'est le comportement demande. Toute autre
+    // defaillance remonte.
+    if (e instanceof Error && /UNIQUE|constraint/i.test(e.message)) return false;
+    throw e;
+  }
 }
 
 /**
