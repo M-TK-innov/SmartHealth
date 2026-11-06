@@ -12,6 +12,7 @@ import {
 } from '@/lib/repo';
 import { StartConsultation } from '@/components/StartConsultation';
 import { EnrolerPatient } from '@/components/EnrolerPatient';
+import { noterResultatsPresentes } from '@/lib/allegement/store';
 import { assertSameOrganization, requirePermission } from '@/lib/auth/guard';
 import { computeAge, translateGender } from '@/lib/ai/prompts';
 import { formatDate } from '@/lib/report';
@@ -45,6 +46,11 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
   const allergies = getAllergies(id);
   const medications = getMedicationStatements(id);
   const observations = getObservations(id);
+
+  // Les resultats deja au dossier sont presentes au soignant. Compte une
+  // fois par dossier et par jour, sans rien de nominatif : le marqueur vit
+  // sur la ligne du patient.
+  noterResultatsPresentes({ patientId: id, organizationId: patient.organization_id ?? null });
   const consultations = listConsultations(id);
   const prescriptions = getPatientPrescriptions(id).map((p) => ({ ...p, items: getPrescriptionItems(p.id) }));
   const age = patient.birth_date ? computeAge(patient.birth_date) : null;

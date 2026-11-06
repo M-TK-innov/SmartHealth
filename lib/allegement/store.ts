@@ -165,3 +165,58 @@ export function noterAntecedentsPresentes(args: {
     args.instant ?? new Date(),
   );
 }
+
+/**
+ * Note que des resultats anterieurs etaient disponibles au point de soin.
+ *
+ * CE QUE CE CHIFFRE DIT, ET CE QU IL NE DIT PAS
+ *
+ * Il compte les LIBELLES DISTINCTS d'observations anterieures a la journee
+ * en cours, parce que c'est ce que l'ecran presente : la derniere valeur de
+ * chaque mesure. Cinq tensions arterielles font une information disponible,
+ * pas cinq.
+ *
+ * Il ne dit PAS qu'un examen a ete evite. On ne l'observe jamais : le
+ * module classe donc ce type en « deduit », et la restitution le repete.
+ *
+ * Une fois par dossier et par JOUR CIVIL, le marqueur vivant sur la ligne
+ * du patient. Un clinicien qui rouvre le dossier dans la journee n'evite
+ * pas un second examen.
+ */
+export function noterResultatsPresentes(args: {
+  patientId: string;
+  organizationId: string | null;
+  instant?: Date;
+}): boolean {
+  const instant = args.instant ?? new Date();
+  const jour = jourCivil(instant, fuseau());
+
+  const ligne = get<{ allegement_jour: string | null }>(
+    'SELECT allegement_jour FROM patient WHERE id = ?',
+    [args.patientId],
+  );
+  if (!ligne || ligne.allegement_jour === jour) return false;
+
+  const connus = get<{ n: number }>(
+    `SELECT COUNT(DISTINCT label) AS n FROM observation
+      WHERE patient_id = ? AND effective_at < ?`,
+    [args.patientId, `${jour} 00:00:00`],
+  );
+  const nombre = connus?.n ?? 0;
+
+  // Marque meme a zero : sinon on relirait la base a chaque ouverture d'un
+  // dossier sans antecedent de mesure.
+  run('UPDATE patient SET allegement_jour = ? WHERE id = ?', [jour, args.patientId]);
+  if (nombre === 0) return false;
+
+  return compter(
+    {
+      type: 'resultat-anterieur-presente',
+      disponible: true,
+      presentee: true,
+      quantite: nombre,
+    },
+    args.organizationId,
+    instant,
+  );
+}

@@ -56,7 +56,12 @@ CREATE TABLE IF NOT EXISTS patient (
   photo_data_url       TEXT,
   organization_id      TEXT,          -- cloisonnement : etablissement proprietaire du dossier
   created_at           TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at           TEXT NOT NULL DEFAULT (datetime('now'))
+  updated_at           TEXT NOT NULL DEFAULT (datetime('now')),
+  -- Dernier jour civil ou le dossier a compte un allegement. Le marqueur
+  -- vit ICI parce que la table patient porte deja le lien avec la
+  -- personne ; le compteur, lui, ne doit jamais l'acquerir. Sans ce
+  -- marqueur, chaque ouverture du dossier compterait a nouveau.
+  allegement_jour  TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_patient_name ON patient(family_name, given_name);
 CREATE INDEX IF NOT EXISTS idx_patient_mrn  ON patient(mrn);
