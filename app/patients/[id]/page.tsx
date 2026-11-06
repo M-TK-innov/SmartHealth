@@ -11,6 +11,7 @@ import {
   listConsultations,
 } from '@/lib/repo';
 import { StartConsultation } from '@/components/StartConsultation';
+import { EnrolerPatient } from '@/components/EnrolerPatient';
 import { assertSameOrganization, requirePermission } from '@/lib/auth/guard';
 import { computeAge, translateGender } from '@/lib/ai/prompts';
 import { formatDate } from '@/lib/report';
@@ -96,6 +97,15 @@ export default async function PatientPage({ params }: { params: Promise<{ id: st
       </header>
 
       <div className="grid gap-5 lg:grid-cols-3">
+        <Panel title="Son acces a son dossier">
+          <p className="mb-3 text-xs leading-relaxed text-ink-soft">
+            Le patient consulte ses ordonnances validees, ses factures et ses passages depuis son
+            telephone. Il ne voit ni compte rendu, ni resultat d examen : ceux-la se lisent avec
+            vous.
+          </p>
+          <EnrolerPatient patientId={patient.id} />
+        </Panel>
+
         <Panel title="Allergies">
           {allergies.length === 0 ? (
             <Empty>Aucune allergie documentee.</Empty>
