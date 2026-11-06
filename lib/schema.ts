@@ -1000,4 +1000,25 @@ CREATE TABLE IF NOT EXISTS patient_session (
   user_agent     TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_psession_compte ON patient_session(account_id);
+
+-- Compteur d'allegement administratif.
+--
+-- CE QUE CETTE TABLE NE CONTIENT PAS, ET POURQUOI : ni patient, ni
+-- consultation, ni soignant. Une structure, un jour, un type, une quantite.
+-- Un compteur que l'on peut remonter jusqu'a une personne est un second
+-- dossier medical, avec une garde plus faible que le premier -- et il
+-- finirait par etre interroge comme tel.
+--
+-- Le jour est le JOUR CIVIL de l'etablissement, pas une date UTC : un
+-- rapport mensuel qui bascule a Greenwich compte mal ses debuts et ses fins
+-- de mois.
+CREATE TABLE IF NOT EXISTS allegement_evenement (
+  id              TEXT PRIMARY KEY,
+  organization_id TEXT,
+  jour            TEXT NOT NULL,
+  type            TEXT NOT NULL,
+  quantite        INTEGER NOT NULL,
+  cree_le         TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_allegement_periode ON allegement_evenement(organization_id, jour);
 `;
