@@ -2,17 +2,17 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { SCHEMA_SQL } from './schema';
-import { appliquerMigrations } from './migrations';
-import { DONNEES_DEMO } from './demo/donnees';
-import { resoudre } from './demo/horodatage';
+import { SCHEMA_SQL } from './schema.ts';
+import { appliquerMigrations } from './migrations.ts';
+import { DONNEES_DEMO } from './demo/donnees.ts';
+import { resoudre } from './demo/horodatage.ts';
 import {
   FICHIER_ANCIEN,
   FICHIER_COURANT,
   choisirBase,
   messageHeritage,
   reglage,
-} from './heritage';
+} from './heritage.ts';
 
 /**
  * Acces SQLite via le module natif `node:sqlite` (Node >= 22.5).

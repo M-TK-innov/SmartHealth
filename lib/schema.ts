@@ -916,4 +916,88 @@ CREATE TABLE IF NOT EXISTS essai (
   sauvegarde_faite TEXT,
   sauvegarde_chemin TEXT
 );
+
+-- ====================================================================
+-- ESPACE PATIENT
+--
+-- Identite SEPAREE de celle des soignants, et ce n'est pas une precaution
+-- de style : un patient ne doit jamais pouvoir emprunter un chemin prevu
+-- pour un agent. Tables distinctes, session distincte, cookie distinct.
+-- ====================================================================
+
+-- Le compte est une PERSONNE, pas un dossier.
+--
+-- Un patient suivi dans deux centres a deux lignes dans la table patient et un seul
+-- telephone. Coller le numero au dossier rendrait le second enrolement
+-- impossible, ou obligerait a dupliquer le compte. La personne vit donc ici,
+-- et ses dossiers sont rattaches a cote.
+--
+-- Le telephone est stocke sous sa forme canonique, produite par
+-- lib/patient/identite.ts. Toute autre ecriture ne retrouverait pas le
+-- compte : la normalisation n'existe qu'a un seul endroit, a dessein.
+CREATE TABLE IF NOT EXISTS patient_account (
+  id              TEXT PRIMARY KEY,
+  telephone       TEXT UNIQUE,
+  npi             TEXT UNIQUE,
+  -- Code a six chiffres, hache comme un mot de passe. Ce qui tient le
+  -- risque n'est pas sa longueur mais le verrouillage apres quelques essais.
+  pin_hash        TEXT,
+  pin_salt        TEXT,
+  pin_algo        TEXT,
+  pin_changed_at  TEXT,
+  -- a-activer | actif | suspendu
+  statut          TEXT NOT NULL DEFAULT 'a-activer',
+  failed_attempts INTEGER NOT NULL DEFAULT 0,
+  locked_until    TEXT,
+  last_login_at   TEXT,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  CHECK (telephone IS NOT NULL OR npi IS NOT NULL)
+);
+
+-- Rattachement d'un dossier a une personne.
+--
+-- Pose par un agent qui a le patient devant lui : c'est le seul moment ou
+-- l'identite est verifiee par un humain. La colonne garde qui l'a fait, car
+-- un rattachement errone donne acces au dossier de quelqu'un d'autre.
+CREATE TABLE IF NOT EXISTS patient_dossier (
+  account_id      TEXT NOT NULL REFERENCES patient_account(id) ON DELETE CASCADE,
+  patient_id      TEXT NOT NULL REFERENCES patient(id) ON DELETE CASCADE,
+  organization_id TEXT,
+  rattache_le     TEXT NOT NULL DEFAULT (datetime('now')),
+  rattache_par    TEXT,
+  PRIMARY KEY (account_id, patient_id)
+);
+CREATE INDEX IF NOT EXISTS idx_pdossier_patient ON patient_dossier(patient_id);
+
+-- Code a usage unique remis au guichet.
+--
+-- Seul le hachage est conserve : un code lisible en base serait un acces au
+-- dossier pour qui lit la base. Il expire, et il ne sert qu'une fois — un
+-- code lu par-dessus l'epaule ne doit pas valoir une seconde fois.
+CREATE TABLE IF NOT EXISTS patient_enrolement (
+  id          TEXT PRIMARY KEY,
+  account_id  TEXT NOT NULL REFERENCES patient_account(id) ON DELETE CASCADE,
+  code_hash   TEXT NOT NULL,
+  expire_le   TEXT NOT NULL,
+  consomme_le TEXT,
+  cree_par    TEXT,
+  cree_le     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_penrol_compte ON patient_enrolement(account_id, consomme_le);
+
+-- Session patient. Distincte de user_session, et revocable.
+CREATE TABLE IF NOT EXISTS patient_session (
+  id             TEXT PRIMARY KEY,
+  account_id     TEXT NOT NULL REFERENCES patient_account(id) ON DELETE CASCADE,
+  token_hash     TEXT NOT NULL UNIQUE,
+  created_at     TEXT NOT NULL DEFAULT (datetime('now')),
+  expires_at     TEXT NOT NULL,
+  last_seen_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  revoked_at     TEXT,
+  revoked_reason TEXT,
+  ip             TEXT,
+  user_agent     TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_psession_compte ON patient_session(account_id);
 `;

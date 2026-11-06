@@ -149,3 +149,24 @@ describe('le schema n index jamais une colonne migree', () => {
     db.close();
   });
 });
+
+describe('le schema reste un texte SQL valide dans un gabarit TypeScript', () => {
+  test('aucun accent grave ne s y glisse', () => {
+    // SCHEMA_SQL vit dans un litteral de gabarit : un accent grave ecrit
+    // dans un commentaire SQL y FERME la chaine, et le fichier cesse de
+    // compiler. L'erreur signalee pointe alors des lignes sans rapport,
+    // ce qui fait perdre un temps considerable. Deja arrive deux fois.
+    const position = SCHEMA_SQL.indexOf('`');
+    assert.equal(
+      position,
+      -1,
+      position === -1
+        ? ''
+        : `accent grave a l'offset ${position} : « ${SCHEMA_SQL.slice(Math.max(0, position - 60), position + 20)} »`,
+    );
+  });
+
+  test('le schema se termine bien par un point-virgule SQL', () => {
+    assert.match(SCHEMA_SQL.trimEnd().slice(-1), /;/);
+  });
+});

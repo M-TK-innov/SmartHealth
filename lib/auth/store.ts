@@ -1,8 +1,8 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { MODE_DEMO, all, get, insert, run, update, nowIso, audit } from '@/lib/db';
-import { reglage } from '@/lib/heritage';
-import { signerJeton, verifierJeton } from '@/lib/demo/jeton';
-import { hashPassword, verifyPassword, type PasswordPolicy } from './password';
+import { MODE_DEMO, all, get, insert, run, update, nowIso, audit } from '../db.ts';
+import { reglage } from '../heritage.ts';
+import { signerJeton, verifierJeton } from '../demo/jeton.ts';
+import { hashPassword, verifyPassword, type PasswordPolicy } from './password.ts';
 import {
   ALL_PERMISSIONS,
   DEFAULT_ROLE_PERMISSIONS,
@@ -11,7 +11,7 @@ import {
   type Permission,
   type Role,
   type OrgType,
-} from './roles';
+} from './roles.ts';
 
 // ------------------------------------------------------------------- types
 
