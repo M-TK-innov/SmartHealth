@@ -117,6 +117,11 @@ CREATE TABLE IF NOT EXISTS consultation (
   started_at        TEXT NOT NULL DEFAULT (datetime('now')),
   ended_at          TEXT,
   signed_at         TEXT,
+  -- Seule fois ou cette consultation a compte un allegement. Le marqueur
+  -- vit ICI et non dans le compteur : la consultation porte deja le lien
+  -- avec le patient, et c'est ce lien que le compteur ne doit jamais
+  -- acquerir. Sans lui, chaque ouverture de la page compterait a nouveau.
+  allegement_le     TEXT,
   language          TEXT DEFAULT 'fr',
   consent_recording INTEGER NOT NULL DEFAULT 0,
   consent_at        TEXT,

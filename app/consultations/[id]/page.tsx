@@ -13,6 +13,7 @@ import {
 import { Workspace } from '@/components/consultation/Workspace';
 import { assertSameOrganization, requirePermission } from '@/lib/auth/guard';
 import { buildReport, formatDate } from '@/lib/report';
+import { noterAntecedentsPresentes } from '@/lib/allegement/store';
 import { computeAge, translateGender } from '@/lib/ai/prompts';
 
 export const dynamic = 'force-dynamic';
@@ -31,6 +32,15 @@ export default async function ConsultationPage({ params }: { params: Promise<{ i
   const extraction = parseExtraction(consultation);
   const prescriptions = getPrescriptions(id).map((p) => ({ ...p, items: getPrescriptionItems(p.id) }));
   const allergies = getAllergies(patient.id);
+
+  // Les antecedents deja connus sont presentes au praticien, donc non
+  // redemandes au patient. Compte une seule fois par consultation, et sans
+  // rien de nominatif : le marqueur vit sur la ligne de consultation.
+  noterAntecedentsPresentes({
+    consultationId: id,
+    patientId: patient.id,
+    organizationId: consultation.organization_id ?? null,
+  });
   const age = patient.birth_date ? computeAge(patient.birth_date) : null;
 
   const report =

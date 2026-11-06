@@ -44,6 +44,7 @@ export const COLONNES_AJOUTEES: [table: string, colonne: string, definition: str
   ['allegement_evenement', 'reference', 'TEXT'],
   // Marque la seule fois ou une session patient a compte un allegement.
   ['patient_session', 'allegement_le', 'TEXT'],
+  ['consultation', 'allegement_le', 'TEXT'],
 ];
 
 /**
