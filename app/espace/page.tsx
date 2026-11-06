@@ -4,6 +4,8 @@ import { requirePatient } from '@/lib/patient/session';
 import { facturesDe, noterVisiteADistance, ordonnancesDe, sejoursDe } from '@/lib/patient/dossier';
 import { francs } from '@/lib/hopital/caisse';
 import { DeconnexionPatient } from '@/components/espace/DeconnexionPatient';
+import { PayerFacture } from '@/components/espace/PayerFacture';
+import { referenceFacture } from '@/lib/paiement/tentative';
 
 export const dynamic = 'force-dynamic';
 
@@ -121,7 +123,7 @@ export default async function EspacePage() {
             {factures.map((f) => (
               <li key={f.id} className="card-pad">
                 <div className="flex items-baseline justify-between gap-3">
-                  <p className="font-mono text-xs text-ink-soft">{f.id.slice(0, 8)}</p>
+                  <p className="font-mono text-xs text-ink-soft">{referenceFacture(f.id)}</p>
                   {f.soldee ? (
                     <span className="chip">Soldee</span>
                   ) : (
@@ -149,6 +151,7 @@ export default async function EspacePage() {
                     <span className="tabular-nums">{francs(f.partTiers)}</span>
                   </div>
                 )}
+                <PayerFacture factureId={f.id} resteACharge={f.resteACharge} />
               </li>
             ))}
           </ul>
