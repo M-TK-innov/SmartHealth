@@ -42,6 +42,8 @@ export const COLONNES_AJOUTEES: [table: string, colonne: string, definition: str
   // la verification en conditions reelles a montre qu'un second appel
   // enregistrait un second evenement pour le meme rapport mensuel.
   ['allegement_evenement', 'reference', 'TEXT'],
+  // Marque la seule fois ou une session patient a compte un allegement.
+  ['patient_session', 'allegement_le', 'TEXT'],
 ];
 
 /**

@@ -997,7 +997,13 @@ CREATE TABLE IF NOT EXISTS patient_session (
   revoked_at     TEXT,
   revoked_reason TEXT,
   ip             TEXT,
-  user_agent     TEXT
+  user_agent     TEXT,
+  -- Horodatage de la seule fois ou cette session a compte un allegement.
+  -- Le marqueur vit ICI, et non dans le compteur : la table des sessions
+  -- porte deja le lien avec la personne, et c'est precisement ce lien que
+  -- le compteur ne doit jamais acquerir. Sans ce marqueur, un simple
+  -- rechargement de page compterait un deplacement epargne de plus.
+  allegement_le  TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_psession_compte ON patient_session(account_id);
 

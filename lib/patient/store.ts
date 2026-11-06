@@ -330,6 +330,8 @@ export function connecter(args: {
 }
 
 export interface SessionPatient {
+  /** Identifiant de la LIGNE de session, pour y marquer ce qui ne doit arriver qu'une fois. */
+  sessionId: string;
   compte: ComptePatient;
   dossiers: DossierRattache[];
 }
@@ -351,6 +353,7 @@ export function resoudreSessionPatient(token: string, instant: Date = new Date()
   run('UPDATE patient_session SET last_seen_at = ? WHERE id = ?', [nowIso(), s.id]);
 
   return {
+    sessionId: s.id,
     compte,
     dossiers: all<DossierRattache>(
       'SELECT patient_id, organization_id, rattache_le FROM patient_dossier WHERE account_id = ?',

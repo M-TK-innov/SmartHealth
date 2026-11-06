@@ -8,6 +8,8 @@ import { BandeauDemo } from '@/components/BandeauDemo';
 import { EcartFuseau } from '@/components/EcartFuseau';
 import Logo from '@/components/Logo';
 import { BandeauEssai } from '@/components/BandeauEssai';
+import { headers } from 'next/headers';
+import { ENTETE_CHEMIN } from '@/middleware';
 import { fuseauDe } from '@/lib/localisation-store';
 import { auth } from '@/lib/auth/session';
 import { ROLE_LABELS } from '@/lib/auth/roles';
@@ -49,6 +51,22 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Le fuseau de l'etablissement, detecte seul au premier demarrage. Il
   // descend jusqu'au navigateur pour qu'un poste mal regle le sache.
   const fuseau = ctx ? fuseauDe(ctx.user.organization_id ?? null) : null;
+
+  // L'espace patient ne porte pas l'en-tete des soignants : il offrirait des
+  // liens vers des dossiers que le patient n'a pas le droit d'ouvrir, et une
+  // barre de navigation qui ne lui est pas destinee.
+  const chemin = (await headers()).get(ENTETE_CHEMIN) ?? '';
+  if (chemin === '/espace' || chemin.startsWith('/espace/')) {
+    return (
+      <html lang="fr">
+        <body className="bg-paper">
+          <PwaRuntime />
+          <BandeauDemo />
+          {children}
+        </body>
+      </html>
+    );
+  }
 
   return (
     <html lang="fr">

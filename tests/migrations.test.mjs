@@ -80,9 +80,18 @@ describe('base deja installee', () => {
     let sql = SCHEMA_SQL;
     for (const [table, colonne] of COLONNES_AJOUTEES) {
       const bloc = new RegExp(`(CREATE TABLE IF NOT EXISTS ${table} \\([\\s\\S]*?\\n\\);)`);
-      sql = sql.replace(bloc, (texte) =>
-        texte.replace(new RegExp(`^[ \\t]*${colonne}\\s+[^\\n]*\\n`, 'm'), ''),
-      );
+      sql = sql.replace(bloc, (texte) => {
+        const sans = texte.replace(new RegExp(`^[ \\t]*${colonne}\\s+[^\\n]*\\n`, 'm'), '');
+        // Retirer la DERNIERE colonne d'une table laisse une virgule
+        // orpheline devant la parenthese fermante, et SQLite rejette alors
+        // tout le schema sur un « near ) : syntax error » qui ne dit pas ou.
+        //
+        // Les lignes de commentaire qui precedaient la colonne restent, elles,
+        // entre la virgule et la parenthese : le nettoyage doit donc les
+        // franchir. Sans cela il ne voyait rien a corriger, et l'erreur
+        // revenait identique.
+        return sans.replace(/,((?:[ \t]*\n|[ \t]*--[^\n]*\n)*[ \t]*\);)/, '$1');
+      });
     }
     return sql;
   }
