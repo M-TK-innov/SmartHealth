@@ -15,4 +15,5 @@ export const ADMIN_SECTIONS: { href: string; label: string; permission: Permissi
   { href: '/admin/acces', label: 'Acces et sessions', permission: 'session:manage' },
   { href: '/admin/systeme', label: 'Etat du systeme', permission: 'database:manage' },
   { href: '/admin/reseau', label: 'Reseau et serveurs', permission: 'server:manage' },
+  { href: '/admin/paiement', label: 'Paiement en ligne', permission: 'server:manage' },
 ];

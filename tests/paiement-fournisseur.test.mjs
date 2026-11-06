@@ -18,8 +18,9 @@ import { test, describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   nomVariable,
-  operateurDisponible,
-  operateursDisponibles,
+  operateurConfigure,
+  operateurUtilisable,
+  operateursUtilisables,
   paiementEnLigneDisponible,
   pourquoiIndisponible,
   reglagesManquants,
@@ -46,7 +47,7 @@ afterEach(() => {
 
 describe('sans aucune cle', () => {
   test('aucun operateur n est disponible', () => {
-    assert.deepEqual(operateursDisponibles(), []);
+    assert.deepEqual(operateursUtilisables(), []);
     assert.equal(paiementEnLigneDisponible(), false);
   });
 
@@ -68,14 +69,14 @@ describe('avec une configuration partielle', () => {
     process.env.SMARTHEALTH_MOMO_ABONNEMENT = 'abc';
     const manquants = reglagesManquants('mtn-momo');
     assert.deepEqual(manquants, ['SMARTHEALTH_MOMO_CLE']);
-    assert.equal(operateurDisponible('mtn-momo'), false);
+    assert.equal(operateurConfigure('mtn-momo'), false);
   });
 
   test('une valeur vide compte comme absente', () => {
     for (const k of ['SMARTHEALTH_MOOV_BASE', 'SMARTHEALTH_MOOV_MARCHAND', 'SMARTHEALTH_MOOV_CLE']) {
       process.env[k] = '';
     }
-    assert.equal(operateurDisponible('moov-money'), false);
+    assert.equal(operateurConfigure('moov-money'), false);
   });
 
   test('aucune valeur de reglage n apparait dans le message', () => {
@@ -93,7 +94,11 @@ describe('cles posees mais adaptateur absent', () => {
     for (const k of ['SMARTHEALTH_PISPI_BASE', 'SMARTHEALTH_PISPI_MARCHAND', 'SMARTHEALTH_PISPI_CLE']) {
       process.env[k] = 'valeur';
     }
-    assert.equal(operateurDisponible('pi-spi'), true);
+    assert.equal(operateurConfigure('pi-spi'), true);
+    // Mais pas utilisable : aucun adaptateur. C'est la nuance qui avait
+    // fait annoncer « paiement ouvert » dans la console d'administration.
+    assert.equal(operateurUtilisable('pi-spi'), false);
+    assert.equal(paiementEnLigneDisponible(), false);
     const m = pourquoiIndisponible('pi-spi');
     assert.match(m, /adaptateur/i);
     assert.equal(/Reglages manquants/.test(m), false);

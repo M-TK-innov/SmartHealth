@@ -44,18 +44,32 @@ export function reglagesManquants(operateur: Operateur): string[] {
     .map(nomVariable);
 }
 
-export function operateurDisponible(operateur: Operateur): boolean {
+/**
+ * Les cles sont-elles posees ?
+ *
+ * CONFIGURE N'EST PAS UTILISABLE, et la nuance a deja trompe cet ecran :
+ * la console annoncait « au moins un operateur est ouvert » alors qu'un
+ * operateur avait ses cles mais aucun adaptateur. Un responsable aurait
+ * cru le paiement ouvert pour les patients. Les deux notions portent donc
+ * desormais deux noms.
+ */
+export function operateurConfigure(operateur: Operateur): boolean {
   return reglagesManquants(operateur).length === 0;
 }
 
-/** Operateurs effectivement utilisables sur cette installation. */
-export function operateursDisponibles(): Operateur[] {
-  return (Object.keys(OPERATEURS) as Operateur[]).filter(operateurDisponible);
+/** Cles posees ET adaptateur present : un patient peut reellement payer. */
+export function operateurUtilisable(operateur: Operateur): boolean {
+  return operateurConfigure(operateur) && fournisseur(operateur) !== null;
 }
 
-/** Le paiement en ligne est-il possible, tous operateurs confondus ? */
+/** Operateurs qu'un patient peut reellement choisir. */
+export function operateursUtilisables(): Operateur[] {
+  return (Object.keys(OPERATEURS) as Operateur[]).filter(operateurUtilisable);
+}
+
+/** Le paiement en ligne est-il reellement possible ? */
 export function paiementEnLigneDisponible(): boolean {
-  return operateursDisponibles().length > 0;
+  return operateursUtilisables().length > 0;
 }
 
 /**
