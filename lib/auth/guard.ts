@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation';
 import { NextResponse } from 'next/server';
 import { auth, type AuthContext } from './session';
 import type { Permission } from './roles';
+import { MODE_ESSAI, etatEssaiCourant } from '../essai-store.ts';
+import { messageEcheance, permissionAutorisee, type EtatEssai } from '../essai.ts';
 
 /**
  * Gardes d'acces.
@@ -14,6 +16,28 @@ import type { Permission } from './roles';
  * le composant client — il serait contournable.
  */
 
+// --------------------------------------------------------- periode d'essai
+
+/**
+ * Secondes garde, posee au MEME endroit que les droits.
+ *
+ * Une installation d'essai cesse d'accepter l'ecriture au bout de sept jours.
+ * Le controle vit ici et nulle part ailleurs : disperse dans les routes, il
+ * aurait manque la prochaine, et une route oubliee est une route ouverte.
+ *
+ * Elle ne remplace pas le controle de droits, elle s'y ajoute — un compte
+ * sans droit reste refuse pendant l'essai, et un compte avec tous les droits
+ * reste refuse apres.
+ *
+ * Renvoie l'etat quand l'action doit etre REFUSEE, `null` quand elle passe.
+ */
+function essaiBloque(permission: Permission): EtatEssai | null {
+  if (!MODE_ESSAI) return null;
+  const etat = etatEssaiCourant();
+  if (!etat || permissionAutorisee(etat.phase, permission)) return null;
+  return etat;
+}
+
 // ------------------------------------------------------------------- pages
 
 export async function requireAuth(returnTo?: string): Promise<AuthContext> {
@@ -25,13 +49,21 @@ export async function requireAuth(returnTo?: string): Promise<AuthContext> {
 export async function requirePermission(permission: Permission, returnTo?: string): Promise<AuthContext> {
   const ctx = await requireAuth(returnTo);
   if (!ctx.can(permission)) redirect(`/acces-refuse?droit=${encodeURIComponent(permission)}`);
+  if (essaiBloque(permission)) redirect(`/essai-termine?droit=${encodeURIComponent(permission)}`);
   return ctx;
 }
 
 export async function requireAnyPermission(permissions: Permission[], returnTo?: string): Promise<AuthContext> {
   const ctx = await requireAuth(returnTo);
-  if (!permissions.some((p) => ctx.can(p))) {
+  const detenues = permissions.filter((p) => ctx.can(p));
+  if (detenues.length === 0) {
     redirect(`/acces-refuse?droit=${encodeURIComponent(permissions.join(','))}`);
+  }
+  // La page s'ouvre si AU MOINS UNE des permissions detenues passe encore.
+  // Refuser des que l'une est bloquee fermerait une page de lecture au seul
+  // motif qu'elle sait aussi ecrire.
+  if (detenues.every((p) => essaiBloque(p))) {
+    redirect(`/essai-termine?droit=${encodeURIComponent(detenues.join(','))}`);
   }
   return ctx;
 }
@@ -58,6 +90,8 @@ export async function apiRequire(permission: Permission): Promise<AuthContext> {
   if (!ctx.can(permission)) {
     throw new ApiAuthError(`Droit insuffisant : ${permission} est requis pour cette action.`, 403);
   }
+  const essai = essaiBloque(permission);
+  if (essai) throw new ApiAuthError(messageEcheance(essai), 403);
   return ctx;
 }
 

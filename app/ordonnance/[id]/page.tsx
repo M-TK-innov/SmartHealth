@@ -127,7 +127,7 @@ export default async function PrescriptionPrintPage({ params }: { params: Promis
           <p>Reference : {rx.id}</p>
           <p>Validee le {rx.validated_at}</p>
           <p className="mt-1 max-w-xs">
-            Document genere par ParleDocteur. Preparation assistee par intelligence artificielle, relue et validee
+            Document genere par SmartHealth. Preparation assistee par intelligence artificielle, relue et validee
             par le prescripteur identifie ci-contre.
           </p>
         </div>

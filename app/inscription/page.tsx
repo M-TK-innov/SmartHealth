@@ -6,7 +6,7 @@ import { AuthShell } from '@/components/auth/AuthShell';
 import { RegisterForm } from '@/components/auth/RegisterForm';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Demande d acces — ParleDocteur' };
+export const metadata = { title: 'Demande d acces — SmartHealth' };
 
 export default async function RegisterPage() {
   if (await auth()) redirect('/');

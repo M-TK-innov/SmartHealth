@@ -55,7 +55,7 @@ function hl7Date(iso?: string | null): string {
 }
 
 function sendingApp(): string {
-  return `ParleDocteur^${esc(process.env.FACILITY_ID || 'PD')}^L`;
+  return `SmartHealth^${esc(process.env.FACILITY_ID || 'PD')}^L`;
 }
 
 function facility(): string {

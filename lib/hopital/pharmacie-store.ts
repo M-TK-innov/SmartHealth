@@ -16,6 +16,8 @@
 
 import { randomUUID } from 'node:crypto';
 import { all, audit, get, insert, run, tx } from '../db.ts';
+import { jourCivil } from '../temps.ts';
+import { fuseauDe } from '../localisation-store.ts';
 import {
   alerteStock,
   dispenser,
@@ -58,8 +60,15 @@ const versLot = (l: LigneLot): Lot => ({
   quantite: l.quantite,
 });
 
-/** Le jour, au format AAAA-MM-JJ, tel que les regles l'attendent. */
-export const jour = (d = new Date()) => d.toISOString().slice(0, 10);
+/**
+ * Le jour, au format AAAA-MM-JJ, tel que les regles l'attendent.
+ *
+ * Jour CIVIL de l'etablissement, et non jour UTC : une boite qui perime
+ * aujourd'hui doit cesser d'etre servable a minuit ici, pas a minuit a
+ * Greenwich.
+ */
+export const jour = (d = new Date(), organizationId: string | null = null) =>
+  jourCivil(d, fuseauDe(organizationId));
 
 // ------------------------------------------------------------------ lecture
 
@@ -81,7 +90,11 @@ export function lotsDeLArticle(articleId: string): Lot[] {
  * d'abord, puis stock bas. Un inventaire par ordre alphabetique oblige a
  * lire toute la liste pour trouver les trois lignes qui comptent.
  */
-export function rayon(organizationId: string | null, aujourdhui = jour()): AlerteStock[] {
+export function rayon(
+  organizationId: string | null,
+  aujourdhui = '',
+): AlerteStock[] {
+  const leJour = aujourdhui || jour(new Date(), organizationId);
   const articles = all<LigneArticle>(
     `SELECT * FROM article
       WHERE actif = 1 AND (? IS NULL OR organization_id = ? OR organization_id IS NULL)`,
@@ -91,7 +104,7 @@ export function rayon(organizationId: string | null, aujourdhui = jour()): Alert
   const rang = { perime: 0, rupture: 1, bas: 2, ok: 3 } as const;
 
   return articles
-    .map((a) => alerteStock(a, lotsDeLArticle(a.id), aujourdhui))
+    .map((a) => alerteStock(a, lotsDeLArticle(a.id), leJour))
     .sort((x, y) => rang[x.niveau] - rang[y.niveau] || x.dci.localeCompare(y.dci, 'fr'));
 }
 
@@ -190,8 +203,12 @@ export interface DemandeServir {
 export function servir(
   d: DemandeServir,
   ctx: Contexte,
-  aujourdhui = jour(),
+  aujourdhui = '',
 ): DecisionPharmacie<Dispensation & { dispensationId: string }> {
+  // La peremption se juge au jour de l'etablissement : une boite qui
+  // perime aujourd'hui cesse d'etre servable a minuit ICI, pas a minuit
+  // a Greenwich.
+  const leJour = aujourdhui || jour(new Date(), ctx.organizationId);
   const article = articleParId(d.articleId);
   if (!article) {
     return {
@@ -208,7 +225,7 @@ export function servir(
     quantite: d.quantite,
     lots: lotsDeLArticle(d.articleId),
     allergies: allergiesDuPatient(d.patientId),
-    aujourdhui,
+    aujourdhui: leJour,
     accepterPartiel: d.accepterPartiel,
   });
   if (!decision.ok) return decision;
@@ -283,8 +300,9 @@ export function servir(
  * tant que les boites restent en rayon, quelqu'un finira par les servir a la
  * main un soir de garde.
  */
-export function detruirePerimes(articleId: string, ctx: Contexte, aujourdhui = jour()): number {
-  const perimes = lotsDeLArticle(articleId).filter((l) => l.quantite > 0 && l.perimeLe <= aujourdhui);
+export function detruirePerimes(articleId: string, ctx: Contexte, aujourdhui = ''): number {
+  const leJour = aujourdhui || jour(new Date(), ctx.organizationId);
+  const perimes = lotsDeLArticle(articleId).filter((l) => l.quantite > 0 && l.perimeLe <= leJour);
   if (perimes.length === 0) return 0;
 
   return tx(() => {

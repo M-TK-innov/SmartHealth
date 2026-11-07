@@ -11,7 +11,7 @@
 
 const { contextBridge } = require('electron');
 
-contextBridge.exposeInMainWorld('parledocteur', {
+contextBridge.exposeInMainWorld('smarthealth', {
   platform: 'desktop',
   os: process.platform,
   versions: {

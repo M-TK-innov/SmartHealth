@@ -87,7 +87,7 @@ export async function POST(req: Request) {
     // la structure de soins porte les medecins et les dossiers.
     const platformId = createOrganization({
       type: 'platform',
-      name: 'ParleDocteur',
+      name: 'SmartHealth',
       code: 'PD-PLATFORM',
       status: 'active',
     });

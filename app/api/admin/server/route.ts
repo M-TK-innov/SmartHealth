@@ -80,14 +80,14 @@ export function GET() {
 
     return NextResponse.json({
       application: {
-        name: 'ParleDocteur',
+        name: 'SmartHealth',
         version: process.env.npm_package_version ?? '0.2.0',
         environment: process.env.NODE_ENV ?? 'development',
         facility: process.env.FACILITY_NAME ?? null,
         facilityId: process.env.FACILITY_ID ?? null,
         fhirBaseUrl: process.env.FHIR_BASE_URL ?? null,
         // le serveur embarque de l'application desktop fixe cette variable
-        desktop: Boolean(process.env.PARLEDOCTEUR_DB),
+        desktop: Boolean(process.env.SMARTHEALTH_DB),
       },
       runtime: {
         node: process.version,

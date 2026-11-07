@@ -31,7 +31,7 @@ const baseConfig = {
   app_https: 0,
   allowed_origins: '',
   fhir_access: 'session',
-  db_path: 'C:/Users/medecin/AppData/ParleDocteur/parledocteur.db',
+  db_path: 'C:/Users/medecin/AppData/SmartHealth/smarthealth.db',
   db_backup_dir: 'D:/sauvegardes',
   db_encrypted: 1,
   data_residency_country: 'BJ',
@@ -164,7 +164,7 @@ describe('adresse de l application', () => {
 
 describe('base de donnees', () => {
   test('une base sur un partage reseau est refusee sans recours', () => {
-    const ev = run({ db_path: '\\\\nas\\sante\\parledocteur.db' });
+    const ev = run({ db_path: '\\\\nas\\sante\\smarthealth.db' });
     assert.equal(levelOf(ev, 'BASE_SUR_PARTAGE_RESEAU'), 'blocking');
     assert.equal(ev.acceptable, false);
   });

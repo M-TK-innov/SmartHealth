@@ -1,5 +1,5 @@
 """
-Service de transcription Griot pour ParleDocteur.
+Service de transcription Griot pour SmartHealth.
 
 Griot n'est pas un Whisper ordinaire : le depot porte un modele de base et un
 ADAPTATEUR PAR LANGUE. La langue se choisit au chargement du modele
@@ -110,7 +110,7 @@ TRADUCTION_GENERATION = {
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(levelname)-7s %(message)s")
 log = logging.getLogger("griot")
 
-app = FastAPI(title="Griot ASR — ParleDocteur", docs_url=None, redoc_url=None)
+app = FastAPI(title="Griot ASR — SmartHealth", docs_url=None, redoc_url=None)
 
 _verrou = threading.Lock()
 _feature_extractor = None

@@ -10,7 +10,7 @@ place : rien à configurer, pas de Node.js à installer sur la machine cible, pa
 
 - démarre son propre serveur sur un port libre, **en local uniquement** (`127.0.0.1`) — rien n'est
   exposé au réseau ;
-- range la base dans `%APPDATA%\ParleDocteur\donnees`, donc **préservée lors des mises à jour** et
+- range la base dans `%APPDATA%\SmartHealth\donnees`, donc **préservée lors des mises à jour** et
   séparée du dossier d'installation ;
 - refuse de s'ouvrir deux fois : deux serveurs sur la même base se marcheraient dessus ;
 - ouvre les liens externes dans le navigateur du système, jamais dans la fenêtre du dossier.
@@ -49,7 +49,7 @@ npm run desktop:build
 Compter **5 à 15 minutes**. Le résultat :
 
 ```
-dist-desktop/ParleDocteur-0.2.0-installateur.exe
+dist-desktop/SmartHealth-0.2.0-installateur.exe
 ```
 
 Environ **434 Mo** — le runtime Chromium et Node y sont inclus, c'est ce qui permet de ne rien
@@ -109,7 +109,7 @@ Son absence n'empêche rien : les trois autres moteurs de transcription restent 
 
 ## Installer sur un poste
 
-1. Copiez `ParleDocteur-0.2.0-installateur.exe` sur le poste (clé USB, partage réseau).
+1. Copiez `SmartHealth-0.2.0-installateur.exe` sur le poste (clé USB, partage réseau).
 2. Double-cliquez. Windows SmartScreen affichera un avertissement : l'installateur **n'est pas
    signé numériquement**. Cliquez **Informations complémentaires** puis **Exécuter quand même**.
 3. Choisissez le dossier d'installation. L'installation est **par utilisateur**, pas besoin de
@@ -158,7 +158,7 @@ Vous êtes déjà connecté en sortant de cet écran.
 Si vous préférez préparer les postes vous-même, la commande reste disponible :
 
 ```bash
-set PARLEDOCTEUR_DB=%APPDATA%\ParleDocteur\donnees\parledocteur.db
+set SMARTHEALTH_DB=%APPDATA%\SmartHealth\donnees\smarthealth.db
 ```
 
 ```bash

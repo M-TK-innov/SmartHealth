@@ -6,7 +6,7 @@
  * sources, et un chemin relatif casserait l ouverture de la base.
  */
 
-export const SCHEMA_SQL = `-- ParleDocteur - Schema du dossier medical electronique
+export const SCHEMA_SQL = `-- SmartHealth - Schema du dossier medical electronique
 -- Aligne sur les ressources FHIR R4 : Patient, Practitioner, Encounter, Condition,
 -- Observation, AllergyIntolerance, MedicationRequest, ServiceRequest, Composition.
 
@@ -56,7 +56,12 @@ CREATE TABLE IF NOT EXISTS patient (
   photo_data_url       TEXT,
   organization_id      TEXT,          -- cloisonnement : etablissement proprietaire du dossier
   created_at           TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at           TEXT NOT NULL DEFAULT (datetime('now'))
+  updated_at           TEXT NOT NULL DEFAULT (datetime('now')),
+  -- Dernier jour civil ou le dossier a compte un allegement. Le marqueur
+  -- vit ICI parce que la table patient porte deja le lien avec la
+  -- personne ; le compteur, lui, ne doit jamais l'acquerir. Sans ce
+  -- marqueur, chaque ouverture du dossier compterait a nouveau.
+  allegement_jour  TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_patient_name ON patient(family_name, given_name);
 CREATE INDEX IF NOT EXISTS idx_patient_mrn  ON patient(mrn);
@@ -117,6 +122,11 @@ CREATE TABLE IF NOT EXISTS consultation (
   started_at        TEXT NOT NULL DEFAULT (datetime('now')),
   ended_at          TEXT,
   signed_at         TEXT,
+  -- Seule fois ou cette consultation a compte un allegement. Le marqueur
+  -- vit ICI et non dans le compteur : la consultation porte deja le lien
+  -- avec le patient, et c'est ce lien que le compteur ne doit jamais
+  -- acquerir. Sans lui, chaque ouverture de la page compterait a nouveau.
+  allegement_le     TEXT,
   language          TEXT DEFAULT 'fr',
   consent_recording INTEGER NOT NULL DEFAULT 0,
   consent_at        TEXT,
@@ -733,6 +743,11 @@ CREATE TABLE IF NOT EXISTS organization (
   phone       TEXT,
   email       TEXT,
   status      TEXT NOT NULL DEFAULT 'pending',   -- pending | active | suspended | rejected
+  -- Fuseau de l etablissement, detecte au premier demarrage depuis la
+  -- machine qui sert l application. Il fixe la journee civile : files
+  -- d attente, programme operatoire, peremptions. Un etablissement a UNE
+  -- journee, et c est celle-ci. Vide tant que rien n a ete detecte.
+  fuseau      TEXT,
   created_at  TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -896,4 +911,137 @@ CREATE TABLE IF NOT EXISTS compliance_derogation (
   granted_at       TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE (code, target)
 );
+-- Periode d'essai. UNE seule ligne, d'ou la contrainte sur la cle : deux
+-- lignes voudraient dire deux dates de debut, et l'essai durerait ce que
+-- l'on veut.
+--
+-- La colonne jour_vu retient le jour le plus avance jamais observe. Reculer
+-- l'horloge de la machine ne rend donc pas des jours. La colonne sauvegarde_faite
+-- porte le jour ou la sauvegarde d'echeance a ete posee : elle ne doit
+-- etre faite qu'une fois, et on doit pouvoir dire qu'elle l'a ete.
+CREATE TABLE IF NOT EXISTS essai (
+  id               INTEGER PRIMARY KEY CHECK (id = 1),
+  jour_debut       TEXT NOT NULL,
+  jour_vu          TEXT NOT NULL,
+  sauvegarde_faite TEXT,
+  sauvegarde_chemin TEXT
+);
+
+-- ====================================================================
+-- ESPACE PATIENT
+--
+-- Identite SEPAREE de celle des soignants, et ce n'est pas une precaution
+-- de style : un patient ne doit jamais pouvoir emprunter un chemin prevu
+-- pour un agent. Tables distinctes, session distincte, cookie distinct.
+-- ====================================================================
+
+-- Le compte est une PERSONNE, pas un dossier.
+--
+-- Un patient suivi dans deux centres a deux lignes dans la table patient et un seul
+-- telephone. Coller le numero au dossier rendrait le second enrolement
+-- impossible, ou obligerait a dupliquer le compte. La personne vit donc ici,
+-- et ses dossiers sont rattaches a cote.
+--
+-- Le telephone est stocke sous sa forme canonique, produite par
+-- lib/patient/identite.ts. Toute autre ecriture ne retrouverait pas le
+-- compte : la normalisation n'existe qu'a un seul endroit, a dessein.
+CREATE TABLE IF NOT EXISTS patient_account (
+  id              TEXT PRIMARY KEY,
+  telephone       TEXT UNIQUE,
+  npi             TEXT UNIQUE,
+  -- Code a six chiffres, hache comme un mot de passe. Ce qui tient le
+  -- risque n'est pas sa longueur mais le verrouillage apres quelques essais.
+  pin_hash        TEXT,
+  pin_salt        TEXT,
+  pin_algo        TEXT,
+  pin_changed_at  TEXT,
+  -- a-activer | actif | suspendu
+  statut          TEXT NOT NULL DEFAULT 'a-activer',
+  failed_attempts INTEGER NOT NULL DEFAULT 0,
+  locked_until    TEXT,
+  last_login_at   TEXT,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  CHECK (telephone IS NOT NULL OR npi IS NOT NULL)
+);
+
+-- Rattachement d'un dossier a une personne.
+--
+-- Pose par un agent qui a le patient devant lui : c'est le seul moment ou
+-- l'identite est verifiee par un humain. La colonne garde qui l'a fait, car
+-- un rattachement errone donne acces au dossier de quelqu'un d'autre.
+CREATE TABLE IF NOT EXISTS patient_dossier (
+  account_id      TEXT NOT NULL REFERENCES patient_account(id) ON DELETE CASCADE,
+  patient_id      TEXT NOT NULL REFERENCES patient(id) ON DELETE CASCADE,
+  organization_id TEXT,
+  rattache_le     TEXT NOT NULL DEFAULT (datetime('now')),
+  rattache_par    TEXT,
+  PRIMARY KEY (account_id, patient_id)
+);
+CREATE INDEX IF NOT EXISTS idx_pdossier_patient ON patient_dossier(patient_id);
+
+-- Code a usage unique remis au guichet.
+--
+-- Seul le hachage est conserve : un code lisible en base serait un acces au
+-- dossier pour qui lit la base. Il expire, et il ne sert qu'une fois — un
+-- code lu par-dessus l'epaule ne doit pas valoir une seconde fois.
+CREATE TABLE IF NOT EXISTS patient_enrolement (
+  id          TEXT PRIMARY KEY,
+  account_id  TEXT NOT NULL REFERENCES patient_account(id) ON DELETE CASCADE,
+  code_hash   TEXT NOT NULL,
+  expire_le   TEXT NOT NULL,
+  consomme_le TEXT,
+  cree_par    TEXT,
+  cree_le     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_penrol_compte ON patient_enrolement(account_id, consomme_le);
+
+-- Session patient. Distincte de user_session, et revocable.
+CREATE TABLE IF NOT EXISTS patient_session (
+  id             TEXT PRIMARY KEY,
+  account_id     TEXT NOT NULL REFERENCES patient_account(id) ON DELETE CASCADE,
+  token_hash     TEXT NOT NULL UNIQUE,
+  created_at     TEXT NOT NULL DEFAULT (datetime('now')),
+  expires_at     TEXT NOT NULL,
+  last_seen_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  revoked_at     TEXT,
+  revoked_reason TEXT,
+  ip             TEXT,
+  user_agent     TEXT,
+  -- Horodatage de la seule fois ou cette session a compte un allegement.
+  -- Le marqueur vit ICI, et non dans le compteur : la table des sessions
+  -- porte deja le lien avec la personne, et c'est precisement ce lien que
+  -- le compteur ne doit jamais acquerir. Sans ce marqueur, un simple
+  -- rechargement de page compterait un deplacement epargne de plus.
+  allegement_le  TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_psession_compte ON patient_session(account_id);
+
+-- Compteur d'allegement administratif.
+--
+-- CE QUE CETTE TABLE NE CONTIENT PAS, ET POURQUOI : ni patient, ni
+-- consultation, ni soignant. Une structure, un jour, un type, une quantite.
+-- Un compteur que l'on peut remonter jusqu'a une personne est un second
+-- dossier medical, avec une garde plus faible que le premier -- et il
+-- finirait par etre interroge comme tel.
+--
+-- Le jour est le JOUR CIVIL de l'etablissement, pas une date UTC : un
+-- rapport mensuel qui bascule a Greenwich compte mal ses debuts et ses fins
+-- de mois.
+CREATE TABLE IF NOT EXISTS allegement_evenement (
+  id              TEXT PRIMARY KEY,
+  organization_id TEXT,
+  jour            TEXT NOT NULL,
+  type            TEXT NOT NULL,
+  quantite        INTEGER NOT NULL,
+  -- Ce que l'evenement compte UNE FOIS, par exemple « rapport:202610 ».
+  -- Sert uniquement a empecher le double comptage : une ressaisie ne
+  -- s'evite qu'une fois par rapport, et un double clic la comptait deux
+  -- fois. Cette colonne ne doit JAMAIS porter d'identifiant de personne :
+  -- ce serait reintroduire par la petite porte le lien que toute cette
+  -- table est faite pour ne pas avoir.
+  reference       TEXT,
+  cree_le         TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_allegement_periode ON allegement_evenement(organization_id, jour);
 `;

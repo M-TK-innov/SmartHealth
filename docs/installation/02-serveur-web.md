@@ -39,10 +39,20 @@ Variables utiles :
 |---|---|
 | `FACILITY_NAME`, `FACILITY_ID`, `FACILITY_COUNTRY` | identité de la structure |
 | `ANTHROPIC_API_KEY` | extraction par modèle de langage — sans elle, moteur local hors ligne |
-| `PARLEDOCTEUR_DB` | emplacement de la base (défaut `./data/parledocteur.db`) |
+| `SMARTHEALTH_DB` | emplacement de la base (défaut `./data/smarthealth.db`) |
 | `FHIR_BASE_URL` | URL déclarée dans les exports FHIR (repli) |
 | `FHIR_API_TOKEN` | jeton attendu sur l'API FHIR en mode « jeton de service » |
 | `WHISPER_ENDPOINT` | serveur Whisper de l'établissement (repli, facultatif) |
+
+> **Vous mettez à jour depuis une installation plus ancienne ?** La base
+> s'appelait alors `parledocteur.db`, et la variable `PARLEDOCTEUR_DB`. Les deux
+> sont toujours reconnues : sans réglage, l'application cherche d'abord le
+> fichier au nom courant, puis celui-là, et ouvre celui qu'elle trouve en le
+> nommant au démarrage. **Ne renommez pas le fichier pour faire propre** — si
+> vous y tenez, arrêtez l'application et sauvegardez-le avant. Ouvrir le nouveau
+> nom alors que l'ancien existe laisserait vos dossiers sur le disque et en
+> créerait une base vide à côté : l'application démarrerait sans erreur et sans
+> aucun patient.
 
 Les **adresses** se règlent dans **Administration → Réseau et serveurs**
 ([guide 07](07-reseau-et-serveurs.md)), où elles sont confrontées aux restrictions sanitaires avant
@@ -123,7 +133,7 @@ Au premier lancement, Windows demande si Node peut accéder au réseau : répond
 Si la fenêtre n'est pas apparue, en PowerShell **administrateur** :
 
 ```powershell
-New-NetFirewallRule -DisplayName "ParleDocteur" -Direction Inbound -LocalPort 3000 -Protocol TCP -Action Allow -Profile Private
+New-NetFirewallRule -DisplayName "SmartHealth" -Direction Inbound -LocalPort 3000 -Protocol TCP -Action Allow -Profile Private
 ```
 
 ## 5. Démarrage automatique

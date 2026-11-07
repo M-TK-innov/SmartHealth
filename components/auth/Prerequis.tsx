@@ -94,7 +94,7 @@ export function Prerequis({ onEtat }: { onEtat?: (utilisable: boolean) => void }
       >
         <span>
           <strong className="text-sm">
-            {bilan.utilisable ? 'Ce poste peut faire tourner ParleDocteur' : 'Ce poste ne peut pas encore faire tourner ParleDocteur'}
+            {bilan.utilisable ? 'Ce poste peut faire tourner SmartHealth' : 'Ce poste ne peut pas encore faire tourner SmartHealth'}
           </strong>
           <span className="mt-0.5 block text-xs text-ink-soft">
             {PLATEFORMES[releve.plateforme] ?? releve.plateforme} · {Math.round(releve.memoireMo / 1024)} Go de memoire

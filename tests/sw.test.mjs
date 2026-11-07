@@ -219,12 +219,12 @@ describe('service worker — politique de cache', () => {
 
   test('les anciens caches sont purges a l activation', async () => {
     const { handlers: h, cacheStore } = loadServiceWorker();
-    cacheStore.set('parledocteur-static-v0', new Map([['/vieux', {}]]));
+    cacheStore.set('smarthealth-static-v0', new Map([['/vieux', {}]]));
 
     let waited;
     await h.activate({ waitUntil: (p) => (waited = p) });
     await waited;
 
-    assert.equal(cacheStore.has('parledocteur-static-v0'), false, 'le cache de version precedente doit disparaitre');
+    assert.equal(cacheStore.has('smarthealth-static-v0'), false, 'le cache de version precedente doit disparaitre');
   });
 });

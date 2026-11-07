@@ -7,8 +7,14 @@
  * de rendu graphique : l'icone est une forme geometrique simple, et le projet
  * doit rester installable sur un poste hors-ligne.
  *
- * La marque reprend le symbole du bandeau : un disque cerne d'un anneau, en
- * blanc sur le vert de l'application.
+ * La marque reprend celle de l'ecran (`components/Logo.tsx`) : une croix de
+ * sante blanche sur le vert de l'application, dans un carre arrondi dont le
+ * coin bas-gauche reste droit — la pointe d'une bulle de parole — et au
+ * centre le microphone du Recorder, en rouge.
+ *
+ * Les proportions sont celles du trace SVG, rapportees au cote : rayon 7/32,
+ * epaisseur de croix 7/32, longueur 19/32. Toute modification doit etre portee
+ * dans les deux fichiers, sans quoi l'icone cesse de ressembler a l'ecran.
  */
 
 import { deflateSync } from 'node:zlib';
@@ -17,6 +23,7 @@ import path from 'node:path';
 
 const BRAND = [15, 111, 92]; // #0f6f5c
 const WHITE = [255, 255, 255];
+const ROUGE = [180, 35, 24]; // #b42318, --color-danger
 
 // ------------------------------------------------------------- encodage PNG
 
@@ -103,6 +110,8 @@ function drawIcon(size, { inset = 0, rounded = true } = {}) {
   const radius = size * 0.22; // rayon des coins arrondis
   const inRoundedSquare = (x, y) => {
     if (!rounded) return true;
+    // Le coin bas-gauche reste droit : c'est la pointe de la bulle.
+    if (x <= radius && y >= size - radius) return true;
     const dx = Math.max(radius - x, 0, x - (size - radius));
     const dy = Math.max(radius - y, 0, y - (size - radius));
     return dx * dx + dy * dy <= radius * radius;
@@ -116,23 +125,76 @@ function drawIcon(size, { inset = 0, rounded = true } = {}) {
     }
   }
 
-  // marque : disque central + anneau, dans la zone de securite
+  // ------------------------------------------------- la marque, en 32 unites
+  //
+  // Les formes sont posees dans l'espace du trace SVG (32 unites de cote),
+  // puis rapportees au cote reel. Garder les memes nombres des deux cotes est
+  // ce qui fait que l'icone du bureau ressemble a celle de l'ecran.
   const usable = (size / 2) * (1 - inset);
-  const rDisc = usable * 0.34;
-  const rRingOuter = usable * 0.74;
-  const rRingInner = usable * 0.56;
+  const k = usable / 16;
+  const D = (v) => c + (v - 16) * k; // coordonnee de trace -> pixel
+  const L = (v) => v * k; // longueur de trace -> pixels
 
-  const dist2 = (x, y) => (x - c) * (x - c) + (y - c) * (y - c);
-  const inDisc = (x, y) => dist2(x, y) <= rDisc * rDisc;
-  const inRing = (x, y) => {
-    const d = dist2(x, y);
-    return d <= rRingOuter * rRingOuter && d >= rRingInner * rRingInner;
+  // --- croix de sante
+  const demiEpaisseur = L(4.5);
+  const demiLongueur = L(9.5);
+  const inCross = (x, y) => {
+    const dx = Math.abs(x - c);
+    const dy = Math.abs(y - c);
+    return (dx <= demiEpaisseur && dy <= demiLongueur) || (dy <= demiEpaisseur && dx <= demiLongueur);
   };
 
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      const a = Math.max(coverage(x, y, inDisc), coverage(x, y, inRing));
+      const a = coverage(x, y, inCross);
       if (a > 0) blend(px, (y * size + x) * 4, WHITE, a);
+    }
+  }
+
+  // --- microphone, pose par-dessus la barre verticale (blanche)
+  //
+  // Un trait a bouts ronds est exactement « tout point a moins de r du
+  // segment » : une seule fonction suffit pour le pied, la base et les
+  // extremites de l'arc.
+  const trait = L(0.8) / 2; // demi-epaisseur, stroke-width 1.6 a l'echelle 0.5
+
+  const distSegment = (x, y, ax, ay, bx, by) => {
+    const vx = bx - ax;
+    const vy = by - ay;
+    const wx = x - ax;
+    const wy = y - ay;
+    const carre = vx * vx + vy * vy;
+    const t = carre === 0 ? 0 : Math.max(0, Math.min(1, (wx * vx + wy * vy) / carre));
+    const px2 = ax + t * vx - x;
+    const py2 = ay + t * vy - y;
+    return Math.sqrt(px2 * px2 + py2 * py2);
+  };
+
+  // capsule du micro : un segment epais, ce qu'est un rect rx=moitie-largeur
+  const capsule = (x, y) => distSegment(x, y, D(16), D(12.5), D(16), D(15.5)) <= L(1.5);
+
+  // arceau : demi-cercle bas, plus ses deux bouts ronds
+  const arcCx = D(16);
+  const arcCy = D(15.5);
+  const arcR = L(3.5);
+  const arceau = (x, y) => {
+    const d = Math.hypot(x - arcCx, y - arcCy);
+    if (Math.abs(d - arcR) <= trait && y >= arcCy) return true;
+    return (
+      distSegment(x, y, D(12.5), D(15.5), D(12.5), D(15.5)) <= trait ||
+      distSegment(x, y, D(19.5), D(15.5), D(19.5), D(15.5)) <= trait
+    );
+  };
+
+  const pied = (x, y) => distSegment(x, y, D(16), D(19), D(16), D(21)) <= trait;
+  const base = (x, y) => distSegment(x, y, D(14.25), D(21), D(17.75), D(21)) <= trait;
+
+  const inMicro = (x, y) => capsule(x, y) || arceau(x, y) || pied(x, y) || base(x, y);
+
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const a = coverage(x, y, inMicro);
+      if (a > 0) blend(px, (y * size + x) * 4, ROUGE, a);
     }
   }
 

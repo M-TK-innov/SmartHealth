@@ -87,7 +87,7 @@ export default async function Dashboard() {
       <section className="rounded-2xl bg-brand p-8 text-white">
         <h1 className="text-2xl font-bold">Le medecin parle. Le dossier s ecrit.</h1>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-white/85">
-          ParleDocteur ecoute la consultation, en extrait les donnees cliniques codees (CIM-10, LOINC, SNOMED CT, ATC),
+          SmartHealth ecoute la consultation, en extrait les donnees cliniques codees (CIM-10, LOINC, SNOMED CT, ATC),
           redige le compte rendu SOAP, enrichit le dossier medical et prepare une ordonnance numerique que vous
           validez. Tout ressort en FHIR R4, HL7 v2 et DHIS2 : exploitable par n importe quel systeme de sante,
           national ou international.

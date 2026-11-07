@@ -196,7 +196,7 @@ export function buildReport(opts: {
   L.push('---');
   L.push('');
   L.push(
-    `_Compte rendu pre-redige par ParleDocteur (moteur : ${consultation.analysis_engine ?? 'inconnu'}) a partir de la transcription de la consultation. ${
+    `_Compte rendu pre-redige par SmartHealth (moteur : ${consultation.analysis_engine ?? 'inconnu'}) a partir de la transcription de la consultation. ${
       consultation.signed_at
         ? `Relu et signe le ${formatDate(consultation.signed_at)}.`
         : '**Brouillon non signe** : sans valeur medico-legale tant que le praticien ne l a pas valide.'

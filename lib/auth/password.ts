@@ -56,7 +56,7 @@ const FORBIDDEN = [
   'azerty',
   'qwerty',
   '123456',
-  'parledocteur',
+  'smarthealth',
   'medecin',
   'docteur',
   'admin',

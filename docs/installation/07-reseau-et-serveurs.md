@@ -89,7 +89,7 @@ serveur — le CORS ne concerne que les navigateurs.
 ## 2. Adresse de la base de données
 
 La base est un fichier SQLite embarqué : pas de serveur de base à joindre, pas de mot de passe
-réseau. Son emplacement effectif est fixé au démarrage par `PARLEDOCTEUR_DB` ; le champ de la console
+réseau. Son emplacement effectif est fixé au démarrage par `SMARTHEALTH_DB` ; le champ de la console
 enregistre l'emplacement de référence de la structure et sert aux contrôles.
 
 **Un chemin `\\serveur\partage` est refusé.** SQLite verrouille ses fichiers par des primitives que
@@ -166,7 +166,7 @@ Trois cas méritent d'être connus :
 
 ### Le mode mTLS demande un composant devant
 
-ParleDocteur **n'embarque pas de certificat client**. Déclarer « certificat client (mTLS) » sans plus
+SmartHealth **n'embarque pas de certificat client**. Déclarer « certificat client (mTLS) » sans plus
 produirait des requêtes sans identité — un flux cru authentifié qui ne l'est pas. La console le
 signale.
 

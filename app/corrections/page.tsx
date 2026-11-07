@@ -2,7 +2,7 @@ import { requirePermission } from '@/lib/auth/guard';
 import { ApprentissagePanel } from '@/components/admin/ApprentissagePanel';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Corrections apprises — ParleDocteur' };
+export const metadata = { title: 'Corrections apprises — SmartHealth' };
 
 export default async function CorrectionsPage() {
   // Cette page n'est PAS dans la console d'administration, et c'est voulu : un

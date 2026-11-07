@@ -33,6 +33,19 @@ export const COLONNES_AJOUTEES: [table: string, colonne: string, definition: str
   // Nullable : une consultation externe n'appartient a aucun sejour, et
   // c'est une situation normale, pas une donnee manquante.
   ['consultation', 'sejour_id', 'TEXT'],
+  // Fuseau de l'etablissement, detecte au premier demarrage depuis la
+  // machine qui sert l'application — un serveur de dispensaire tourne
+  // dans le dispensaire. Nullable : tant qu'il est vide, la detection
+  // repasse, et un responsable peut le corriger depuis la console.
+  ['organization', 'fuseau', 'TEXT'],
+  // Empeche de compter deux fois le meme allegement. Ajoutee apres coup :
+  // la verification en conditions reelles a montre qu'un second appel
+  // enregistrait un second evenement pour le meme rapport mensuel.
+  ['allegement_evenement', 'reference', 'TEXT'],
+  // Marque la seule fois ou une session patient a compte un allegement.
+  ['patient_session', 'allegement_le', 'TEXT'],
+  ['consultation', 'allegement_le', 'TEXT'],
+  ['patient', 'allegement_jour', 'TEXT'],
 ];
 
 /**
@@ -43,6 +56,10 @@ export const COLONNES_AJOUTEES: [table: string, colonne: string, definition: str
  */
 export const INDEX_APRES_MIGRATION: string[] = [
   'CREATE INDEX IF NOT EXISTS idx_consult_sejour ON consultation(sejour_id)',
+  // UNIQUE : c'est la base qui garantit l'unicite, pas la bonne volonte de
+  // l'appelant. Un index partiel, pour que les evenements sans reference
+  // — ceux qui peuvent legitimement se repeter — ne s'excluent pas entre eux.
+  'CREATE UNIQUE INDEX IF NOT EXISTS idx_allegement_unique ON allegement_evenement(organization_id, type, reference) WHERE reference IS NOT NULL',
 ];
 
 /** Le strict minimum attendu d'une base, pour que ce module reste testable. */

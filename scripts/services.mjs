@@ -1,7 +1,7 @@
 /**
  * Lancement des services auxiliaires en meme temps que l'application.
  *
- * ParleDocteur sait travailler seul : la base, le serveur web et trois des
+ * SmartHealth sait travailler seul : la base, le serveur web et trois des
  * quatre moteurs de transcription sont dans l'application. Un quatrieme moteur
  * — Griot, pour une consultation tenue en fon — demande PyTorch, donc un
  * processus Python a part.
@@ -12,7 +12,7 @@
  *
  * REGLE QUI COMMANDE TOUT LE RESTE : un service auxiliaire qui manque, qui
  * refuse de demarrer ou qui n'a pas ses dependances ne doit JAMAIS empecher
- * ParleDocteur de s'ouvrir. Un dispensaire isole sans Python garde les trois
+ * SmartHealth de s'ouvrir. Un dispensaire isole sans Python garde les trois
  * autres moteurs et son dossier medical. Chaque echec est donc rapporte en
  * clair, puis ignore.
  */
@@ -78,7 +78,7 @@ export function trouverPython(dossier) {
     : path.join(dossier, '.venv', 'bin', 'python');
   if (fs.existsSync(venv)) candidats.push({ commande: venv, args: [] });
 
-  const impose = process.env.PARLEDOCTEUR_PYTHON?.trim();
+  const impose = process.env.SMARTHEALTH_PYTHON?.trim();
   if (impose) candidats.push({ commande: impose, args: [] });
 
   if (WIN) candidats.push({ commande: 'py', args: ['-3'] });

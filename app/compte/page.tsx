@@ -4,7 +4,7 @@ import { PasswordForm } from '@/components/auth/PasswordForm';
 import { formatDate } from '@/lib/report';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Mon compte — ParleDocteur' };
+export const metadata = { title: 'Mon compte — SmartHealth' };
 
 export default async function AccountPage({ searchParams }: { searchParams: Promise<{ motdepasse?: string }> }) {
   const { motdepasse } = await searchParams;

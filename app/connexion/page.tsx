@@ -7,7 +7,7 @@ import { LoginForm } from '@/components/auth/LoginForm';
 import { AuthShell } from '@/components/auth/AuthShell';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Connexion — ParleDocteur' };
+export const metadata = { title: 'Connexion — SmartHealth' };
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ suite?: string }> }) {
   const { suite } = await searchParams;
@@ -21,7 +21,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <AuthShell
       title="Connexion"
-      subtitle="Accedez a votre espace ParleDocteur."
+      subtitle="Accedez a votre espace SmartHealth."
       aside={
         <>
           <p className="text-sm leading-relaxed text-white/85">

@@ -17,9 +17,17 @@
  * ailleurs qu'a Cotonou.
  */
 
-import { test, describe } from 'node:test';
+import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { minutesEntre, versIso, versIsoRequis } from '../lib/temps.ts';
+import {
+  dansLeJour,
+  jourCivil,
+  jourPrecedent,
+  jourSuivant,
+  minutesEntre,
+  versIso,
+  versIsoRequis,
+} from '../lib/temps.ts';
 
 describe('conversion des formes', () => {
   test('la forme SQLite recoit son marqueur UTC', () => {
@@ -60,28 +68,41 @@ describe('les deux formes designent le meme instant', () => {
   test('quel que soit le fuseau du poste', () => {
     // LE cas. Sans normalisation, l ecart vaut exactement le decalage du
     // poste : une heure a Cotonou, huit a Singapour, moins cinq a New York.
-    for (const fuseau of ['Africa/Porto-Novo', 'UTC', 'America/New_York', 'Asia/Singapore']) {
-      process.env.TZ = fuseau;
-      const sqlite = new Date(versIso('2026-10-26 04:26:27')).getTime();
-      const iso = new Date('2026-10-26T04:26:27Z').getTime();
-      assert.equal(sqlite, iso, `desaccord sous ${fuseau}`);
+    //
+    // Le fuseau est RESTAURE a la fin. Une premiere version le laissait a
+    // UTC, et tous les cas suivants de ce fichier tournaient alors sous un
+    // fuseau ou plusieurs defauts de fuseau sont invisibles — ils
+    // passaient sans rien verifier.
+    const avant = process.env.TZ;
+    try {
+      for (const fuseau of ['Africa/Porto-Novo', 'UTC', 'America/New_York', 'Asia/Singapore']) {
+        process.env.TZ = fuseau;
+        const sqlite = new Date(versIso('2026-10-26 04:26:27')).getTime();
+        const iso = new Date('2026-10-26T04:26:27Z').getTime();
+        assert.equal(sqlite, iso, `desaccord sous ${fuseau}`);
+      }
+    } finally {
+      process.env.TZ = avant;
     }
-    process.env.TZ = 'UTC';
   });
 
   test('sans normalisation, l ecart est bien celui du fuseau', () => {
     // On verifie que le defaut EXISTE : sinon ce fichier protegerait
     // quelque chose qui n a jamais ete casse, et personne ne saurait
     // pourquoi la normalisation est la.
+    const avant = process.env.TZ;
     process.env.TZ = 'Africa/Porto-Novo';
-    const brut = new Date('2026-10-26 04:26:27').getTime();
-    const correct = new Date('2026-10-26T04:26:27Z').getTime();
-    assert.equal(
-      (correct - brut) / 60_000,
-      60,
-      'a Cotonou, lire la forme SQLite sans marqueur coute une heure',
-    );
-    process.env.TZ = 'UTC';
+    try {
+      const brut = new Date('2026-10-26 04:26:27').getTime();
+      const correct = new Date('2026-10-26T04:26:27Z').getTime();
+      assert.equal(
+        (correct - brut) / 60_000,
+        60,
+        'a Cotonou, lire la forme SQLite sans marqueur coute une heure',
+      );
+    } finally {
+      process.env.TZ = avant;
+    }
   });
 });
 
@@ -106,5 +127,113 @@ describe('minutes entre deux instants', () => {
   test('l arrondi est au plus proche', () => {
     assert.equal(minutesEntre('2026-10-26T04:00:00Z', '2026-10-26T04:00:40Z'), 1);
     assert.equal(minutesEntre('2026-10-26T04:00:00Z', '2026-10-26T04:00:20Z'), 0);
+  });
+});
+
+describe('le jour civil de l etablissement', () => {
+  // L'instant choisi tombe juste apres minuit UTC : c'est la seule fenetre
+  // ou l'erreur se voit, et c'est precisement celle des gardes de nuit.
+  const MINUIT_PASSE = '2026-10-27T00:30:00Z';
+
+  test('a Cotonou, UTC+1, le jour est deja le 27', () => {
+    assert.equal(jourCivil(MINUIT_PASSE, 'Africa/Porto-Novo'), '2026-10-27');
+  });
+
+  test('A LIMA, UTC-5, C EST ENCORE LA VEILLE', () => {
+    // LE cas. Calculer « aujourd hui » sur minuit UTC faisait basculer le
+    // programme operatoire a dix-neuf heures locales, en plein travail :
+    // les interventions du soir se rangeaient sous le lendemain, et le
+    // programme du jour paraissait vide a ceux qui y operaient encore.
+    assert.equal(jourCivil(MINUIT_PASSE, 'America/Lima'), '2026-10-26');
+  });
+
+  test('a Singapour, UTC+8, on est deja en pleine matinee du 27', () => {
+    assert.equal(jourCivil(MINUIT_PASSE, 'Asia/Singapore'), '2026-10-27');
+  });
+
+  test('en UTC, le jour suit l horodatage', () => {
+    assert.equal(jourCivil(MINUIT_PASSE, 'UTC'), '2026-10-27');
+  });
+
+  test('la forme SQLite est lue comme de l UTC, pas comme une heure locale', () => {
+    // Les deux formes cohabitent en base et designent le meme instant.
+    // Sans normalisation, « 2026-10-27 00:30:00 » serait lu a l'heure de
+    // la MACHINE : sur un serveur a Singapour, cela recule l'instant de
+    // huit heures et fait tomber le jour civil la veille.
+    //
+    // On force donc un fuseau machine eloigne, sans quoi le cas passerait
+    // partout et ne verifierait rien.
+    const avant = process.env.TZ;
+    process.env.TZ = 'Asia/Singapore';
+    try {
+      assert.equal(jourCivil('2026-10-27 00:30:00', 'UTC'), '2026-10-27');
+      assert.equal(
+        jourCivil('2026-10-27 00:30:00', 'UTC'),
+        jourCivil('2026-10-27T00:30:00.000Z', 'UTC'),
+      );
+    } finally {
+      process.env.TZ = avant;
+    }
+  });
+
+  test('une valeur illisible ne rend pas une fausse date', () => {
+    // Rendre « aujourd hui » sur une entree illisible masquerait la
+    // donnee fautive derriere une journee qui a l air normale.
+    assert.equal(jourCivil('hier matin', 'UTC'), '');
+  });
+});
+
+describe('appartenance a une journee', () => {
+  test('un passage de 23 h 30 local appartient bien a ce jour-la', () => {
+    // A Cotonou, 23 h 30 le 26 vaut 22 h 30 UTC le 26 : les deux
+    // concordent. Le piege est a 00 h 30 local le 27, soit 23 h 30 UTC le
+    // 26 — le cas suivant.
+    assert.equal(dansLeJour('2026-10-26T22:30:00Z', '2026-10-26', 'Africa/Porto-Novo'), true);
+  });
+
+  test('un passage de 00 h 30 local appartient au jour SUIVANT', () => {
+    // 23 h 30 UTC le 26 = 00 h 30 le 27 a Cotonou. Compte sur le jour UTC,
+    // ce patient serait reste dans la file de la veille.
+    const utc = '2026-10-26T23:30:00Z';
+    assert.equal(dansLeJour(utc, '2026-10-27', 'Africa/Porto-Novo'), true);
+    assert.equal(dansLeJour(utc, '2026-10-26', 'Africa/Porto-Novo'), false);
+  });
+
+  test('une date absente n appartient a aucun jour', () => {
+    assert.equal(dansLeJour(null, '2026-10-27', 'UTC'), false);
+    assert.equal(dansLeJour('   ', '2026-10-27', 'UTC'), false);
+  });
+});
+
+describe('bornes de fenetre', () => {
+  // Hors UTC a dessein : un decalage calcule sur l'heure locale tombe
+  // juste tant qu'on reste a Greenwich, et faux partout ailleurs. Sous UTC
+  // ces cas ne prouveraient rien.
+  let avant;
+  before(() => {
+    avant = process.env.TZ;
+    process.env.TZ = 'Africa/Porto-Novo';
+  });
+  after(() => {
+    process.env.TZ = avant;
+  });
+
+  test('la veille et le lendemain franchissent les mois', () => {
+    assert.equal(jourPrecedent('2026-03-01'), '2026-02-28');
+    assert.equal(jourSuivant('2026-02-28'), '2026-03-01');
+  });
+
+  test('ils franchissent aussi une annee bissextile', () => {
+    assert.equal(jourSuivant('2028-02-28'), '2028-02-29');
+    assert.equal(jourPrecedent('2028-03-01'), '2028-02-29');
+  });
+
+  test('ils franchissent le nouvel an', () => {
+    assert.equal(jourSuivant('2026-12-31'), '2027-01-01');
+    assert.equal(jourPrecedent('2027-01-01'), '2026-12-31');
+  });
+
+  test('une entree illisible est rendue telle quelle', () => {
+    assert.equal(jourSuivant('pas-une-date'), 'pas-une-date');
   });
 });

@@ -1,22 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-
-  "// buildCommand": "npm run build et non next build : l'etape prebuild genere les icones, qui ne sont pas dans le depot parce qu'elles sont reproductibles. Avec next build seul, l'application se deploie sans aucune icone.",
   "buildCommand": "npm run build",
   "installCommand": "npm install",
-
-  "// env": "Mode demonstration : base SQLite en memoire, semee au demarrage. Une plateforme sans disque persistant ne peut pas servir autre chose ; ce que l'on saisit disparait au recyclage de l'instance, et le bandeau le dit a l'ecran.",
-  "build": {
-    "env": {
-      "PARLEDOCTEUR_DEMO": "1"
-    }
-  },
-  "env": {
-    "PARLEDOCTEUR_DEMO": "1"
-  },
-
-  "// headers": "noindex : une application medicale remplie de donnees fictives n'a rien a faire dans un moteur de recherche. Quelqu'un finirait par tomber dessus en cherchant un vrai service.",
   "headers": [
     {
       "source": "/(.*)",

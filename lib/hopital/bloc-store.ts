@@ -12,7 +12,8 @@
 
 import { randomUUID } from 'node:crypto';
 import { all, audit, get, insert, run, tx } from '../db.ts';
-import { versIso, versIsoRequis } from '../temps.ts';
+import { dansLeJour, jourCivil, jourPrecedent, jourSuivant, versIso, versIsoRequis } from '../temps.ts';
+import { fuseauDe } from '../localisation-store.ts';
 import {
   POINTS,
   entrerAuBloc,
@@ -92,14 +93,21 @@ export function interventionParId(id: string): Intervention | null {
  * Une date nue precede les deux formes, donc la plage les attrape l'une et
  * l'autre — et l'index sur (salle_id, debut_prevu) reste utilise.
  */
-export function interventionsDeLaSalle(salleId: string, jour: string): Intervention[] {
-  const lendemain = new Date(`${jour}T00:00:00Z`);
-  lendemain.setUTCDate(lendemain.getUTCDate() + 1);
-
+export function interventionsDeLaSalle(
+  salleId: string,
+  jour: string,
+  fuseau?: string,
+): Intervention[] {
+  // On ratisse la veille et le lendemain, puis on filtre sur la journee
+  // CIVILE : la journee de l'etablissement n'est pas la journee UTC. Une
+  // intervention de dix-neuf heures a Lima se rangeait sous le lendemain,
+  // et le programme du jour paraissait vide a ceux qui y operaient.
   return all<LigneIntervention>(
     'SELECT * FROM intervention WHERE salle_id = ? AND debut_prevu >= ? AND debut_prevu < ? ORDER BY debut_prevu',
-    [salleId, jour, lendemain.toISOString().slice(0, 10)],
-  ).map(versIntervention);
+    [salleId, jourPrecedent(jour), jourSuivant(jourSuivant(jour))],
+  )
+    .map(versIntervention)
+    .filter((i) => dansLeJour(i.debutPrevu, jour, fuseau));
 }
 
 export function checklistDe(interventionId: string): Checklist {
@@ -120,10 +128,13 @@ export interface LigneProgramme {
 /** Le programme du jour, salle par salle. */
 export function programmeDuJour(
   organizationId: string | null,
-  jour = new Date().toISOString().slice(0, 10),
+  jour?: string,
 ): LigneProgramme[] {
+  const fuseau = fuseauDe(organizationId);
+  const leJour = jour ?? jourCivil(new Date(), fuseau);
+
   return salles(organizationId).map((salle) => {
-    const toutes = interventionsDeLaSalle(salle.id, jour);
+    const toutes = interventionsDeLaSalle(salle.id, leJour, fuseau);
     const p = programmeDeLaSalle(salle.id, toutes);
     const noms = nomsPatients(p.interventions.map((i) => i.patientId));
     return {

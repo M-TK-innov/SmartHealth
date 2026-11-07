@@ -32,6 +32,24 @@ const PUBLIC_PATHS = [
   '/hors-ligne',
   '/bienvenue',
   '/demo',
+  // La page d'essai s'adresse a quelqu'un qui n'a pas encore de compte : la
+  // placer derriere la connexion demanderait d'etre installe pour apprendre
+  // comment s'installer. Elle n'expose aucune donnee.
+  '/essai',
+  // L'etat de l'essai, pour la meme raison : le bandeau y renvoie, y compris
+  // depuis l'ecran de connexion.
+  '/essai-termine',
+  // L'espace patient a SA PROPRE garde, et son propre cookie. Le laisser
+  // passer ici ne l'ouvre pas : requirePatient() renvoie vers
+  // /espace/connexion. L'inscrire comme page d'agent le renverrait au
+  // contraire vers l'ecran des soignants, ce qui n'a aucun sens pour un
+  // patient et lui ferait croire qu'il n'a pas de compte.
+  '/espace',
+  // Le depouillement de l'enquete usagers a SA PROPRE garde, par cle de
+  // lecture. Il ne concerne aucun etablissement et ne touche pas la base de
+  // la plateforme : le renvoyer vers l'ecran de connexion des soignants
+  // demanderait un compte clinique pour lire des reponses anonymes.
+  '/enquete',
 ];
 
 /** Routes d'API ouvertes : authentification et liste publique des etablissements. */
@@ -46,14 +64,37 @@ const PUBLIC_API = [
   // avant qu'il n'ait de compte. La route se referme elle aussi derriere
   // server:manage des qu'un compte existe, et n'expose qu'un etat de machine.
   '/api/prerequis',
+  // Meme raison : la garde de l'espace patient vit dans gardePatient().
+  '/api/espace',
+  // Collecte de l'enquete usagers. Elle est appelee depuis une page statique
+  // hebergee ailleurs, par des gens qui n'ont evidemment aucun compte : la
+  // route porte ses propres verrous (origine, taille, liste d'options).
+  '/api/enquete',
 ];
+
+/**
+ * Entete portant le chemin demande.
+ *
+ * Un composant serveur ne peut pas lire l'adresse courante. La mise en page
+ * racine en a pourtant besoin : l'espace patient ne doit pas heriter de
+ * l'en-tete des soignants, qui offrirait des liens vers des dossiers que le
+ * patient n'a pas le droit d'ouvrir.
+ */
+export const ENTETE_CHEMIN = 'x-chemin';
+
+/** Repond en laissant passer, en ayant pose le chemin sur la requete. */
+function passer(req: NextRequest) {
+  const entetes = new Headers(req.headers);
+  entetes.set(ENTETE_CHEMIN, req.nextUrl.pathname);
+  return NextResponse.next({ request: { headers: entetes } });
+}
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   const isPublicPage = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
   const isPublicApi = PUBLIC_API.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-  if (isPublicPage || isPublicApi) return NextResponse.next();
+  if (isPublicPage || isPublicApi) return passer(req);
 
   // L'API FHIR n'est pas redirigee vers une page de connexion HTML : un systeme
   // tiers attend un OperationOutcome FHIR, pas du HTML. Elle n'est pas ouverte
@@ -61,9 +102,9 @@ export function middleware(req: NextRequest) {
   // qui sait repondre dans le bon format et applique le reglage choisi dans
   // Administration > Reseau et serveurs. Le middleware tourne sur l'Edge et ne
   // peut pas lire la base : il ne pourrait pas decider ici.
-  if (pathname.startsWith('/api/fhir')) return NextResponse.next();
+  if (pathname.startsWith('/api/fhir')) return passer(req);
 
-  if (req.cookies.get(SESSION_COOKIE)) return NextResponse.next();
+  if (req.cookies.get(SESSION_COOKIE)) return passer(req);
 
   if (pathname.startsWith('/api/')) {
     return NextResponse.json({ error: 'Authentification requise.' }, { status: 401 });

@@ -31,6 +31,17 @@ const nextConfig = {
    */
   distDir: process.env.NEXT_DIST_DIR || '.next',
 
+  /**
+   * L'indicateur de developpement de Next — la pastille flottante en bas a
+   * gauche de l'ecran — est retire.
+   *
+   * Il recouvre le coin ou l'application affiche ses propres elements, et il
+   * se montre pendant les demonstrations faites depuis un poste en mode
+   * developpement : un badge d'outil au milieu d'un dossier medical n'a rien
+   * a y faire. Les informations qu'il donne restent lisibles dans le terminal.
+   */
+  devIndicators: false,
+
   serverExternalPackages: ['node:sqlite'],
 
   // transformers.js tire onnxruntime-node et sharp, deux paquets natifs lourds

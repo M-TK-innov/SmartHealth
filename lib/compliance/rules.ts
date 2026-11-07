@@ -353,7 +353,7 @@ export function evaluate(input: EvaluationInput): Evaluation {
         title: "L'adresse publique n'est pas une URL valide",
         detail: `« ${config.app_public_url} » n'a pas pu etre interprete comme une adresse.`,
         reference: 'Coherence de configuration',
-        remedy: 'Ecrire une adresse complete, protocole compris : https://parledocteur.hopital.bj',
+        remedy: 'Ecrire une adresse complete, protocole compris : https://smarthealth.hopital.bj',
       }),
     );
   } else if (publicUrl.ok && publicUrl.secure && config.app_https !== 1) {
@@ -571,7 +571,7 @@ export function evaluate(input: EvaluationInput): Evaluation {
             'flux. Le HTTPS devient decoratif.',
           reference: 'RGPD art. 32.1.b ; HIPAA 45 CFR 164.312(e)(2)(i) ; ISO 27799',
           remedy:
-            'Installer le certificat de l autorite interne sur le serveur ParleDocteur plutot que de ' +
+            'Installer le certificat de l autorite interne sur le serveur SmartHealth plutot que de ' +
             'desactiver le controle. Un certificat auto-signe se fait reconnaitre, il ne se contourne pas.',
         }),
       );
@@ -640,7 +640,7 @@ export function evaluate(input: EvaluationInput): Evaluation {
             'RGPD art. 5.1.c (minimisation) et art. 9 ; Reglement sanitaire international (2005), art. 45 ; ' +
             'recommandations OMS sur la surveillance',
           remedy:
-            'Choisir « Agregats » ou « Pseudonymise ». ParleDocteur pseudonymise deja les evenements DHIS2 ' +
+            'Choisir « Agregats » ou « Pseudonymise ». SmartHealth pseudonymise deja les evenements DHIS2 ' +
             "qu'il produit.",
         }),
       );
@@ -730,7 +730,7 @@ export function evaluate(input: EvaluationInput): Evaluation {
           level: 'warning',
           target: e.id,
           targetLabel: label,
-          title: 'Certificat client attendu, mais ParleDocteur n en presente aucun',
+          title: 'Certificat client attendu, mais SmartHealth n en presente aucun',
           detail:
             "Le mode mTLS est declare, or l'application n'embarque pas de certificat client : ses " +
             "requetes partiront sans, et le serveur distant les refusera — ou pire, les acceptera sans " +

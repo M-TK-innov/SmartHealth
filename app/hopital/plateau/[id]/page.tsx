@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { requirePermission } from '@/lib/auth/guard';
 import { demandeParId, historiqueResultats, seuils } from '@/lib/hopital/plateau-store';
 import { get } from '@/lib/db';
+import { fuseauDe } from '@/lib/localisation-store';
+import { formaterInstant } from '@/lib/localisation';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,6 +35,7 @@ export default async function ExamenPage({ params }: { params: Promise<{ id: str
   );
   if (!patient) notFound();
 
+  const fuseau = fuseauDe(ctx.user.organization_id ?? null);
   const versions = historiqueResultats(id);
   const seuil = seuils(ctx.user.organization_id ?? null).find(
     (s) => s.examen.toLowerCase() === demande.examen.toLowerCase(),
@@ -96,7 +99,7 @@ export default async function ExamenPage({ params }: { params: Promise<{ id: str
                     {remplacee && <span className="chip bg-paper text-ink-soft">Remplacee</span>}
                   </div>
                   <p className="mt-1 text-xs text-ink-soft">
-                    rendu {new Date(v.rendu_le.replace(' ', 'T')).toLocaleString('fr-FR')}
+                    rendu {formaterInstant(v.rendu_le, fuseau)}
                     {v.motif_correction ? ` · correction : ${v.motif_correction}` : ''}
                   </p>
                 </li>

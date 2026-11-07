@@ -12,6 +12,8 @@ import { factureOuverteDuSejour } from '@/lib/hopital/caisse-store';
 import { francs, solde } from '@/lib/hopital/caisse';
 import { dureeJours } from '@/lib/hopital/sejour';
 import { get } from '@/lib/db';
+import { fuseauDe } from '@/lib/localisation-store';
+import { formaterInstant } from '@/lib/localisation';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,6 +44,7 @@ export default async function SejourPage({ params }: { params: Promise<{ id: str
   );
   if (!patient) notFound();
 
+  const fuseau = fuseauDe(ctx.user.organization_id ?? null);
   const lit = sejour.litId ? litParId(sejour.litId) : null;
   const mouvements = mouvementsDuSejour(id);
   const consultations = consultationsDuSejour(id);
@@ -100,7 +103,7 @@ export default async function SejourPage({ params }: { params: Promise<{ id: str
                     {m.motif ? ` · ${m.motif}` : ''}
                   </span>
                   <span className="shrink-0 text-xs text-ink-soft">
-                    {new Date(m.survenu_le.replace(' ', 'T')).toLocaleString('fr-FR')}
+                    {formaterInstant(m.survenu_le, fuseau)}
                   </span>
                 </li>
               ))}
@@ -125,7 +128,7 @@ export default async function SejourPage({ params }: { params: Promise<{ id: str
                   <Link href={`/consultations/${c.id}`} className="hover:underline">
                     <span className="font-medium">{c.reason_text ?? 'Consultation'}</span>{' '}
                     <span className="text-xs text-ink-soft">
-                      {new Date(c.started_at.replace(' ', 'T')).toLocaleString('fr-FR')}
+                      {formaterInstant(c.started_at, fuseau)}
                       {c.signed_at ? ' · signee' : ` · ${c.status}`}
                     </span>
                   </Link>
