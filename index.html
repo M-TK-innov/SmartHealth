@@ -52,6 +52,9 @@
     background:var(--marque);color:#fff;cursor:pointer;
   }
   button[disabled]{opacity:.55;cursor:not-allowed}
+  .etat{margin-top:14px;padding:12px 14px;border-radius:8px;font-size:15px;line-height:1.5}
+  .etat.ok{background:rgba(16,124,16,.12);border-left:4px solid #107c10}
+  .etat.ko{background:rgba(180,35,24,.12);border-left:4px solid #b42318}
   @media print{
     :root{--papier:#fff;--surface:#fff;--encre:#000;--encre-doux:#333;--ligne:#999;--marque-clair:#fff}
     body{font-size:11.5pt}
@@ -170,13 +173,12 @@
     </fieldset>
 
     <div class="sansimpression">
-      <button type="submit" id="envoyer" disabled>Envoi en ligne pas encore ouvert</button>
-      <p class="note" id="etat" style="margin-top:10px">
-        La collecte en ligne sera activée prochainement. En attendant, imprimez cette page
-        (Ctrl&nbsp;+&nbsp;P) et remplissez-la au stylo.
+      <button type="submit" disabled>Vérification…</button>
+      <p class="note" style="margin-top:10px">
+        Vous pouvez aussi imprimer cette page (Ctrl&nbsp;+&nbsp;P) et la remplir au stylo.
+        Si vous êtes agent d'un centre, les questions suivantes vous concernent.
       </p>
     </div>
-  </form>
 
   <h2>Questionnaire agent</h2>
   <p class="note">Pour les agents qui tiennent les registres et préparent le rapport mensuel. Anonyme : notez la fonction, jamais le nom.</p>
@@ -226,17 +228,131 @@
     <input type="text" name="a5" autocomplete="off" maxlength="200">
   </fieldset>
 
+    <div class="sansimpression">
+      <button type="submit" disabled>Vérification…</button>
+    </div>
+  </form>
+
   <div class="avis">
     <b>Ce que cette enquête ne dit pas.</b> Les réponses sont déclaratives et l'échantillon n'est pas
     représentatif : il décrit les usagers d'un centre, un jour donné, qui ont accepté de répondre.
     Ces limites sont assumées et écrites dans le dossier qui s'en sert.
   </div>
 
+  <p class="etat" id="etat" role="status" aria-live="polite" hidden></p>
+
+  <p class="avis" id="repli" hidden>
+    L'envoi en ligne n'est pas ouvert pour le moment. Imprimez cette page
+    (Ctrl&nbsp;+&nbsp;P) et remplissez-la au stylo : elle est faite pour ça.
+  </p>
+
+  <noscript>
+    <p class="avis">
+      L'envoi en ligne demande JavaScript. Imprimez cette page
+      (Ctrl&nbsp;+&nbsp;P) et remplissez-la au stylo : elle est faite pour ça.
+    </p>
+  </noscript>
+
   <p class="note">
-    Aucune donnée nominative n'est demandée. Tant que la collecte en ligne n'est pas ouverte,
-    cette page n'envoie rien : elle s'imprime et se remplit au stylo.
+    Aucune donnée nominative n'est demandée : ni nom, ni numéro de téléphone, ni numéro de
+    dossier, ni adresse réseau. Les réponses partent vers une base distincte de celle qui
+    porterait des dossiers médicaux.
   </p>
 
 </main>
+
+<script>
+/*
+ * Envoi du questionnaire.
+ *
+ * Le navigateur n'envoie que les cases cochees et les textes remplis : une
+ * question sans reponse est simplement absente de la charge utile, et le
+ * serveur l'enregistre comme une non-reponse. C'est volontaire — obliger a
+ * repondre a tout ferait surtout cocher au hasard.
+ *
+ * Le bouton est remis en etat apres un echec : un envoi qui n'a pas abouti
+ * et un bouton qui reste gris, c'est une reponse perdue sans que personne
+ * le sache.
+ */
+(function () {
+  var COLLECTE = 'https://smart-health-vert.vercel.app/api/enquete';
+  var form = document.getElementById('questionnaire');
+  var etat = document.getElementById('etat');
+  var repli = document.getElementById('repli');
+  if (!form || !etat) return;
+
+  function dire(texte, classe) {
+    etat.textContent = texte;
+    etat.className = 'etat ' + classe;
+    etat.hidden = false;
+    etat.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+
+  function boutons(actifs, libelle) {
+    var liste = form.querySelectorAll('button[type=submit]');
+    for (var i = 0; i < liste.length; i++) {
+      liste[i].disabled = !actifs;
+      if (libelle) liste[i].textContent = libelle;
+    }
+  }
+
+  /*
+   * La collecte repond-elle ?
+   *
+   * La page est statique et hebergee ailleurs : elle peut etre en ligne
+   * avant le serveur qui enregistre, ou apres son arret. Une seule requete,
+   * au chargement, evite d'afficher un bouton qui ment.
+   */
+  fetch(COLLECTE, { method: 'GET' }).then(function (r) {
+    if (!r.ok) throw new Error('fermee');
+    return r.json();
+  }).then(function (corps) {
+    if (!corps || corps.ouverte !== true) throw new Error('fermee');
+    boutons(true, 'Envoyer mes réponses');
+  }).catch(function () {
+    boutons(false, 'Envoi en ligne pas encore ouvert');
+    if (repli) repli.hidden = false;
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    var charge = {};
+    var donnees = new FormData(form);
+    donnees.forEach(function (valeur, cle) {
+      var texte = String(valeur).trim();
+      if (texte !== '') charge[cle] = texte;
+    });
+
+    if (Object.keys(charge).length === 0 ||
+        (Object.keys(charge).length === 1 && charge.centre)) {
+      dire('Répondez à au moins une question avant d\'envoyer.', 'ko');
+      return;
+    }
+
+    boutons(false, 'Envoi…');
+
+    fetch(COLLECTE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(charge)
+    }).then(function (r) {
+      if (r.ok) {
+        form.querySelector('.sansimpression').scrollIntoView;
+        dire('Merci. Votre réponse est enregistrée, sans aucune donnée qui vous identifie.', 'ok');
+        boutons(false, 'Réponse envoyée');
+        return;
+      }
+      return r.json().catch(function () { return {}; }).then(function (corps) {
+        dire(corps.error || 'L\'envoi n\'a pas abouti. Réessayez dans un moment.', 'ko');
+        boutons(true, 'Envoyer mes réponses');
+      });
+    }).catch(function () {
+      dire('Pas de connexion. Votre réponse n\'a pas été envoyée : réessayez, ou imprimez cette page.', 'ko');
+      boutons(true, 'Envoyer mes réponses');
+    });
+  });
+})();
+</script>
 </body>
 </html>
