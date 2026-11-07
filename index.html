@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Enquête usagers — parcours du dossier médical</title>
+<meta name="description" content="Questionnaire anonyme sur le parcours du dossier médical dans les formations sanitaires. Six questions, deux minutes.">
+<meta name="robots" content="noindex, nofollow">
+<style>
+  :root{
+    --papier:#f6f7f5; --surface:#fff; --encre:#12201e; --encre-doux:#52625f;
+    --ligne:#dde4e1; --marque:#0e6b57; --marque-clair:#e5f0ed; --alerte:#b42318;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --papier:#0e1513; --surface:#151e1b; --encre:#e8eeeb; --encre-doux:#9aaaa5;
+      --ligne:#24322e; --marque:#46b394; --marque-clair:#13302a; color-scheme:dark;
+    }
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--papier); color:var(--encre);
+    font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  .page{max-width:46rem;margin:0 auto;padding:24px 16px 64px}
+  header.titre{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+  h1{font-size:1.45rem;line-height:1.25;margin:0}
+  h2{font-size:1.05rem;margin:32px 0 8px;padding-top:20px;border-top:1px solid var(--ligne)}
+  .sous{color:var(--encre-doux);margin:4px 0 24px;font-size:.95rem}
+  .carte{background:var(--surface);border:1px solid var(--ligne);border-radius:12px;padding:16px;margin:16px 0}
+  .consigne{background:var(--marque-clair);border-left:4px solid var(--marque);border-radius:0 10px 10px 0;padding:14px 16px;margin:16px 0}
+  fieldset{border:0;padding:0;margin:0 0 22px}
+  legend{font-weight:600;padding:0;margin-bottom:8px}
+  legend .n{color:var(--marque);font-variant-numeric:tabular-nums}
+  .precision{font-weight:400;color:var(--encre-doux);font-size:.9rem;display:block;margin-top:2px}
+  .choix{display:grid;gap:6px}
+  .choix label{
+    display:flex;gap:10px;align-items:flex-start;
+    border:1px solid var(--ligne);border-radius:10px;padding:10px 12px;cursor:pointer;background:var(--surface);
+  }
+  .choix label:hover{border-color:var(--marque)}
+  .choix input{margin:3px 0 0;flex:none;width:18px;height:18px;accent-color:var(--marque)}
+  input[type=text]{
+    width:100%;padding:10px 12px;border:1px solid var(--ligne);border-radius:10px;
+    background:var(--surface);color:inherit;font:inherit;
+  }
+  .note{font-size:.85rem;color:var(--encre-doux)}
+  .avis{border:1px dashed var(--ligne);border-radius:10px;padding:14px 16px;margin:24px 0;font-size:.92rem;color:var(--encre-doux)}
+  .logo{width:40px;height:40px;flex:none}
+  button{
+    font:inherit;font-weight:600;padding:12px 18px;border-radius:10px;border:1px solid var(--marque);
+    background:var(--marque);color:#fff;cursor:pointer;
+  }
+  button[disabled]{opacity:.55;cursor:not-allowed}
+  @media print{
+    :root{--papier:#fff;--surface:#fff;--encre:#000;--encre-doux:#333;--ligne:#999;--marque-clair:#fff}
+    body{font-size:11.5pt}
+    .page{max-width:none;padding:0}
+    .sansimpression{display:none !important}
+    h2{page-break-before:always;border-top:0}
+    h2.premier{page-break-before:avoid}
+    fieldset{page-break-inside:avoid}
+    .choix label{border:0;padding:2px 0}
+    .choix input{appearance:none;width:12px;height:12px;border:1.2px solid #000;border-radius:2px}
+  }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <header class="titre">
+    <svg class="logo" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+      <path d="M7 0h18a7 7 0 0 1 7 7v18a7 7 0 0 1-7 7H0V7a7 7 0 0 1 7-7Z" fill="var(--marque)"/>
+      <path d="M11.5 6.5h9v19h-9zM6.5 11.5h19v9h-19z" fill="#fff"/>
+      <g transform="translate(10 10) scale(.5)" fill="none" stroke="#b42318" stroke-width="1.6" stroke-linecap="round">
+        <rect x="9" y="2" width="6" height="12" rx="3" fill="#b42318" stroke="none"/>
+        <path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v4M8.5 22h7"/>
+      </g>
+    </svg>
+    <h1>Enquête usagers : le parcours du dossier médical</h1>
+  </header>
+
+  <p class="sous">
+    Six questions, deux minutes. Anonyme : ni nom, ni numéro de téléphone, ni numéro de dossier.
+  </p>
+
+  <div class="consigne">
+    <b>À lire avant de commencer.</b> Nous préparons une proposition pour simplifier les démarches
+    de santé. Ces questions portent sur votre dernière visite dans un centre de santé. Vos réponses
+    ne changeront rien à vos soins, et elles ne sont rattachées à aucune identité.
+  </div>
+
+  <form id="questionnaire">
+
+    <h2 class="premier">Questionnaire usager</h2>
+
+    <div class="carte sansimpression">
+      <label for="centre"><b>Centre de santé</b> <span class="note">(facultatif)</span></label>
+      <input type="text" id="centre" name="centre" autocomplete="off" placeholder="Nom du centre">
+    </div>
+
+    <fieldset>
+      <legend><span class="n">1.</span> Lors de votre dernière visite, aviez-vous votre carnet de santé avec vous&nbsp;?</legend>
+      <div class="choix">
+        <label><input type="radio" name="q1" value="avait"> Oui, je l'avais</label>
+        <label><input type="radio" name="q1" value="oublie"> Non, oublié</label>
+        <label><input type="radio" name="q1" value="perdu"> Non, perdu ou abîmé</label>
+        <label><input type="radio" name="q1" value="aucun"> Non, je n'en ai pas</label>
+        <label><input type="radio" name="q1" value="plein"> Non, il était plein</label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend><span class="n">2.</span> Vous a-t-on redemandé des informations que vous aviez déjà données&nbsp;?
+        <span class="precision">Antécédents, allergies, traitements, âge.</span></legend>
+      <div class="choix">
+        <label><input type="radio" name="q2" value="non"> Non</label>
+        <label><input type="radio" name="q2" value="partie"> Oui, une partie</label>
+        <label><input type="radio" name="q2" value="tout"> Oui, tout a été redemandé</label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend><span class="n">3.</span> Combien de documents deviez-vous apporter ou présenter&nbsp;?
+        <span class="precision">Carnet, ancienne ordonnance, résultats d'examen, reçus.</span></legend>
+      <div class="choix">
+        <label><input type="radio" name="q3" value="0"> Aucun</label>
+        <label><input type="radio" name="q3" value="1"> 1</label>
+        <label><input type="radio" name="q3" value="2"> 2</label>
+        <label><input type="radio" name="q3" value="3"> 3</label>
+        <label><input type="radio" name="q3" value="4+"> 4 ou plus</label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend><span class="n">4.</span> Ces douze derniers mois, un examen vous a-t-il été redemandé parce que
+        le résultat précédent n'était pas disponible&nbsp;?</legend>
+      <div class="choix">
+        <label><input type="radio" name="q4" value="non"> Non</label>
+        <label><input type="radio" name="q4" value="une"> Oui, une fois</label>
+        <label><input type="radio" name="q4" value="plusieurs"> Oui, deux fois ou plus</label>
+        <label><input type="radio" name="q4" value="inconnu"> Je ne sais pas</label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend><span class="n">5.</span> Ces douze derniers mois, avez-vous fait un déplacement uniquement pour un papier&nbsp;?
+        <span class="precision">Chercher un résultat, une facture, un reçu, faire recopier une ordonnance.</span></legend>
+      <div class="choix">
+        <label><input type="radio" name="q5" value="non"> Non</label>
+        <label><input type="radio" name="q5" value="une"> Oui, une fois</label>
+        <label><input type="radio" name="q5" value="deux-trois"> Oui, deux ou trois fois</label>
+        <label><input type="radio" name="q5" value="plus"> Oui, plus de trois fois</label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend><span class="n">6.</span> Si vous aviez pu voir vos ordonnances et vos factures sur votre téléphone,
+        cela vous aurait-il évité un déplacement&nbsp;?</legend>
+      <div class="choix">
+        <label><input type="radio" name="q6" value="oui"> Oui</label>
+        <label><input type="radio" name="q6" value="non"> Non</label>
+        <label><input type="radio" name="q6" value="sans-telephone"> Je n'ai pas de téléphone qui le permet</label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Une chose à ajouter&nbsp;? <span class="precision">Facultatif, une ligne.</span></legend>
+      <input type="text" name="libre" autocomplete="off" maxlength="200">
+    </fieldset>
+
+    <div class="sansimpression">
+      <button type="submit" id="envoyer" disabled>Envoi en ligne pas encore ouvert</button>
+      <p class="note" id="etat" style="margin-top:10px">
+        La collecte en ligne sera activée prochainement. En attendant, imprimez cette page
+        (Ctrl&nbsp;+&nbsp;P) et remplissez-la au stylo.
+      </p>
+    </div>
+  </form>
+
+  <h2>Questionnaire agent</h2>
+  <p class="note">Pour les agents qui tiennent les registres et préparent le rapport mensuel. Anonyme : notez la fonction, jamais le nom.</p>
+
+  <fieldset>
+    <legend><span class="n">A1.</span> Écrivez-vous les mêmes informations à plusieurs endroits&nbsp;?
+      <span class="precision">Registre, fiche, rapport.</span></legend>
+    <div class="choix">
+      <label><input type="radio" name="a1" value="non"> Non</label>
+      <label><input type="radio" name="a1" value="deux"> Oui, deux fois</label>
+      <label><input type="radio" name="a1" value="trois+"> Oui, trois fois ou plus</label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend><span class="n">A2.</span> Combien de temps vous prend la préparation du rapport mensuel&nbsp;?</legend>
+    <div class="choix">
+      <label><input type="radio" name="a2" value="heure"> Moins d'une heure</label>
+      <label><input type="radio" name="a2" value="demi"> Une demi-journée</label>
+      <label><input type="radio" name="a2" value="jour"> Une journée</label>
+      <label><input type="radio" name="a2" value="plus"> Plus d'une journée</label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend><span class="n">A3.</span> Ce rapport part-il à la date prévue&nbsp;?</legend>
+    <div class="choix">
+      <label><input type="radio" name="a3" value="toujours"> Toujours</label>
+      <label><input type="radio" name="a3" value="souvent"> Souvent</label>
+      <label><input type="radio" name="a3" value="rarement"> Rarement</label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend><span class="n">A4.</span> Vous arrive-t-il de redemander à un patient une information qui figure
+      déjà quelque part dans votre centre&nbsp;?</legend>
+    <div class="choix">
+      <label><input type="radio" name="a4" value="non"> Non</label>
+      <label><input type="radio" name="a4" value="parfois"> Parfois</label>
+      <label><input type="radio" name="a4" value="souvent"> Souvent</label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend><span class="n">A5.</span> Qu'est-ce qui vous ferait gagner le plus de temps&nbsp;?
+      <span class="precision">Une ligne.</span></legend>
+    <input type="text" name="a5" autocomplete="off" maxlength="200">
+  </fieldset>
+
+  <div class="avis">
+    <b>Ce que cette enquête ne dit pas.</b> Les réponses sont déclaratives et l'échantillon n'est pas
+    représentatif : il décrit les usagers d'un centre, un jour donné, qui ont accepté de répondre.
+    Ces limites sont assumées et écrites dans le dossier qui s'en sert.
+  </div>
+
+  <p class="note">
+    Aucune donnée nominative n'est demandée. Tant que la collecte en ligne n'est pas ouverte,
+    cette page n'envoie rien : elle s'imprime et se remplit au stylo.
+  </p>
+
+</main>
+</body>
+</html>
