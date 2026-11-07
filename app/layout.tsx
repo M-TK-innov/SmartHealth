@@ -55,8 +55,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // L'espace patient ne porte pas l'en-tete des soignants : il offrirait des
   // liens vers des dossiers que le patient n'a pas le droit d'ouvrir, et une
   // barre de navigation qui ne lui est pas destinee.
+  // Le depouillement de l'enquete est dans le meme cas : il ne s'adresse pas
+  // a un soignant, et une barre de navigation clinique autour de reponses
+  // anonymes laisserait croire que les deux communiquent.
   const chemin = (await headers()).get(ENTETE_CHEMIN) ?? '';
-  if (chemin === '/espace' || chemin.startsWith('/espace/')) {
+  const nu =
+    chemin === '/espace' ||
+    chemin.startsWith('/espace/') ||
+    chemin === '/enquete' ||
+    chemin.startsWith('/enquete/');
+  if (nu) {
     return (
       <html lang="fr">
         <body className="bg-paper">

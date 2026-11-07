@@ -229,7 +229,14 @@ déclaration inexacte.
 3. Note technique : fonctionnement hors ligne, interopérabilité, protection des
    données.
 4. Rapport de la suite de tests automatisés.
-5. [À FOURNIR : toute attestation, lettre d'intérêt ou compte rendu d'échange
+5. Questionnaire d'enquête usagers, anonyme, en ligne et imprimable :
+   prix-simplification.gouv.bj attend une expérience vécue, et quelques
+   dizaines de réponses en sont une qui se cite.
+   Adresse : https://m-tk-innov.github.io/SmartHealth/
+   [À FOURNIR : le dépouillement au moment du dépôt, avec son effectif. Si
+   l'effectif reste faible, le dire et citer les réponses plutôt que des
+   pourcentages.]
+6. [À FOURNIR : toute attestation, lettre d'intérêt ou compte rendu d'échange
    avec une formation sanitaire. Une seule lettre d'une structure publique
    pèsera plus lourd que dix pages de description.]
 

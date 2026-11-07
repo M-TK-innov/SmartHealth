@@ -662,6 +662,31 @@ réécrit à chaque préparation, y compris sans `--essai` — un marqueur oubli
 transformerait la construction suivante, celle que l'on vend, en version qui se
 verrouille. Absent, l'application retient la version complète : le défaut sûr.
 
+## Enquête usagers
+
+Un questionnaire anonyme, servi par une page statique, qui alimente le dossier
+de candidature au prix national de la simplification administrative. Trois
+morceaux : la page (branche `gh-pages`), la route de collecte `/api/enquete`,
+le dépouillement `/enquete/resultats`, fermé par une clé.
+
+Il ne touche **pas** la base de l'établissement : ni le même contenu, ni la
+même durée de conservation, ni les mêmes personnes autorisées à la lire. Les
+réponses vont dans une base Postgres distincte, qui ne porte aucune donnée de
+santé — une question, une option, un horodatage.
+
+Deux variables le commandent, et laissées vides **la collecte est fermée** :
+la route répond 503 et le formulaire publié propose l'impression. C'est l'état
+normal d'une installation de soin.
+
+```
+SMARTHEALTH_ENQUETE_BASE=
+SMARTHEALTH_ENQUETE_CLE=
+```
+
+Le détail — les quatre verrous de la route publique, ce que la table ne
+contient pas et pourquoi, comment lire les chiffres sans les forcer — est dans
+[`docs/prix-simplification/ENQUETE.md`](docs/prix-simplification/ENQUETE.md).
+
 ## Déploiement
 
 ### Vercel — l'application seule

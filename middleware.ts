@@ -45,6 +45,11 @@ const PUBLIC_PATHS = [
   // contraire vers l'ecran des soignants, ce qui n'a aucun sens pour un
   // patient et lui ferait croire qu'il n'a pas de compte.
   '/espace',
+  // Le depouillement de l'enquete usagers a SA PROPRE garde, par cle de
+  // lecture. Il ne concerne aucun etablissement et ne touche pas la base de
+  // la plateforme : le renvoyer vers l'ecran de connexion des soignants
+  // demanderait un compte clinique pour lire des reponses anonymes.
+  '/enquete',
 ];
 
 /** Routes d'API ouvertes : authentification et liste publique des etablissements. */
@@ -61,6 +66,10 @@ const PUBLIC_API = [
   '/api/prerequis',
   // Meme raison : la garde de l'espace patient vit dans gardePatient().
   '/api/espace',
+  // Collecte de l'enquete usagers. Elle est appelee depuis une page statique
+  // hebergee ailleurs, par des gens qui n'ont evidemment aucun compte : la
+  // route porte ses propres verrous (origine, taille, liste d'options).
+  '/api/enquete',
 ];
 
 /**
