@@ -18,13 +18,6 @@ import {
   nettoyerTexte,
   valider,
 } from '../lib/enquete/questionnaire.ts';
-import {
-  cleValide,
-  ouvrirSession,
-  sessionOuverte,
-} from '../lib/enquete/acces.ts';
-
-const CLE = 'cle-de-lecture-tres-longue-et-aleatoire';
 
 describe('declaration du questionnaire', () => {
   test('aucune cle en double', () => {
@@ -161,40 +154,5 @@ describe('depouillement', () => {
       assert.equal(q.exprimees, 0);
       for (const d of q.decomptes) assert.equal(d.nombre, 0);
     }
-  });
-});
-
-describe('acces au depouillement', () => {
-  test('la bonne cle passe, une autre non', () => {
-    assert.equal(cleValide(CLE, CLE), true);
-    assert.equal(cleValide(`${CLE}x`, CLE), false);
-    assert.equal(cleValide(CLE.slice(0, -1), CLE), false);
-  });
-
-  test('sans cle posee sur le serveur, rien ne passe', () => {
-    assert.equal(cleValide(CLE, undefined), false);
-    assert.equal(cleValide('', ''), false);
-    // Le cas qui compte : un visiteur qui n'envoie rien ne doit pas se
-    // retrouver dedans parce que le serveur n'a rien non plus.
-    assert.equal(cleValide(undefined, undefined), false);
-    assert.equal(sessionOuverte('nimporte', undefined, new Date()), false);
-  });
-
-  test('un jeton signe ouvre, un jeton signe d une autre cle non', () => {
-    const t = new Date('2026-11-07T10:00:00Z');
-    const jeton = ouvrirSession(CLE, t);
-    assert.equal(sessionOuverte(jeton, CLE, t), true);
-    assert.equal(sessionOuverte(jeton, 'une-autre-cle', t), false);
-    assert.equal(sessionOuverte('fabrique.signature', CLE, t), false);
-    assert.equal(sessionOuverte(null, CLE, t), false);
-  });
-
-  test('le jeton se perime', () => {
-    const t = new Date('2026-11-07T10:00:00Z');
-    const jeton = ouvrirSession(CLE, t);
-    const apres = new Date(t.getTime() + 13 * 3600 * 1000);
-    assert.equal(sessionOuverte(jeton, CLE, apres), false);
-    const avantEcheance = new Date(t.getTime() + 11 * 3600 * 1000);
-    assert.equal(sessionOuverte(jeton, CLE, avantEcheance), true);
   });
 });

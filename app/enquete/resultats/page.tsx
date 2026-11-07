@@ -1,98 +1,64 @@
-import { cookies } from 'next/headers';
-import { COOKIE, cleAttendue, refusConfiguration, sessionOuverte } from '@/lib/enquete/acces';
 import { CHAMPS_LIBRES, depouiller, type Reponse } from '@/lib/enquete/questionnaire';
-import { compterTout, configuree, lire, refusConfiguration as refusBase } from '@/lib/enquete/store';
+import { compterTout, configuree, lire, refusConfiguration } from '@/lib/enquete/store';
 
 export const dynamic = 'force-dynamic';
 export const metadata = {
   title: 'Enquete usagers, depouillement — SmartHealth',
+  // La page est ouverte, elle n'est pas pour autant faite pour etre trouvee
+  // par un moteur. L'en-tete X-Robots-Tag de vercel.json dit la meme chose au
+  // niveau du serveur : les deux se repetent volontairement, parce qu'une
+  // balise seule ne protege pas une reponse servie a un robot qui ne lit que
+  // les en-tetes.
   robots: { index: false, follow: false },
 };
 
 /**
- * Depouillement de l'enquete usagers.
+ * Depouillement de l'enquete usagers. PAGE PUBLIQUE.
  *
- * CE QUE CETTE PAGE AFFICHE, ET CE QU'ELLE REFUSE D'AFFICHER
+ * Elle a d'abord ete fermee par une cle, puis ouverte sur demande : montrer
+ * les chiffres a un jury sans avoir a transmettre quoi que ce soit. Ce que
+ * cela change est ecrit ici plutot que decouvert plus tard.
  *
- * Elle montre, par question, le nombre de personnes qui ont repondu ET la
- * base sur laquelle le pourcentage est calcule. Une question laissee vide
- * n'entre pas dans sa base : c'est la seule facon d'eviter des pourcentages
- * systematiquement sous-estimes, et la base reste sous les yeux pour que le
- * lecteur puisse refaire le calcul.
+ * CE QUI DEVIENT VISIBLE DE TOUS : les decomptes, les centres cites, et les
+ * textes libres. Ces derniers viennent d'un formulaire ouvert : personne ne
+ * les relit avant affichage, et la page le dit a son lecteur. React echappe
+ * ce qu'il affiche, donc rien de ce qui est saisi ne s'execute ; mais une
+ * phrase deplacee, elle, s'affiche. C'est le prix d'une page ouverte, et il
+ * se paie en retirant la ligne concernee de la base, pas en esperant.
  *
- * Elle refuse de produire un chiffre unique de synthese, pour la meme raison
- * que le releve d'allegement : c'est celui-la qui serait cite partout, et il
- * ne voudrait rien dire.
+ * CE QUI RESTE VRAI : la table ne porte aucune donnee nominative. Ouvrir
+ * cette page n'expose l'identite de personne, parce qu'il n'y en a aucune a
+ * exposer. C'est la seule raison pour laquelle l'ouverture est tenable.
  *
- * Sous trente reponses, un bandeau le dit. Un pourcentage sur neuf personnes
- * se presente comme un pourcentage et se lit comme une mesure ; il n'en est
- * pas une, et le jury le verra avant nous.
+ * CE QUE CETTE PAGE REFUSE DE FAIRE
+ *
+ * Donner un chiffre unique de synthese. Chaque question a sa propre base, et
+ * cette base est affichee a cote du pourcentage : une personne qui repond aux
+ * six questions usager et a aucune question agent compte dans six bases, pas
+ * dans onze. Tout rapporter au nombre de formulaires donnerait des chiffres
+ * faux, et toujours a la baisse.
  */
 
 const SEUIL_LISIBILITE = 30;
+
+/** Au-dela, la page n'affiche plus les textes un par un. */
+const TEXTES_AFFICHES = 200;
 
 function pourcentage(nombre: number, base: number): string {
   if (base === 0) return '—';
   return `${Math.round((nombre / base) * 100)} %`;
 }
 
-export default async function ResultatsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ refus?: string }>;
-}) {
-  const { refus } = await searchParams;
-  const cle = cleAttendue();
-  const jeton = (await cookies()).get(COOKIE)?.value ?? null;
-
-  if (!cle) {
+export default async function ResultatsPage() {
+  if (!configuree()) {
     return (
       <Cadre>
-        <h1 className="text-lg font-bold">Depouillement ferme</h1>
+        <h1 className="text-lg font-bold">Aucune base de collecte</h1>
         <p className="mt-2 text-sm leading-relaxed text-ink-soft">{refusConfiguration()}</p>
         <p className="mt-2 text-sm leading-relaxed text-ink-soft">
           Nommer la variable manquante n expose rien : c est son <i>contenu</i> qui est un secret,
           et il ne se pose que dans l environnement du serveur.
         </p>
-      </Cadre>
-    );
-  }
-
-  if (!sessionOuverte(jeton, cle, new Date())) {
-    return (
-      <Cadre>
-        <h1 className="text-lg font-bold">Depouillement de l enquete</h1>
-        <p className="mt-2 text-sm leading-relaxed text-ink-soft">
-          Cette page n est pas publique. Elle demande la cle de lecture.
-        </p>
-        <form action="/api/enquete/acces" method="post" className="mt-4 space-y-3">
-          <label className="block text-sm font-semibold" htmlFor="cle">
-            Cle de lecture
-          </label>
-          <input
-            id="cle"
-            name="cle"
-            type="password"
-            autoComplete="off"
-            className="input w-full max-w-sm"
-            required
-          />
-          {refus === '1' && (
-            <p className="text-sm font-semibold text-danger">Cle refusee.</p>
-          )}
-          <button type="submit" className="btn-primary">
-            Ouvrir
-          </button>
-        </form>
-      </Cadre>
-    );
-  }
-
-  if (!configuree()) {
-    return (
-      <Cadre>
-        <h1 className="text-lg font-bold">Aucune base de collecte</h1>
-        <p className="mt-2 text-sm leading-relaxed text-ink-soft">{refusBase()}</p>
       </Cadre>
     );
   }
@@ -120,10 +86,11 @@ export default async function ResultatsPage({
   const usager = depouille.filter((q) => q.groupe === 'usager');
   const agent = depouille.filter((q) => q.groupe === 'agent');
 
-  const textes = CHAMPS_LIBRES.filter((c) => c.compteCommeReponse).map((champ) => ({
-    champ,
-    valeurs: lignes.map((l) => l[champ.cle]).filter((v): v is string => Boolean(v)),
-  }));
+  const textes = CHAMPS_LIBRES.filter((c) => c.compteCommeReponse).map((champ) => {
+    const valeurs = lignes.map((l) => l[champ.cle]).filter((v): v is string => Boolean(v));
+    return { champ, valeurs, affiches: valeurs.slice(0, TEXTES_AFFICHES) };
+  });
+  const auMoinsUnTexte = textes.some((t) => t.valeurs.length > 0);
 
   const centres = new Map<string, number>();
   for (const ligne of lignes) {
@@ -139,29 +106,28 @@ export default async function ResultatsPage({
           <h1 className="text-xl font-bold">Enquete usagers : depouillement</h1>
           <p className="text-sm text-ink-soft">
             {total} reponse{total > 1 ? 's' : ''} recue{total > 1 ? 's' : ''}
-            {lignes.length < total ? `, ${lignes.length} affichees` : ''}.
+            {lignes.length < total ? `, ${lignes.length} depouillees` : ''}.
           </p>
         </div>
-        <div className="flex gap-2">
-          <a className="btn-ghost btn-sm" href="/enquete/resultats/export">
-            Exporter en CSV
-          </a>
-          <form action="/api/enquete/acces" method="post">
-            <input type="hidden" name="sortir" value="1" />
-            <button type="submit" className="btn-ghost btn-sm">
-              Fermer
-            </button>
-          </form>
-        </div>
+        <a className="btn-ghost btn-sm" href="/enquete/resultats/export">
+          Exporter en CSV
+        </a>
       </header>
 
-      {total < SEUIL_LISIBILITE && (
+      {total === 0 ? (
         <p className="rounded border-l-4 border-brand bg-brand/5 p-4 text-sm leading-relaxed">
-          <b>Moins de {SEUIL_LISIBILITE} reponses.</b> Les pourcentages ci-dessous sont affiches
-          parce qu ils aident a suivre la collecte, pas parce qu ils mesurent quelque chose. Citer
-          un pourcentage calcule sur une poignee de personnes, c est offrir au lecteur la premiere
-          objection.
+          <b>Aucune reponse pour le moment.</b> Le questionnaire est en ligne et la collecte est
+          ouverte : cette page se remplira a mesure que des reponses arriveront.
         </p>
+      ) : (
+        total < SEUIL_LISIBILITE && (
+          <p className="rounded border-l-4 border-brand bg-brand/5 p-4 text-sm leading-relaxed">
+            <b>Moins de {SEUIL_LISIBILITE} reponses.</b> Les pourcentages ci-dessous sont affiches
+            parce qu ils aident a suivre la collecte, pas parce qu ils mesurent quelque chose.
+            Citer un pourcentage calcule sur une poignee de personnes, c est offrir au lecteur la
+            premiere objection.
+          </p>
+        )
       )}
 
       <Bloc titre="Questionnaire usager" questions={usager} />
@@ -182,7 +148,15 @@ export default async function ResultatsPage({
         </section>
       )}
 
-      {textes.map(({ champ, valeurs }) => (
+      {auMoinsUnTexte && (
+        <p className="rounded border-l-4 border-line bg-surface p-4 text-sm leading-relaxed text-ink-soft">
+          Les reponses libres ci-dessous sont reproduites <b>telles qu elles ont ete ecrites</b>,
+          par un formulaire ouvert a tous et sans relecture prealable. Elles engagent celui qui les
+          a ecrites, et personne d autre.
+        </p>
+      )}
+
+      {textes.map(({ champ, valeurs, affiches }) => (
         <section key={champ.cle} className="card-pad">
           <h2 className="section-title mb-2">
             {champ.intitule} <span className="font-normal text-ink-soft">({valeurs.length})</span>
@@ -190,13 +164,23 @@ export default async function ResultatsPage({
           {valeurs.length === 0 ? (
             <p className="text-sm text-ink-soft">Rien pour le moment.</p>
           ) : (
-            <ul className="space-y-2 text-sm leading-relaxed">
-              {valeurs.map((v, i) => (
-                <li key={i} className="border-l-2 border-line pl-3">
-                  {v}
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className="space-y-2 text-sm leading-relaxed">
+                {affiches.map((v, i) => (
+                  <li key={i} className="border-l-2 border-line pl-3">
+                    {v}
+                  </li>
+                ))}
+              </ul>
+              {valeurs.length > affiches.length && (
+                <p className="mt-3 text-sm text-ink-soft">
+                  {valeurs.length - affiches.length} autre
+                  {valeurs.length - affiches.length > 1 ? 's' : ''} reponse
+                  {valeurs.length - affiches.length > 1 ? 's' : ''} libre
+                  {valeurs.length - affiches.length > 1 ? 's' : ''} dans l export CSV.
+                </p>
+              )}
+            </>
           )}
         </section>
       ))}
@@ -211,7 +195,13 @@ export default async function ResultatsPage({
         <p className="mt-3 text-sm leading-relaxed text-ink-soft">
           Les reponses sont <b>anonymes</b> : la table ne porte ni nom, ni telephone, ni numero de
           dossier, ni adresse reseau. Elle ne permet donc pas de savoir si deux reponses viennent
-          de la meme personne, et ce depouillement ne le pretend pas.
+          de la meme personne, et ce depouillement ne le pretend pas. C est aussi ce qui permet a
+          cette page d etre ouverte : il n y a aucune identite a exposer.
+        </p>
+        <p className="mt-3 text-sm leading-relaxed text-ink-soft">
+          L echantillon n est pas representatif. Il decrit les personnes qui ont accepte de
+          repondre, la ou le questionnaire a circule. Ces limites se citent avec les chiffres,
+          pas a la place.
         </p>
       </section>
     </div>
@@ -226,13 +216,7 @@ function Cadre({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Bloc({
-  titre,
-  questions,
-}: {
-  titre: string;
-  questions: ReturnType<typeof depouiller>;
-}) {
+function Bloc({ titre, questions }: { titre: string; questions: ReturnType<typeof depouiller> }) {
   return (
     <section className="card">
       <header className="border-b border-line px-5 py-3">

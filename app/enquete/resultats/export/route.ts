@@ -1,14 +1,16 @@
-import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { COOKIE, cleAttendue, sessionOuverte } from '@/lib/enquete/acces';
 import { CHAMPS_LIBRES, QUESTIONS } from '@/lib/enquete/questionnaire';
-import { lire } from '@/lib/enquete/store';
+import { configuree, lire, refusConfiguration } from '@/lib/enquete/store';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 /**
- * Export CSV du depouillement, derriere la meme cle que la page.
+ * Export CSV du depouillement. OUVERT, comme la page qui y renvoie.
+ *
+ * Il ne sort que ce que cette page affiche deja : des reponses sans aucune
+ * donnee nominative. Le fichier ne porte ni adresse reseau, ni empreinte de
+ * navigateur — la table n'en contient pas.
  *
  * DEUX ECHAPPEMENTS, ET LE SECOND EST LE MOINS CONNU
  *
@@ -40,10 +42,8 @@ function cellule(valeur: unknown): string {
 }
 
 export async function GET() {
-  const cle = cleAttendue();
-  const jeton = (await cookies()).get(COOKIE)?.value ?? null;
-  if (!sessionOuverte(jeton, cle, new Date())) {
-    return NextResponse.json({ error: 'Acces refuse.' }, { status: 403 });
+  if (!configuree()) {
+    return NextResponse.json({ error: refusConfiguration() }, { status: 503 });
   }
 
   const lignes = await lire(5000);
