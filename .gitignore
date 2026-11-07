@@ -42,3 +42,7 @@ public/modeles/
 # Saveur du paquet desktop, ecrite a chaque preparation. Absente,
 # electron/main.js retient la version COMPLETE : le defaut sur.
 electron/saveur.json
+
+# Liaison locale au projet Vercel : elle porte des identifiants de projet
+# et ne concerne que ce poste.
+.vercel
