@@ -15,7 +15,7 @@ que la chaîne fonctionne.
 |---|---|---|
 | Le questionnaire | `https://m-tk-innov.github.io/SmartHealth/` | Page statique, branche `gh-pages`. Se remplit au téléphone, ou s'imprime. |
 | La collecte | `POST /api/enquete` | Valide et enregistre. Route publique, verrouillée. |
-| Le dépouillement | `/enquete/resultats` | Comptages, textes libres, export CSV. Fermé par une clé. |
+| Le dépouillement | `/enquete/resultats` | Comptages, textes libres, export CSV. Ouvert. |
 
 La branche `gh-pages` est **délibérément séparée** de `main`. Activer Pages
 sur `main` publierait aussi ce dossier de candidature et la note de
@@ -25,23 +25,17 @@ stratégie, dans un dépôt déjà public.
 
 ## Ce qu'il faut poser sur le serveur
 
-Deux variables, dans l'environnement du serveur et nulle part ailleurs.
-Laissées vides, la collecte est fermée : la route répond 503, et le
-formulaire publié s'en aperçoit au chargement et propose l'impression. C'est
-l'état normal d'une installation de soin, qui n'a aucune raison de recevoir
-ces réponses.
+Une variable, dans l'environnement du serveur et nulle part ailleurs.
+Laissée vide, la collecte est fermée : la route répond 503, et le formulaire
+publié s'en aperçoit au chargement et propose l'impression. C'est l'état
+normal d'une installation de soin, qui n'a aucune raison de recevoir ces
+réponses.
 
 ```
 SMARTHEALTH_ENQUETE_BASE=postgresql://…   # base Postgres distante
-SMARTHEALTH_ENQUETE_CLE=…                 # clé de lecture du dépouillement
 ```
 
-Sur Vercel : Settings, Environment Variables, les deux en Production. La clé
-se tire au hasard, et ne se met nulle part ailleurs :
-
-```bash
-node -e "console.log(require('node:crypto').randomBytes(24).toString('base64url'))"
-```
+Sur Vercel : Settings, Environment Variables, en Production.
 
 ---
 
@@ -96,8 +90,22 @@ serveur accepte.
 
 ## Lire les résultats
 
-`/enquete/resultats`, puis la clé. Le cookie posé vaut douze heures et ne
-voyage que sous `/enquete`.
+`/enquete/resultats`, sans clé : la page est ouverte, et son export CSV avec
+elle.
+
+Elle a d'abord été fermée, puis ouverte sur demande, pour montrer les chiffres
+sans avoir à transmettre quoi que ce soit. L'ouverture tient à une seule
+chose : **la table ne porte aucune donnée nominative**, donc il n'y a aucune
+identité à exposer. Elle cesserait d'être tenable le jour où cette table
+porterait autre chose.
+
+Ce qu'elle coûte, en revanche, doit être su. Les réponses libres viennent d'un
+formulaire ouvert à tous et s'affichent sans relecture préalable. React échappe
+ce qu'il affiche, donc rien de ce qui est saisi ne s'exécute ; mais une phrase
+déplacée, elle, s'affiche. La page prévient son lecteur que ces réponses
+engagent celui qui les a écrites, et le remède est de retirer la ligne de la
+base, pas d'espérer. La page porte aussi `noindex`, en balise et en en-tête :
+ouverte ne veut pas dire faite pour être trouvée par un moteur.
 
 La page affiche, par question, les décomptes **et la base sur laquelle le
 pourcentage est calculé**. Chaque question a sa propre base : une personne
