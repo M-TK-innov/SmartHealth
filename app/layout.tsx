@@ -59,17 +59,23 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // a un soignant, et une barre de navigation clinique autour de reponses
   // anonymes laisserait croire que les deux communiquent.
   const chemin = (await headers()).get(ENTETE_CHEMIN) ?? '';
-  const nu =
-    chemin === '/espace' ||
-    chemin.startsWith('/espace/') ||
-    chemin === '/enquete' ||
-    chemin.startsWith('/enquete/');
+  const sous = (prefixe: string) => chemin === prefixe || chemin.startsWith(`${prefixe}/`);
+
+  // L'enquete n'est PAS de la demonstration, et le bandeau ne doit pas s'y
+  // afficher. Il annonce « les donnees sont fictives et remises a zero » :
+  // au-dessus du questionnaire, cela dissuaderait de repondre serieusement ;
+  // au-dessus du depouillement, cela presenterait comme invente ce que des
+  // gens ont reellement ecrit. Les reponses vivent dans une base distante,
+  // qui ne sait rien du mode demonstration et n'est jamais remise a zero.
+  const enquete = sous('/enquete');
+  const nu = sous('/espace') || enquete;
+
   if (nu) {
     return (
       <html lang="fr">
         <body className="bg-paper">
           <PwaRuntime />
-          <BandeauDemo />
+          {!enquete && <BandeauDemo />}
           {children}
         </body>
       </html>
