@@ -26,6 +26,10 @@ import { CHAMPS_LIBRES, QUESTIONS, type Reponse } from './questionnaire.ts';
  * debit total, ce que fait `compterRecentes`.
  */
 
+// Les colonnes viennent de la declaration des questions, et la table doit
+// les porter toutes : une question ajoutee sans sa colonne fait echouer
+// CHAQUE reponse, y compris celles qui ne la concernent pas. Le schema de
+// reference est dans `schema.sql`, a cote de ce fichier.
 const COLONNES = [...QUESTIONS.map((q) => q.cle), ...CHAMPS_LIBRES.map((c) => c.cle)];
 
 /**

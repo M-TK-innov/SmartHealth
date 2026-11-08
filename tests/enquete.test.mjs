@@ -35,6 +35,45 @@ describe('declaration du questionnaire', () => {
     for (const q of QUESTIONS) assert.ok(q.options.length >= 2, q.cle);
   });
 
+  test('LES CLES DEJA EN BASE NE BOUGENT PLUS, quel que soit leur numero', () => {
+    // LE PIEGE QUE CE TEST FERME. Une question inseree au milieu donne envie
+    // de renumeroter les cles pour « faire propre ». Les reponses deja
+    // enregistrees seraient alors relues sous une autre question : un examen
+    // redemande deviendrait une assurance appliquee, sans que rien ne plante
+    // ni qu aucun total ne paraisse anormal.
+    //
+    // La cle se conserve, le numero s affiche. Les deux n ont aucune raison
+    // de coincider, et ce test interdit de les faire coincider apres coup.
+    const attendu = {
+      q1: 'Carnet de sante lors de la derniere visite',
+      q2: 'Informations deja donnees et redemandees',
+      q3: 'Documents a apporter ou presenter',
+      q4: 'Examen redemande faute de resultat sous la main',
+      q5: 'Deplacement uniquement pour un papier',
+      q6: 'Ordonnances et factures consultables sur le telephone',
+    };
+    for (const [cle, intitule] of Object.entries(attendu)) {
+      const q = QUESTIONS.find((x) => x.cle === cle);
+      assert.ok(q, `la cle ${cle} a disparu : les reponses deja en base deviendraient illisibles`);
+      assert.equal(q.intitule, intitule, `${cle} ne porte plus la meme question`);
+    }
+  });
+
+  test('une question ajoutee prend une cle neuve, jamais une cle liberee', () => {
+    // Recycler une cle est pire que la supprimer : les anciennes reponses se
+    // melangent aux nouvelles sans laisser de trace.
+    const cles = QUESTIONS.map((q) => q.cle);
+    assert.ok(cles.includes('q7'), "l assurance sante doit porter sa propre cle");
+    assert.ok(cles.includes('a6'), "la verification des droits doit porter sa propre cle");
+    // `a5` est un champ libre : aucune question ne doit le reprendre.
+    assert.equal(cles.includes('a5'), false);
+  });
+
+  test('les numeros affiches se suivent, sans trou ni doublon', () => {
+    const usagers = QUESTIONS.filter((q) => q.groupe === 'usager').map((q) => Number(q.numero));
+    assert.deepEqual(usagers, [1, 2, 3, 4, 5, 6, 7]);
+  });
+
   test('le centre ne vaut pas, a lui seul, une reponse', () => {
     const centre = CHAMPS_LIBRES.find((c) => c.cle === 'centre');
     assert.equal(centre.compteCommeReponse, false);

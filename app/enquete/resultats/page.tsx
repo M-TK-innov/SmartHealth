@@ -34,8 +34,8 @@ export const metadata = {
  *
  * Donner un chiffre unique de synthese. Chaque question a sa propre base, et
  * cette base est affichee a cote du pourcentage : une personne qui repond aux
- * six questions usager et a aucune question agent compte dans six bases, pas
- * dans onze. Tout rapporter au nombre de formulaires donnerait des chiffres
+ * sept questions usager et a aucune question agent compte dans sept bases, pas
+ * dans treize. Tout rapporter au nombre de formulaires donnerait des chiffres
  * faux, et toujours a la baisse.
  */
 
@@ -188,8 +188,8 @@ export default async function ResultatsPage() {
       <section className="card-pad">
         <h2 className="section-title mb-2">Comment lire ces chiffres</h2>
         <p className="text-sm leading-relaxed text-ink-soft">
-          Chaque question a sa propre base : une personne qui repond aux six questions usager et a
-          aucune question agent compte dans les six premieres bases, et dans aucune des cinq
+          Chaque question a sa propre base : une personne qui repond aux sept questions usager et a
+          aucune question agent compte dans les sept premieres bases, et dans aucune des six
           suivantes. Le nombre entre parentheses apres chaque question est cette base.
         </p>
         <p className="mt-3 text-sm leading-relaxed text-ink-soft">

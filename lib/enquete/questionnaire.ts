@@ -89,9 +89,28 @@ export const QUESTIONS: Question[] = [
     ],
   },
   {
-    cle: 'q4',
+    // LA CLE NE SUIT PAS LE NUMERO, ET C'EST VOULU. Cette question a ete
+    // ajoutee apres les six premieres et se pose en quatrieme position, mais
+    // sa cle est neuve : renommer q4 en q5 pour « faire propre » relirait les
+    // reponses deja enregistrees sous une autre question, et un examen
+    // redemande deviendrait une assurance appliquee. Le numero s'affiche, la
+    // cle se conserve.
+    cle: 'q7',
     groupe: 'usager',
     numero: '4',
+    intitule: 'Assurance sante appliquee lors de la derniere visite',
+    options: [
+      { valeur: 'aucune', libelle: "Je n'ai aucune assurance" },
+      { valeur: 'appliquee', libelle: 'Oui, elle a ete appliquee' },
+      { valeur: 'sans-preuve', libelle: "Non, je n'ai pas pu prouver mes droits" },
+      { valeur: 'autre-motif', libelle: 'Non, pour une autre raison' },
+      { valeur: 'inconnu', libelle: 'Je ne sais pas' },
+    ],
+  },
+  {
+    cle: 'q4',
+    groupe: 'usager',
+    numero: '5',
     intitule: 'Examen redemande faute de resultat sous la main',
     options: [
       { valeur: 'non', libelle: 'Non' },
@@ -103,7 +122,7 @@ export const QUESTIONS: Question[] = [
   {
     cle: 'q5',
     groupe: 'usager',
-    numero: '5',
+    numero: '6',
     intitule: 'Deplacement uniquement pour un papier',
     options: [
       { valeur: 'non', libelle: 'Non' },
@@ -115,7 +134,7 @@ export const QUESTIONS: Question[] = [
   {
     cle: 'q6',
     groupe: 'usager',
-    numero: '6',
+    numero: '7',
     intitule: 'Ordonnances et factures consultables sur le telephone',
     options: [
       { valeur: 'oui', libelle: 'Oui' },
@@ -166,6 +185,24 @@ export const QUESTIONS: Question[] = [
       { valeur: 'non', libelle: 'Non' },
       { valeur: 'parfois', libelle: 'Parfois' },
       { valeur: 'souvent', libelle: 'Souvent' },
+    ],
+  },
+  {
+    // `a5` est deja pris par le champ libre plus bas : la cle saute a `a6`.
+    // C'est la meme regle que pour q7 — une cle ne se recycle pas.
+    //
+    // La derniere option est la plus importante du lot. Un centre qui ne
+    // verifie pas les droits fait payer un patient assure, et c'est
+    // exactement le cout que l'assurance pour tous est censee supprimer.
+    cle: 'a6',
+    groupe: 'agent',
+    numero: 'A5',
+    intitule: "Temps passe a verifier les droits d'un patient assure",
+    options: [
+      { valeur: 'immediat', libelle: "C'est immediat" },
+      { valeur: 'minutes', libelle: 'Quelques minutes' },
+      { valeur: 'ailleurs', libelle: 'Il faut appeler ou ecrire ailleurs' },
+      { valeur: 'sans-verification', libelle: 'Nous ne verifions pas, le patient paie' },
     ],
   },
 ];
