@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Enquête usagers — parcours du dossier médical</title>
-<meta name="description" content="Questionnaire anonyme sur le parcours du dossier médical dans les formations sanitaires. Six questions, deux minutes.">
+<meta name="description" content="Questionnaire anonyme sur le parcours du dossier médical dans les formations sanitaires. Sept questions, deux minutes.">
 <meta name="robots" content="noindex, nofollow">
 <style>
   :root{
@@ -84,7 +84,7 @@
   </header>
 
   <p class="sous">
-    Six questions, deux minutes. Anonyme : ni nom, ni numéro de téléphone, ni numéro de dossier.
+    Sept questions, deux minutes. Anonyme : ni nom, ni numéro de téléphone, ni numéro de dossier.
   </p>
 
   <div class="consigne">
@@ -125,7 +125,7 @@
 
     <fieldset>
       <legend><span class="n">3.</span> Combien de documents deviez-vous apporter ou présenter&nbsp;?
-        <span class="precision">Carnet, ancienne ordonnance, résultats d'examen, reçus.</span></legend>
+        <span class="precision">Carnet, ancienne ordonnance, résultats d'examen, reçus, carte d'assurance.</span></legend>
       <div class="choix">
         <label><input type="radio" name="q3" value="0"> Aucun</label>
         <label><input type="radio" name="q3" value="1"> 1</label>
@@ -136,7 +136,19 @@
     </fieldset>
 
     <fieldset>
-      <legend><span class="n">4.</span> Ces douze derniers mois, un examen vous a-t-il été redemandé parce que
+      <legend><span class="n">4.</span> Lors de votre dernière visite, votre assurance santé a-t-elle été
+        appliquée&nbsp;? <span class="precision">ARCH, mutuelle, assurance d'un employeur.</span></legend>
+      <div class="choix">
+        <label><input type="radio" name="q7" value="aucune"> Je n'ai aucune assurance</label>
+        <label><input type="radio" name="q7" value="appliquee"> Oui, elle a été appliquée</label>
+        <label><input type="radio" name="q7" value="sans-preuve"> Non, je n'ai pas pu prouver mes droits</label>
+        <label><input type="radio" name="q7" value="autre-motif"> Non, pour une autre raison</label>
+        <label><input type="radio" name="q7" value="inconnu"> Je ne sais pas</label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend><span class="n">5.</span> Ces douze derniers mois, un examen vous a-t-il été redemandé parce que
         le résultat précédent n'était pas disponible&nbsp;?</legend>
       <div class="choix">
         <label><input type="radio" name="q4" value="non"> Non</label>
@@ -147,7 +159,7 @@
     </fieldset>
 
     <fieldset>
-      <legend><span class="n">5.</span> Ces douze derniers mois, avez-vous fait un déplacement uniquement pour un papier&nbsp;?
+      <legend><span class="n">6.</span> Ces douze derniers mois, avez-vous fait un déplacement uniquement pour un papier&nbsp;?
         <span class="precision">Chercher un résultat, une facture, un reçu, faire recopier une ordonnance.</span></legend>
       <div class="choix">
         <label><input type="radio" name="q5" value="non"> Non</label>
@@ -158,7 +170,7 @@
     </fieldset>
 
     <fieldset>
-      <legend><span class="n">6.</span> Si vous aviez pu voir vos ordonnances et vos factures sur votre téléphone,
+      <legend><span class="n">7.</span> Si vous aviez pu voir vos ordonnances et vos factures sur votre téléphone,
         cela vous aurait-il évité un déplacement&nbsp;?</legend>
       <div class="choix">
         <label><input type="radio" name="q6" value="oui"> Oui</label>
@@ -223,7 +235,17 @@
   </fieldset>
 
   <fieldset>
-    <legend><span class="n">A5.</span> Qu'est-ce qui vous ferait gagner le plus de temps&nbsp;?
+    <legend><span class="n">A5.</span> Vérifier les droits d'un patient assuré vous prend-il du temps&nbsp;?</legend>
+    <div class="choix">
+      <label><input type="radio" name="a6" value="immediat"> C'est immédiat</label>
+      <label><input type="radio" name="a6" value="minutes"> Quelques minutes</label>
+      <label><input type="radio" name="a6" value="ailleurs"> Il faut appeler ou écrire ailleurs</label>
+      <label><input type="radio" name="a6" value="sans-verification"> Nous ne vérifions pas, le patient paie</label>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend><span class="n">A6.</span> Qu'est-ce qui vous ferait gagner le plus de temps&nbsp;?
       <span class="precision">Une ligne.</span></legend>
     <input type="text" name="a5" autocomplete="off" maxlength="200">
   </fieldset>
