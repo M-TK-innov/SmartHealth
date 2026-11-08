@@ -23,11 +23,29 @@ import { solde, type Facture, type Solde } from '../hopital/caisse.ts';
  *     prescription ;
  *   - les notes libres du praticien, qui contiennent des hypotheses, parfois
  *     des informations sur des tiers ;
- *   - les resultats d'examen, le compte rendu, la transcription, l'analyse.
- *     Ce choix a ete pris en connaissance de cause : une valeur anormale lue
- *     un samedi soir, sans personne a qui la demander, fait plus de mal que
- *     d'attendre lundi ;
+ *   - le compte rendu, la transcription et l'analyse produite par le modele.
+ *     Un compte rendu est ecrit POUR UN CONFRERE : il porte des hypotheses et
+ *     un vocabulaire qui alarment sans eclairer celui qui n'a pas la formation
+ *     pour les lire ;
  *   - tout identifiant interne de soignant.
+ *
+ * LES ANALYSES ONT ETE OUVERTES AU PATIENT, ET POURQUOI C'EST ECRIT ICI
+ *
+ * Les resultats d'examen ne partaient autrefois pas du tout : une valeur anormale
+ * lue un samedi soir, sans personne a qui la demander, faisait plus de mal que
+ * d'attendre lundi. Ce choix a ete renverse volontairement. Deux garde-fous
+ * l'accompagnent, qui ne sont pas des adoucissements mais des exigences de
+ * justesse :
+ *
+ *   - un resultat REMPLACE par une correction ne sort jamais. Montrer une
+ *     valeur que le laboratoire a corrigee depuis serait pire que de ne rien
+ *     montrer : le patient agirait sur un chiffre que son dossier ne porte
+ *     plus ;
+ *   - une valeur CRITIQUE sort accompagnee. Tant que l'acquittement nominatif
+ *     n'a pas eu lieu, la projection le dit, pour que le patient sache que
+ *     personne n'a encore ete joint et qu'il doit appeler. La valeur n'est pas
+ *     retenue — on ne cache pas a quelqu'un ce qui le concerne — mais elle
+ *     n'arrive jamais nue.
  *
  * Module PUR : ni base, ni horloge. Ce qui est teste est ce qui s'execute.
  */
@@ -88,6 +106,118 @@ export interface FactureVue {
   resteACharge: number;
   soldee: boolean;
   reglements: { montant: number; moyen: string; recuLe: string }[];
+}
+
+export interface AnalyseSource {
+  id: string;
+  examen: string;
+  /** laboratoire | imagerie */
+  domaine: string;
+  demandeeLe: string;
+  etat: string;
+  /** routine | urgente | vitale */
+  priorite: string;
+  valeurNum: number | null;
+  valeurTexte: string | null;
+  unite: string | null;
+  /** normal | anormal | critique | non-interprete */
+  interpretation: string | null;
+  rendueLe: string | null;
+  /** Non nul quand une correction a remplace ce resultat. */
+  remplacePar: string | null;
+  /** Vrai tant qu une valeur critique n a pas ete acquittee nommement. */
+  aTransmettre: boolean;
+}
+
+export interface RendezVousSource {
+  id: string;
+  mode: string;
+  motif: string | null;
+  debut: string;
+  dureeMin: number;
+  etat: string;
+  /** Nom affichable du praticien, jamais son identifiant. */
+  praticien: string | null;
+  lieu: string | null;
+  salle: string | null;
+  consentementLe: string | null;
+  annuleMotif: string | null;
+}
+
+export interface AllergieVue {
+  substance: string;
+  reaction: string | null;
+  criticite: string | null;
+}
+
+export interface ProblemeVue {
+  libelle: string;
+  depuis: string | null;
+  actif: boolean;
+}
+
+export interface TraitementVue {
+  medicament: string;
+  dose: string | null;
+  depuis: string | null;
+}
+
+export interface DossierMedicalSource {
+  nom: string;
+  neLe: string | null;
+  naissanceEstimee: boolean;
+  sexe: string | null;
+  groupeSanguin: string | null;
+  numeroDossier: string | null;
+  npi: string | null;
+  allergies: AllergieVue[];
+  problemes: ProblemeVue[];
+  traitements: TraitementVue[];
+}
+
+export interface AnalyseVue {
+  id: string;
+  examen: string;
+  domaine: string;
+  demandeeLe: string;
+  etat: string;
+  urgente: boolean;
+  valeur: string | null;
+  unite: string | null;
+  interpretation: string | null;
+  rendueLe: string | null;
+  critique: boolean;
+  /** Vrai quand la valeur est critique ET que personne n a encore ete joint. */
+  centreNonJoint: boolean;
+}
+
+export interface RendezVousVue {
+  id: string;
+  mode: string;
+  motif: string | null;
+  debut: string;
+  dureeMin: number;
+  etat: string;
+  praticien: string | null;
+  lieu: string | null;
+  aDistance: boolean;
+  salle: string | null;
+  consentementDonne: boolean;
+  annuleMotif: string | null;
+  passe: boolean;
+}
+
+export interface DossierMedicalVue {
+  nom: string;
+  neLe: string | null;
+  naissanceEstimee: boolean;
+  sexe: string | null;
+  groupeSanguin: string | null;
+  numeroDossier: string | null;
+  npi: string | null;
+  allergies: AllergieVue[];
+  problemes: ProblemeVue[];
+  traitements: TraitementVue[];
 }
 
 export interface SejourVue {
@@ -186,6 +316,127 @@ export function projeterSejour(s: SejourSource): SejourVue {
   };
 }
 
+// --------------------------------------------------------------- analyses
+
+/**
+ * Un resultat remplace par une correction ne sort jamais.
+ *
+ * C'est la seule retenue sur les analyses, et elle n'a rien d'une prudence :
+ * montrer une valeur que le laboratoire a corrigee depuis ferait agir le
+ * patient sur un chiffre que son dossier ne porte plus.
+ */
+export function analyseMontrable(a: Pick<AnalyseSource, 'remplacePar'>): boolean {
+  return a.remplacePar === null;
+}
+
+/**
+ * Projette une analyse.
+ *
+ * La valeur numerique et la valeur texte sont fondues en une seule chaine : un
+ * ecran de telephone n'a pas la place de deux colonnes dont une est toujours
+ * vide, et le patient ne distingue pas les deux cas.
+ *
+ * `centreNonJoint` EST LE CHAMP QUI COMPTE. Une valeur critique dont
+ * l'acquittement nominatif n'a pas encore eu lieu signifie que personne n'a
+ * ete joint : le patient est alors le PREMIER au courant, et il doit le savoir
+ * pour appeler lui-meme. Taire cette information rendrait l'ouverture des
+ * analyses dangereuse. La valeur, elle, n'est pas retenue.
+ */
+export function projeterAnalyse(a: AnalyseSource): AnalyseVue | null {
+  if (!analyseMontrable(a)) return null;
+  const critique = a.interpretation === 'critique';
+  const valeur = a.valeurTexte ?? (a.valeurNum === null ? null : String(a.valeurNum));
+  return {
+    id: a.id,
+    examen: a.examen,
+    domaine: a.domaine,
+    demandeeLe: a.demandeeLe,
+    etat: a.etat,
+    urgente: a.priorite === 'urgente' || a.priorite === 'vitale',
+    valeur,
+    unite: a.unite,
+    interpretation: a.interpretation,
+    rendueLe: a.rendueLe,
+    critique,
+    centreNonJoint: critique && a.aTransmettre,
+  };
+}
+
+// ------------------------------------------------------------- rendez-vous
+
+/**
+ * Projette un rendez-vous.
+ *
+ * `salle` ne sort QUE pour une teleconsultation a venir, non annulee et
+ * consentie. Le jeton de salle est une entree : le laisser filer sur un
+ * rendez-vous passe ou annule laisserait une porte ouverte sur une
+ * consultation terminee.
+ *
+ * `passe` est fourni par l'appelant, qui tient l'horloge. Ce module reste pur :
+ * un module qui lit l'heure ne se teste pas deux fois pareil.
+ */
+export function projeterRendezVous(r: RendezVousSource, passe: boolean): RendezVousVue {
+  const aDistance = r.mode === 'distance';
+  const ouvrable = aDistance && !passe && r.etat !== 'annule' && r.etat !== 'absent';
+  return {
+    id: r.id,
+    mode: r.mode,
+    motif: r.motif,
+    debut: r.debut,
+    dureeMin: r.dureeMin,
+    etat: r.etat,
+    praticien: r.praticien,
+    lieu: r.lieu,
+    aDistance,
+    salle: ouvrable && r.consentementLe ? r.salle : null,
+    consentementDonne: r.consentementLe !== null,
+    annuleMotif: r.annuleMotif,
+    passe,
+  };
+}
+
+// --------------------------------------------------------- dossier medical
+
+/**
+ * Projette le dossier medical.
+ *
+ * CE QU'IL PORTE : allergies, maladies au long cours, traitements en cours,
+ * groupe sanguin. C'est exactement ce qu'un carnet de sante servait a
+ * transporter, et ce qu'on demande a quelqu'un arrivant aux urgences sans
+ * personne pour repondre a sa place.
+ *
+ * CE QU'IL NE PORTE PAS : les diagnostics d'une consultation donnee, le compte
+ * rendu, les notes. Un probleme au long cours a ete inscrit comme tel par un
+ * praticien ; un diagnostic d'un jour est une hypothese de ce jour-la, et la
+ * liste des hypotheses qu'on a eues sur soi ne s'emporte pas dans la poche.
+ */
+export function projeterDossierMedical(d: DossierMedicalSource): DossierMedicalVue {
+  return {
+    nom: d.nom,
+    neLe: d.neLe,
+    naissanceEstimee: d.naissanceEstimee,
+    sexe: d.sexe,
+    groupeSanguin: d.groupeSanguin,
+    numeroDossier: d.numeroDossier,
+    npi: d.npi,
+    allergies: d.allergies.map((a) => ({
+      substance: a.substance,
+      reaction: a.reaction,
+      criticite: a.criticite,
+    })),
+    problemes: d.problemes.map((p) => ({
+      libelle: p.libelle,
+      depuis: p.depuis,
+      actif: p.actif,
+    })),
+    traitements: d.traitements.map((m) => ({
+      medicament: m.medicament,
+      dose: m.dose,
+      depuis: m.depuis,
+    })),
+  };
+}
+
 /**
  * Les cles que chaque projection a le droit de produire.
  *
@@ -218,4 +469,48 @@ export const CLES_AUTORISEES = {
   ligneFacture: ['libelle', 'montant', 'quantite'],
   reglement: ['montant', 'moyen', 'recuLe'],
   sejour: ['id', 'entreeLe', 'sortieLe', 'service', 'motif', 'enCours'],
+  analyse: [
+    'id',
+    'examen',
+    'domaine',
+    'demandeeLe',
+    'etat',
+    'urgente',
+    'valeur',
+    'unite',
+    'interpretation',
+    'rendueLe',
+    'critique',
+    'centreNonJoint',
+  ],
+  rendezVous: [
+    'id',
+    'mode',
+    'motif',
+    'debut',
+    'dureeMin',
+    'etat',
+    'praticien',
+    'lieu',
+    'aDistance',
+    'salle',
+    'consentementDonne',
+    'annuleMotif',
+    'passe',
+  ],
+  dossierMedical: [
+    'nom',
+    'neLe',
+    'naissanceEstimee',
+    'sexe',
+    'groupeSanguin',
+    'numeroDossier',
+    'npi',
+    'allergies',
+    'problemes',
+    'traitements',
+  ],
+  allergie: ['substance', 'reaction', 'criticite'],
+  probleme: ['libelle', 'depuis', 'actif'],
+  traitement: ['medicament', 'dose', 'depuis'],
 } as const;

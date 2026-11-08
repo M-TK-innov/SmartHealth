@@ -66,6 +66,13 @@ const PUBLIC_API = [
   '/api/prerequis',
   // Meme raison : la garde de l'espace patient vit dans gardePatient().
   '/api/espace',
+  // La signalisation de la teleconsultation accepte DEUX sessions : celle du
+  // praticien et celle du patient, qui ne porte pas le cookie des agents. Ce
+  // middleware ne sait reconnaitre que le second, et bloquerait donc le
+  // patient avant meme que la route ne l'examine. La garde reelle est dans la
+  // route : elle identifie la session presentee, la verifie contre le
+  // rendez-vous de la salle, et refuse tout le reste.
+  '/api/teleconsultation',
   // Collecte de l'enquete usagers. Elle est appelee depuis une page statique
   // hebergee ailleurs, par des gens qui n'ont evidemment aucun compte : la
   // route porte ses propres verrous (origine, taille, liste d'options).

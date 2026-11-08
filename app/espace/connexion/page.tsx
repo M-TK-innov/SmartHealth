@@ -34,8 +34,9 @@ export default async function ConnexionPatientPage({
       </div>
 
       <p className="mt-6 text-center text-xs leading-relaxed text-ink-soft">
-        Vous ne verrez ici que ce qu un soignant a valide. Les resultats d examen et les comptes
-        rendus restent a discuter avec lui.
+        Vous y verrez vos ordonnances, vos rendez-vous, vos resultats et votre dossier. Une
+        valeur isolee ne fait pas un diagnostic : l interpretation se discute avec la personne
+        qui vous suit.
       </p>
     </main>
   );

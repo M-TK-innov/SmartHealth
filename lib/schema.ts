@@ -983,6 +983,52 @@ CREATE TABLE IF NOT EXISTS patient_account (
 -- Pose par un agent qui a le patient devant lui : c'est le seul moment ou
 -- l'identite est verifiee par un humain. La colonne garde qui l'a fait, car
 -- un rattachement errone donne acces au dossier de quelqu'un d'autre.
+-- ------------------------------------------------------------- Rendez-vous
+--
+-- UNE SEULE TABLE POUR LE PRESENTIEL ET LA DISTANCE. Un rendez-vous a
+-- distance reste un rendez-vous : meme creneau, meme praticien, meme risque
+-- de chevauchement. En faire deux tables obligerait a verifier deux fois
+-- qu'un praticien n'est pas pris, et c'est exactement le genre de regle
+-- qu'on finit par n'appliquer que d'un cote.
+CREATE TABLE IF NOT EXISTS rendez_vous (
+  id              TEXT PRIMARY KEY,
+  patient_id      TEXT NOT NULL REFERENCES patient(id) ON DELETE CASCADE,
+  practitioner_id TEXT REFERENCES practitioner(id),
+  organization_id TEXT,
+  -- presentiel | distance
+  mode            TEXT NOT NULL DEFAULT 'presentiel',
+  motif           TEXT,
+  debut           TEXT NOT NULL,
+  duree_min       INTEGER NOT NULL DEFAULT 20,
+  -- propose | confirme | en-salle | en-cours | honore | annule | absent
+  --
+  -- « absent » et « annule » sont distincts a dessein : un patient qui
+  -- previent n'est pas un patient qui ne vient pas, et confondre les deux
+  -- rendrait tout indicateur d'absenteisme faux.
+  etat            TEXT NOT NULL DEFAULT 'confirme',
+  -- Consultation nee de ce rendez-vous. C'est elle qui porte le compte rendu :
+  -- une teleconsultation produit le meme dossier qu'une consultation au
+  -- cabinet, sinon le dossier se scinde selon le canal, ce qui n'a aucun sens
+  -- clinique.
+  consultation_id TEXT REFERENCES consultation(id) ON DELETE SET NULL,
+  -- Salle de teleconsultation : jeton opaque, tire au hasard. Il n'est jamais
+  -- deduit de l'identifiant du rendez-vous, sinon connaitre un rendez-vous
+  -- donnerait l'entree de la salle d'un autre.
+  salle           TEXT,
+  -- Consentement a la consultation a distance, recueilli AVANT d'ouvrir la
+  -- video. Horodate : « il a accepte » sans quand ne se verifie pas.
+  consentement_le TEXT,
+  annule_par      TEXT,
+  annule_motif    TEXT,
+  cree_par        TEXT,
+  cree_le         TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_rdv_patient ON rendez_vous(patient_id, debut);
+-- Pour la question du planning : qui ce praticien voit, et quand.
+CREATE INDEX IF NOT EXISTS idx_rdv_praticien ON rendez_vous(practitioner_id, debut);
+-- La salle se cherche par son jeton, jamais par balayage.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_rdv_salle ON rendez_vous(salle) WHERE salle IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS patient_dossier (
   account_id      TEXT NOT NULL REFERENCES patient_account(id) ON DELETE CASCADE,
   patient_id      TEXT NOT NULL REFERENCES patient(id) ON DELETE CASCADE,

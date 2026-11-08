@@ -1,11 +1,17 @@
 import { all, get, nowIso, run } from '../db.ts';
 import { compter } from '../allegement/store.ts';
 import {
+  projeterAnalyse,
+  projeterDossierMedical,
   projeterFacture,
   projeterOrdonnance,
+  projeterRendezVous,
   projeterSejour,
+  type AnalyseVue,
+  type DossierMedicalVue,
   type FactureVue,
   type OrdonnanceVue,
+  type RendezVousVue,
   type SejourVue,
   type StatutOrdonnance,
 } from './visibilite.ts';
@@ -210,6 +216,226 @@ export function sejoursDe(session: SessionPatient): SejourVue[] {
 }
 
 // ------------------------------------------------------------ allegement
+
+// -------------------------------------------------------------- analyses
+
+interface LigneAnalyse {
+  id: string;
+  examen: string;
+  domaine: string;
+  demandee_le: string;
+  etat: string;
+  priorite: string;
+  valeur_num: number | null;
+  valeur_texte: string | null;
+  unite: string | null;
+  interpretation: string | null;
+  rendu_le: string | null;
+  remplace_par: string | null;
+  a_transmettre: number | null;
+}
+
+/**
+ * Les analyses du patient, resultat compris.
+ *
+ * ON NE JOINT QUE LE DERNIER RESULTAT de chaque demande. Une correction cree
+ * une NOUVELLE ligne et marque l'ancienne comme remplacee : joindre
+ * naivement rendrait les deux, et le patient verrait son examen deux fois
+ * avec deux valeurs differentes, sans savoir laquelle vaut. La projection
+ * ecarte ensuite les versions remplacees, mais le tri doit deja etre bon ici,
+ * sinon c'est l'ancienne qui arrive en tete.
+ */
+export function analysesDe(session: SessionPatient): AnalyseVue[] {
+  const ids = dossiers(session);
+  if (ids.length === 0) return [];
+
+  const brutes = all<LigneAnalyse>(
+    `SELECT d.id, d.examen, d.domaine, d.demandee_le, d.etat, d.priorite,
+            r.valeur_num, r.valeur_texte, r.unite, r.interpretation,
+            r.rendu_le, r.remplace_par, r.a_transmettre
+       FROM demande_examen d
+       LEFT JOIN resultat_examen r
+         ON r.id = (SELECT r2.id FROM resultat_examen r2
+                     WHERE r2.demande_id = d.id
+                     ORDER BY r2.rendu_le DESC LIMIT 1)
+      WHERE d.patient_id IN (${marques(ids.length)})
+        AND d.etat <> 'annulee'
+      ORDER BY d.demandee_le DESC`,
+    ids,
+  );
+
+  const vues: AnalyseVue[] = [];
+  for (const b of brutes) {
+    const vue = projeterAnalyse({
+      id: b.id,
+      examen: b.examen,
+      domaine: b.domaine,
+      demandeeLe: b.demandee_le,
+      etat: b.etat,
+      priorite: b.priorite,
+      valeurNum: b.valeur_num,
+      valeurTexte: b.valeur_texte,
+      unite: b.unite,
+      interpretation: b.interpretation,
+      rendueLe: b.rendu_le,
+      remplacePar: b.remplace_par,
+      aTransmettre: b.a_transmettre === 1,
+    });
+    if (vue) vues.push(vue);
+  }
+  return vues;
+}
+
+// ----------------------------------------------------------- rendez-vous
+
+interface LigneRdv {
+  id: string;
+  mode: string;
+  motif: string | null;
+  debut: string;
+  duree_min: number;
+  etat: string;
+  praticien: string | null;
+  lieu: string | null;
+  salle: string | null;
+  consentement_le: string | null;
+  annule_motif: string | null;
+}
+
+/**
+ * Les rendez-vous du patient, a venir d'abord.
+ *
+ * L'ordre n'est pas chronologique mais utile : quelqu'un qui ouvre cet ecran
+ * veut savoir quand il doit revenir, pas se souvenir de l'an dernier. Les
+ * rendez-vous passes suivent, du plus recent au plus ancien.
+ */
+export function rendezVousDe(session: SessionPatient): RendezVousVue[] {
+  const ids = dossiers(session);
+  if (ids.length === 0) return [];
+
+  const brutes = all<LigneRdv>(
+    `SELECT v.id, v.mode, v.motif, v.debut, v.duree_min, v.etat,
+            v.salle, v.consentement_le, v.annule_motif,
+            CASE WHEN pr.id IS NULL THEN NULL
+                 ELSE TRIM(pr.given_name || ' ' || pr.family_name) END AS praticien,
+            o.name AS lieu
+       FROM rendez_vous v
+       LEFT JOIN practitioner pr ON pr.id = v.practitioner_id
+       LEFT JOIN organization o ON o.id = v.organization_id
+      WHERE v.patient_id IN (${marques(ids.length)})
+      ORDER BY v.debut DESC`,
+    ids,
+  );
+
+  const maintenant = nowIso();
+  const vues = brutes.map((b) =>
+    projeterRendezVous(
+      {
+        id: b.id,
+        mode: b.mode,
+        motif: b.motif,
+        debut: b.debut,
+        dureeMin: b.duree_min,
+        etat: b.etat,
+        praticien: b.praticien,
+        lieu: b.lieu,
+        salle: b.salle,
+        consentementLe: b.consentement_le,
+        annuleMotif: b.annule_motif,
+      },
+      b.debut < maintenant,
+    ),
+  );
+
+  const aVenir = vues.filter((v) => !v.passe).sort((a, b) => a.debut.localeCompare(b.debut));
+  const passes = vues.filter((v) => v.passe);
+  return [...aVenir, ...passes];
+}
+
+// -------------------------------------------------------- dossier medical
+
+/**
+ * Le dossier medical portable du patient.
+ *
+ * UN SEUL DOSSIER A LA FOIS. Un compte peut en porter plusieurs — un parent
+ * qui suit ses enfants — et fondre leurs allergies en une liste serait une
+ * erreur dangereuse : on ne sait plus qui est allergique a quoi. L'appelant
+ * choisit donc le dossier, et `null` est rendu si ce dossier n'est pas
+ * rattache a la session.
+ */
+export function dossierMedicalDe(
+  session: SessionPatient,
+  patientId: string,
+): DossierMedicalVue | null {
+  // Le controle tient en cette ligne : l'identifiant doit venir des dossiers
+  // DE LA SESSION. Un numero glisse dans l'adresse ne passe pas.
+  if (!dossiers(session).includes(patientId)) return null;
+
+  const p = get<{
+    given_name: string;
+    family_name: string;
+    birth_date: string | null;
+    birth_date_estimated: number | null;
+    gender: string | null;
+    blood_group: string | null;
+    mrn: string | null;
+    national_id: string | null;
+  }>(
+    `SELECT given_name, family_name, birth_date, birth_date_estimated,
+            gender, blood_group, mrn, national_id
+       FROM patient WHERE id = ?`,
+    [patientId],
+  );
+  if (!p) return null;
+
+  const allergies = all<{ substance: string; reaction: string | null; criticality: string | null }>(
+    `SELECT substance, reaction, criticality FROM allergy
+      WHERE patient_id = ? ORDER BY recorded_at DESC`,
+    [patientId],
+  );
+
+  // Seulement ce qui est ACTIF et CONFIRME. Un probleme resolu ou encore au
+  // conditionnel n'a pas a figurer sur ce qui tient lieu de carnet : on le
+  // presenterait aux urgences comme un fait etabli.
+  const problemes = all<{ label: string; onset_date: string | null; clinical_status: string }>(
+    `SELECT label, onset_date, clinical_status FROM problem
+      WHERE patient_id = ? AND verification_status = 'confirmed'
+      ORDER BY recorded_at DESC`,
+    [patientId],
+  );
+
+  const traitements = all<{ drug_name: string; dose: string | null; started_on: string | null }>(
+    `SELECT drug_name, dose, started_on FROM medication_statement
+      WHERE patient_id = ? AND status = 'active'
+      ORDER BY started_on DESC`,
+    [patientId],
+  );
+
+  return projeterDossierMedical({
+    nom: `${p.given_name} ${p.family_name}`.trim(),
+    neLe: p.birth_date,
+    naissanceEstimee: p.birth_date_estimated === 1,
+    sexe: p.gender,
+    groupeSanguin: p.blood_group,
+    numeroDossier: p.mrn,
+    npi: p.national_id,
+    allergies: allergies.map((a) => ({
+      substance: a.substance,
+      reaction: a.reaction,
+      criticite: a.criticality,
+    })),
+    problemes: problemes.map((q) => ({
+      libelle: q.label,
+      depuis: q.onset_date,
+      actif: q.clinical_status === 'active',
+    })),
+    traitements: traitements.map((m) => ({
+      medicament: m.drug_name,
+      dose: m.dose,
+      depuis: m.started_on,
+    })),
+  });
+}
 
 /**
  * Note qu'une consultation a eu lieu hors de la structure.

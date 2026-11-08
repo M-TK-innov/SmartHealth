@@ -22,6 +22,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/', label: 'Tableau de bord', short: 'Accueil', icon: '▦' },
   { href: '/patients', label: 'Patients', short: 'Patients', icon: '⚇', permission: 'patient:read' },
   { href: '/consultations', label: 'Consultations', short: 'Consult.', icon: '◑', permission: 'consultation:read' },
+  { href: '/rendez-vous', label: 'Rendez-vous', short: 'RDV', icon: '◷', permission: 'consultation:read' },
   { href: '/hopital', label: 'Lits et files', short: 'Hopital', icon: '▤', permission: 'flux:read' },
   { href: '/hopital/pharmacie', label: 'Pharmacie', short: 'Pharma', icon: '⚕', permission: 'pharmacie:read' },
   { href: '/hopital/plateau', label: 'Laboratoire', short: 'Labo', icon: '◎', permission: 'plateau:read' },
