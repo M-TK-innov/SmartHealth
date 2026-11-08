@@ -26,6 +26,11 @@ export const COMPTES: CompteDemo[] = [
     peut: "Consulte, dicte, signe, prescrit. Appelle son patient suivant, voit le reste a charge et le stock, demande des examens et opere. N'encaisse pas, ne dispense pas, ne saisit pas de resultat.",
   },
   {
+    email: 'accueil@csc.bj',
+    role: 'Infirmier / Accueil',
+    peut: "Enregistre le patient, l'oriente dans les files, lui assigne un lit, preleve et saisit les resultats. Voit le reste a charge et le stock sans encaisser ni dispenser. Ne signe aucun compte rendu, ne valide aucune ordonnance.",
+  },
+  {
     email: 'direction@csc.bj',
     role: 'Etablissement',
     peut: "Tous les modules hospitaliers : lits, files, caisse, pharmacie, laboratoire, bloc. Valide les comptes de ses medecins. N'accede pas a la console plateforme.",

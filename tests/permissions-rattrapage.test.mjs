@@ -165,3 +165,85 @@ describe('base anterieure a la table de suivi', () => {
     assert.ok(accorde(plan, 'hopital', 'caisse:write'));
   });
 });
+
+describe('rattrapage : un ROLE ajoute par une mise a jour', () => {
+  /**
+   * CE QUE CE BLOC PROTEGE : ajouter un role dans le code ne suffit pas. Ses
+   * droits sont tous anciens, donc le rattrapage par permission ne le voit
+   * jamais, et l agent se retrouve avec un compte qui n ouvre rien. Le
+   * symptome ressemble a une panne de connexion, jamais a un oubli d amorcage.
+   */
+
+  /** Tous les couples role -> droit, sauf pour le role indique. */
+  function matriceSans(absent) {
+    const couples = [];
+    for (const role of ROLES) {
+      if (role === absent) continue;
+      for (const p of DEFAULT_ROLE_PERMISSIONS[role]) couples.push({ role, permission: p });
+    }
+    return couples;
+  }
+
+  test('un role jamais amorce recoit l integralite de ses droits par defaut', () => {
+    const couples = matriceSans('infirmier');
+    const plan = rattrapage({
+      dejaAmorcees: [...ALL_PERMISSIONS],
+      presentesEnBase: [...new Set(couples.map((c) => c.permission))],
+      rolesAmorces: ROLES.filter((r) => r !== 'infirmier'),
+      rolesEnBase: ROLES.filter((r) => r !== 'infirmier'),
+    });
+
+    const accordes = plan.aAccorder.filter((c) => c.role === 'infirmier').map((c) => c.permission);
+    assert.deepEqual([...accordes].sort(), [...DEFAULT_ROLE_PERMISSIONS.infirmier].sort());
+    // Et rien pour les autres : une mise a jour qui n apporte aucun droit
+    // nouveau ne doit toucher a aucun role deja en place.
+    assert.deepEqual(plan.aAccorder.filter((c) => c.role !== 'infirmier'), []);
+  });
+
+  test('un role deja amorce puis vide a la main n est PAS repeuple', () => {
+    // Un administrateur qui retire tous les droits d un role prend une
+    // decision. La rattraper serait la defaire dans son dos, ce qui est
+    // exactement ce que ce fichier interdit depuis le depart.
+    const couples = matriceSans('ministere');
+    const plan = rattrapage({
+      dejaAmorcees: [...ALL_PERMISSIONS],
+      presentesEnBase: [...new Set(couples.map((c) => c.permission))],
+      rolesAmorces: [...ROLES],
+      rolesEnBase: ROLES.filter((r) => r !== 'ministere'),
+    });
+    assert.deepEqual(plan.aAccorder, []);
+  });
+
+  test('une base existante qui decouvre la table de suivi ne reaccorde rien', () => {
+    // LE CAS QUI COMPTE A LA MISE A JOUR : role_amorce vient d apparaitre,
+    // donc elle est vide. Si on lisait cette liste vide comme « aucun role
+    // connu », on redonnerait a chaque role tous ses droits par defaut, et on
+    // effacerait au passage les retraits decides par l administrateur.
+    const couples = [];
+    for (const role of ROLES) {
+      for (const p of DEFAULT_ROLE_PERMISSIONS[role]) {
+        // L administrateur a retire ce droit au medecin, volontairement.
+        if (role === 'medecin' && p === 'bloc:write') continue;
+        couples.push({ role, permission: p });
+      }
+    }
+    const plan = rattrapage({
+      dejaAmorcees: [...ALL_PERMISSIONS],
+      presentesEnBase: [...new Set(couples.map((c) => c.permission))],
+      rolesAmorces: [],
+      rolesEnBase: [...ROLES],
+    });
+    assert.deepEqual(plan.aAccorder, []);
+  });
+
+  test('un demarrage ordinaire n accorde rien', () => {
+    const plan = rattrapage({
+      dejaAmorcees: [...ALL_PERMISSIONS],
+      presentesEnBase: [...ALL_PERMISSIONS],
+      rolesAmorces: [...ROLES],
+      rolesEnBase: [...ROLES],
+    });
+    assert.deepEqual(plan.aAccorder, []);
+    assert.deepEqual(plan.rolesAMarquer, []);
+  });
+});

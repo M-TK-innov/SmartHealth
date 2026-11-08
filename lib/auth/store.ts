@@ -164,6 +164,10 @@ export function ensureRolePermissions() {
     presentesEnBase: all<{ permission: string }>(
       'SELECT DISTINCT permission FROM role_permission',
     ).map((r) => r.permission),
+    rolesAmorces: all<{ role: string }>('SELECT role FROM role_amorce').map((r) => r.role),
+    rolesEnBase: all<{ role: string }>('SELECT DISTINCT role FROM role_permission').map(
+      (r) => r.role,
+    ),
   });
 
   for (const { role, permission } of plan.aAccorder) {
@@ -171,6 +175,12 @@ export function ensureRolePermissions() {
   }
   for (const p of plan.aMarquer) {
     run('INSERT OR IGNORE INTO permission_amorcee (permission) VALUES (?)', [p]);
+  }
+  // Marque APRES avoir accorde : si l ecriture echoue en cours de route, le
+  // role reste non amorce et sera repris au prochain demarrage, plutot que
+  // d etre considere comme traite avec des droits incomplets.
+  for (const r of plan.rolesAMarquer) {
+    run('INSERT OR IGNORE INTO role_amorce (role) VALUES (?)', [r]);
   }
 
   // Un rattrapage sur une base deja installee modifie des droits : il se

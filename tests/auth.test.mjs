@@ -57,7 +57,13 @@ describe('hierarchie des roles', () => {
   test('on ne s inscrit jamais administrateur', () => {
     assert.equal(SELF_REGISTRABLE_ROLES.includes('admin'), false);
     assert.equal(SELF_REGISTRABLE_ROLES.includes('super_admin'), false);
-    assert.deepEqual([...SELF_REGISTRABLE_ROLES].sort(), ['hopital', 'medecin', 'ministere']);
+    // L infirmier s inscrit comme le medecin, et son etablissement le
+    // valide. La liste est figee ici pour qu un role ajoute plus tard ne
+    // devienne pas auto-inscriptible sans que personne ne l ait voulu.
+    assert.deepEqual(
+      [...SELF_REGISTRABLE_ROLES].sort(),
+      ['hopital', 'infirmier', 'medecin', 'ministere'],
+    );
   });
 
   test('isRole rejette une valeur forgee', () => {

@@ -820,6 +820,19 @@ CREATE TABLE IF NOT EXISTS permission_amorcee (
   amorcee_le TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Jumelle de permission_amorcee, pour les ROLES.
+-- Sans elle, un role ajoute par une mise a jour naitrait sans aucun droit :
+-- le rattrapage ne regarde que les permissions nouvelles, et les droits d'un
+-- nouveau role sont, eux, tous anciens. Le symptome serait un agent qui ne
+-- peut rien ouvrir, ce qui se diagnostique mal.
+-- Elle distingue aussi « role jamais amorce » de « role volontairement vide
+-- par un administrateur » : sans ce suivi, les deux se ressemblent, et on
+-- redonnerait des droits qu'on vient de retirer.
+CREATE TABLE IF NOT EXISTS role_amorce (
+  role      TEXT PRIMARY KEY,
+  amorce_le TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Derogation individuelle : accorde ou retire une permission a un compte
 -- precis, par-dessus la matrice de son role.
 CREATE TABLE IF NOT EXISTS user_permission (

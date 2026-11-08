@@ -13,11 +13,12 @@
  * confidentialite, pas un droit attribuable.
  */
 
-export const ROLES = ['medecin', 'hopital', 'ministere', 'admin', 'super_admin'] as const;
+export const ROLES = ['medecin', 'infirmier', 'hopital', 'ministere', 'admin', 'super_admin'] as const;
 export type Role = (typeof ROLES)[number];
 
 export const ROLE_LABELS: Record<Role, string> = {
   medecin: 'Medecin',
+  infirmier: 'Infirmier / Accueil',
   hopital: 'Etablissement de sante',
   ministere: 'Ministere de la sante',
   admin: 'Administrateur plateforme',
@@ -27,6 +28,8 @@ export const ROLE_LABELS: Record<Role, string> = {
 export const ROLE_DESCRIPTIONS: Record<Role, string> = {
   medecin:
     "Consulte, enregistre et signe les dossiers des patients de son etablissement. Valide les ordonnances qu'il prescrit.",
+  infirmier:
+    "Recoit le patient, l'enregistre, l'oriente dans les files, lui assigne un lit, preleve et saisit les resultats. Ne signe aucun compte rendu et ne valide aucune ordonnance.",
   hopital:
     "Administre son etablissement : cree et valide les comptes des medecins, suit l'activite, exporte vers les systemes tiers.",
   ministere:
@@ -168,6 +171,35 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'bloc:read',
     'bloc:write',
   ],
+  // L'INFIRMIER D'ACCUEIL est le premier et le dernier a voir le patient. Il
+  // l'enregistre, le place dans une file, lui trouve un lit, le preleve et
+  // saisit ce que le laboratoire rend. C'est un poste de soin et d'accueil,
+  // pas un poste de decision medicale ni de tenue de caisse.
+  infirmier: [
+    'patient:read',
+    'patient:write',
+    // Il lit la consultation pour savoir pourquoi le patient est la. Il ne
+    // l'ecrit pas, ne la signe pas, et ne valide aucune ordonnance : separer
+    // celui qui execute de celui qui prescrit est ce qui permet au second de
+    // porter la responsabilite de ce qu'il a decide.
+    'consultation:read',
+    'flux:read',
+    'flux:write',
+    // Il VOIT le reste a charge pour pouvoir orienter le patient vers la
+    // caisse, mais il n'encaisse pas. La meme regle vaut pour le medecin, et
+    // pour la meme raison : elle protege celui qui soigne autant qu'elle
+    // protege l'argent.
+    'caisse:read',
+    // Il VOIT le stock pour ne pas envoyer un patient chercher ce qui manque,
+    // mais la dispensation reste a la pharmacie, qui en repond.
+    'pharmacie:read',
+    // Il preleve et saisit le resultat : c'est son poste. Le medecin, lui,
+    // ne fait que lire et acquitter.
+    'plateau:read',
+    'plateau:write',
+    // Il prepare le patient pour le bloc sans programmer l'intervention.
+    'bloc:read',
+  ],
   hopital: [
     'patient:read',
     'consultation:read',
@@ -218,11 +250,17 @@ export interface EtatMatrice {
   dejaAmorcees: string[];
   /** Permissions presentes aujourd'hui sur au moins un role. */
   presentesEnBase: string[];
+  /** Roles deja amorces au moins une fois (table role_amorce). */
+  rolesAmorces?: string[];
+  /** Roles portant au moins un droit aujourd'hui. */
+  rolesEnBase?: string[];
 }
 
 export interface Rattrapage {
   aAccorder: { role: Role; permission: Permission }[];
   aMarquer: Permission[];
+  /** Roles a inscrire dans role_amorce une fois leurs droits poses. */
+  rolesAMarquer: Role[];
 }
 
 /**
@@ -255,20 +293,57 @@ export function rattrapage(etat: EtatMatrice): Rattrapage {
   const connues = new Set(etat.dejaAmorcees.length > 0 ? etat.dejaAmorcees : etat.presentesEnBase);
   const nouvelles = ALL_PERMISSIONS.filter((p) => !connues.has(p));
 
-  if (nouvelles.length === 0) {
-    // Cas de tous les demarrages ordinaires : rien a accorder. On ne marque
-    // que si la table de suivi est encore vide, pour qu'un lancement
-    // ordinaire ne reecrive pas la matrice d'acces a chaque fois.
-    return { aAccorder: [], aMarquer: etat.dejaAmorcees.length === 0 ? [...ALL_PERMISSIONS] : [] };
-  }
+  // Meme raisonnement pour les ROLES. Un role ajoute par une mise a jour n'a
+  // que des permissions deja connues : le rattrapage par permission ne le
+  // voit donc jamais, et il naitrait sans aucun droit. On le rattrape ici.
+  //
+  // `rolesAmorces` absent signale une base anterieure a la table de suivi :
+  // on se rabat alors sur les roles qui portent deja un droit, pour ne pas
+  // reinitialiser une matrice qu'un administrateur a reglee a la main.
+  // `??` ne basculerait que sur null : une table de suivi VIDE est une liste
+  // vide, pas une absence. Sur une installation existante qui decouvre cette
+  // table, tous les roles passeraient alors pour neufs et seraient re-dotes
+  // de leurs droits par defaut — ce qui defait les retraits decides par un
+  // administrateur. On teste donc la longueur, comme pour les permissions.
+  const rolesConnus = new Set(
+    (etat.rolesAmorces ?? []).length > 0
+      ? etat.rolesAmorces
+      : ((etat.rolesEnBase ?? []).length > 0 ? etat.rolesEnBase : ROLES),
+  );
+  const rolesNeufs = ROLES.filter((r) => !rolesConnus.has(r));
 
-  return {
-    aAccorder: ROLES.flatMap((role) =>
+  const aAccorder = [
+    // Droits nouveaux, pour tous les roles qui les prevoient.
+    ...ROLES.flatMap((role) =>
       DEFAULT_ROLE_PERMISSIONS[role]
         .filter((permission) => nouvelles.includes(permission))
         .map((permission) => ({ role, permission })),
     ),
+    // Roles nouveaux, avec l'integralite de leurs droits par defaut. Le
+    // filtre evite de reinscrire ce que la premiere liste vient d'ajouter.
+    ...rolesNeufs.flatMap((role) =>
+      DEFAULT_ROLE_PERMISSIONS[role]
+        .filter((permission) => !nouvelles.includes(permission))
+        .map((permission) => ({ role, permission })),
+    ),
+  ];
+
+  if (aAccorder.length === 0) {
+    // Cas de tous les demarrages ordinaires : rien a accorder. On ne marque
+    // que si la table de suivi est encore vide, pour qu'un lancement
+    // ordinaire ne reecrive pas la matrice d'acces a chaque fois.
+    const vierge = etat.dejaAmorcees.length === 0;
+    return {
+      aAccorder: [],
+      aMarquer: vierge ? [...ALL_PERMISSIONS] : [],
+      rolesAMarquer: (etat.rolesAmorces ?? []).length === 0 ? [...ROLES] : [],
+    };
+  }
+
+  return {
+    aAccorder,
     aMarquer: [...ALL_PERMISSIONS],
+    rolesAMarquer: [...ROLES],
   };
 }
 
@@ -280,9 +355,10 @@ export function rattrapage(etat: EtatMatrice): Rattrapage {
  */
 export const VALIDATION_SCOPE: Record<Role, Role[]> = {
   medecin: [],
-  hopital: ['medecin'],
-  admin: ['medecin', 'hopital', 'ministere'],
-  super_admin: ['medecin', 'hopital', 'ministere', 'admin', 'super_admin'],
+  infirmier: [],
+  hopital: ['medecin', 'infirmier'],
+  admin: ['medecin', 'infirmier', 'hopital', 'ministere'],
+  super_admin: ['medecin', 'infirmier', 'hopital', 'ministere', 'admin', 'super_admin'],
   ministere: [],
 };
 
@@ -291,7 +367,10 @@ export function canValidateRole(actor: Role, target: Role): boolean {
 }
 
 /** Roles ouverts a l'inscription libre. On ne s'inscrit jamais administrateur. */
-export const SELF_REGISTRABLE_ROLES: Role[] = ['medecin', 'hopital', 'ministere'];
+// L infirmier s inscrit comme le medecin : son etablissement le valide
+// ensuite. Lui fermer l inscription obligerait chaque centre a creer les
+// comptes a la main, ce qui finit toujours par des comptes partages.
+export const SELF_REGISTRABLE_ROLES: Role[] = ['medecin', 'infirmier', 'hopital', 'ministere'];
 
 export function isRole(value: unknown): value is Role {
   return typeof value === 'string' && (ROLES as readonly string[]).includes(value);
@@ -312,6 +391,7 @@ export const ORG_TYPE_LABELS: Record<OrgType, string> = {
 /** Type d'organisation attendu pour un role donne, a l'inscription. */
 export const ROLE_ORG_TYPE: Partial<Record<Role, OrgType[]>> = {
   medecin: ['hospital', 'health-center'],
+  infirmier: ['hospital', 'health-center'],
   hopital: ['hospital', 'health-center'],
   ministere: ['ministry'],
 };
@@ -326,6 +406,7 @@ export type DataScope = 'own-org' | 'national' | 'all';
 
 export const ROLE_DATA_SCOPE: Record<Role, DataScope> = {
   medecin: 'own-org',
+  infirmier: 'own-org',
   hopital: 'own-org',
   ministere: 'national',
   admin: 'all',
