@@ -1,6 +1,6 @@
 # Parcours vidéo de la plateforme
 
-`parcours-smarthealth.webm` — 7 chapitres, 54 vues, 3 min 48 s, 1280x720.
+`parcours-smarthealth.webm` — 7 chapitres, 61 vues, 3 min 51 s, 1280x720.
 
 Un acteur par chapitre, et pour chacun **uniquement les interfaces qui lui sont
 destinées**. Le film ne montre jamais quelqu'un se cogner à une porte fermée :
@@ -8,13 +8,13 @@ il montre sept postes de travail.
 
 | Chapitre | Compte | Vues |
 |---|---|---|
-| Médecin | `a.sossou@example.bj` | 14 |
-| Infirmier / Accueil | `accueil@csc.bj` | 8 |
+| Médecin | `a.sossou@example.bj` | 15 |
+| Infirmier / Accueil | `accueil@csc.bj` | 9 |
 | Établissement | `direction@csc.bj` | 12 |
 | Ministère | `ministere@sante.bj` | 5 |
 | Administrateur plateforme | `admin@smarthealth.local` | 5 |
 | Super-administrateur | `super@smarthealth.local` | 4 |
-| Patient | téléphone + code personnel | 6 |
+| Patient | téléphone + code personnel | 11 |
 
 Mot de passe commun des comptes d'essai : voir `/demo` dans l'application.
 

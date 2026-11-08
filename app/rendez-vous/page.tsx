@@ -4,6 +4,7 @@ import { journeeDe } from '@/lib/rdv/store';
 import { listPractitioners } from '@/lib/repo';
 import { nowIso, get } from '@/lib/db';
 import { DemarrerTeleconsultation } from '@/components/rdv/DemarrerTeleconsultation';
+import { PoserRendezVous } from '@/components/rdv/PoserRendezVous';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,6 +65,18 @@ export default async function RendezVousPage({
           Journee du {date}. Les consultations a distance s ouvrent un quart d heure avant l heure
           prevue, et seulement si le patient a donne son accord.
         </p>
+
+        {ctx.can('flux:write') && (
+          <PoserRendezVous
+            praticiens={praticiens.map((p) => ({
+              id: p.id,
+              given_name: p.given_name,
+              family_name: p.family_name,
+            }))}
+            praticienParDefaut={choisi}
+            jour={date}
+          />
+        )}
 
         {praticiens.length > 1 && (
           <form method="get" className="mt-3 flex flex-wrap items-end gap-2">
