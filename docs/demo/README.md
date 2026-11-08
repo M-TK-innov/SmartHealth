@@ -1,54 +1,77 @@
-# Parcours en images de la plateforme
+# Parcours vidéo de la plateforme
 
-Dix-sept vues de SmartHealth, prises sur la démonstration, assemblées en une
-boucle de 48 secondes.
+`parcours-smarthealth.webm` — 7 chapitres, 54 vues, 3 min 48 s, 1280x720.
 
-| Fichier | Usage |
-|---|---|
-| `parcours-smarthealth.webp` | La version nette et légère. S'ouvre dans tout navigateur récent et dans la plupart des traitements de texte. |
-| `parcours-smarthealth.gif` | Plus lourd et moins beau, mais il se colle dans un courriel, une diapositive ou un formulaire de dépôt qui refuse le reste. |
-| `vue-01.png` à `vue-17.png` | Les vues une par une, légende incrustée. De quoi faire un vrai montage, des diapositives, ou illustrer une page. |
+Un acteur par chapitre, et pour chacun **uniquement les interfaces qui lui sont
+destinées**. Le film ne montre jamais quelqu'un se cogner à une porte fermée :
+il montre sept postes de travail.
 
-Pour reconstruire après de nouvelles captures :
+| Chapitre | Compte | Vues |
+|---|---|---|
+| Médecin | `a.sossou@example.bj` | 14 |
+| Infirmier / Accueil | `accueil@csc.bj` | 8 |
+| Établissement | `direction@csc.bj` | 12 |
+| Ministère | `ministere@sante.bj` | 5 |
+| Administrateur plateforme | `admin@smarthealth.local` | 5 |
+| Super-administrateur | `super@smarthealth.local` | 4 |
+| Patient | téléphone + code personnel | 6 |
+
+Mot de passe commun des comptes d'essai : voir `/demo` dans l'application.
+
+---
+
+## Refaire le film
 
 ```bash
-node scripts/monter-parcours.mjs <dossier-des-vues> docs/demo
+npm install playwright && npx playwright install chromium
 ```
+
+```bash
+npm run build && node node_modules/next/dist/bin/next start -p 3210
+```
+
+```bash
+node scripts/enregistrer-parcours.mjs http://localhost:3210 docs/demo
+```
+
+**Contre un serveur de production, jamais en développement.** En développement
+chaque page se compile à la première visite : le film montre alors des secondes
+d'écran vide, et le disque sature.
+
+Playwright n'est pas une dépendance du projet. Il pèse plus lourd que tout le
+reste et ne sert qu'ici, donc il s'installe à côté.
 
 ---
 
 ## Ce que ce n'est pas
 
-**Ce n'est pas un enregistrement d'écran.** Aucun encodeur vidéo n'est
-installé sur le poste, et la bibliothèque disponible sait écrire du WebP et du
-GIF animés, pas du H.264. Ce sont donc des vues fixes qui défilent, pas une
-souris qui bouge. Pour un vrai MP4, il faut un enregistreur d'écran, ou
-`ffmpeg` installé puis les PNG de ce dossier assemblés.
+**Ce n'est pas un enregistrement d'écran.** Playwright filme la page et rien
+d'autre : pas de bureau, pas de notifications, pas de barre des tâches. Et le
+parcours étant un script, il se rejoue à l'identique après chaque changement
+d'interface.
 
-**La résolution est de 799 x 602.** C'est la taille de la fenêtre de capture,
-pas un choix. Les PNG sont à cette taille et ne gagneront rien à être agrandis.
+**Le format est WebM (VP8).** Pas de MP4 : aucun encodeur H.264 n'est installé
+sur le poste de production, et celui que Playwright embarque ne sait écrire que
+du VP8. Le WebM s'ouvre dans tout navigateur récent. Pour un MP4, il faut
+`ffmpeg` installé, puis une conversion du fichier produit ici.
 
 ---
 
-## Ce que le parcours montre, et pourquoi dans cet ordre
+## Les listes de vues ne sont pas écrites au jugé
 
-Les quatre premières vues posent la plateforme : la démonstration, la
-connexion, la promesse tenue par le tableau de bord, les dossiers. Les quatre
-suivantes suivent une consultation réelle jusqu'à l'ordonnance validée.
+Elles viennent de `audit-acces.mjs`, qui interroge le serveur compte par compte
+et page par page, dans un vrai navigateur.
 
-Les vues 9 à 11 sortent du cabinet : les lits, la pharmacie, et le rapport
-mensuel produit depuis les consultations plutôt que recopié à la main.
+**Pourquoi un navigateur et pas `curl`.** Les pages gardées appellent
+`requirePermission` dans un composant serveur, mais Next rend en flux : la
+coquille part avec un code 200 avant que la redirection ne soit décidée, et
+celle-ci voyage ensuite dans le flux. Un client sans JavaScript voit donc 200
+partout et conclut, à tort, que tout est ouvert.
 
-**La vue 12 est un refus, et elle est là exprès.** Un compte de médecin qui
-demande une page d'administration se la voit refuser, avec le droit manquant
-nommé et une phrase qui explique que le cloisonnement fait partie de la
-protection des dossiers. C'est l'argument central du dossier de candidature :
-un refus qui nomme son motif et son remède vaut mieux qu'une alerte qu'on
-apprend à ignorer.
-
-Les vues 13 et 14 montrent ce que la plateforme mesure d'elle-même et comment
-elle refuse de garder un secret dans une page web. La 15 passe du côté du
-patient. Les 16 et 17 sont l'enquête usagers et son dépouillement.
+Le script d'enregistrement vérifie chaque arrivée. Si une vue devient
+inaccessible parce que la matrice des droits a changé, la prise s'arrête et le
+dit, au lieu de livrer un film où un acteur se heurte à un refus sans que
+personne ne le remarque au montage.
 
 ---
 
@@ -57,7 +80,3 @@ patient. Les 16 et 17 sont l'enquête usagers et son dépouillement.
 Les vues portent le bandeau de démonstration. Il n'a pas été retiré : une
 capture de produit qui ressemble à de vrais dossiers de patients sans le dire
 est exactement ce qu'il ne faut pas diffuser.
-
-Deux vues font exception et montrent du réel : l'enquête usagers et son
-dépouillement, qui portent les réponses effectivement reçues. Elles sont
-anonymes par construction.
