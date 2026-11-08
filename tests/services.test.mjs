@@ -146,7 +146,19 @@ describe('cycle de vie d un service reellement lance', () => {
       ].join('\n') + '\n',
     );
 
-    const port = 59_321;
+    // LE PORT EST DEMANDE AU SYSTEME, JAMAIS ECRIT EN DUR. Windows reserve
+    // des plages entieres pour Hyper-V, WSL et Docker, et ces plages changent
+    // d'un poste et d'un redemarrage a l'autre : `netsh interface ipv4 show
+    // excludedportrange protocol=tcp` les liste. Un port fixe finit par
+    // tomber dedans, et le bind est alors refuse par PERMISSION — pas par
+    // « adresse deja prise ». netstat ne montre donc personne, et la panne
+    // ressemble a un service qui ne demarre pas. C'est exactement ce qui est
+    // arrive avec 59321, pris dans la plage 59273-59372.
+    //
+    // Le systeme ne distribue jamais un port qu'il s'est reserve : on le lui
+    // demande, puis on rend la socket pour que le service puisse s'y mettre.
+    const { port, fermer: rendrePort } = await ecouteur();
+    rendrePort();
     let res;
     try {
       res = await startServices({
