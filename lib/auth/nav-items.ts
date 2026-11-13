@@ -19,7 +19,10 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { href: '/', label: 'Tableau de bord', short: 'Accueil', icon: '▦' },
+  // « Mon poste » et non « Tableau de bord » : l ecran d accueil n est plus
+  // le meme pour tous, et un tableau de bord repond a « comment va
+  // l etablissement » quand un poste repond a « que dois-je faire ».
+  { href: '/', label: 'Mon poste', short: 'Poste', icon: '▦' },
   { href: '/patients', label: 'Patients', short: 'Patients', icon: '⚇', permission: 'patient:read' },
   { href: '/consultations', label: 'Consultations', short: 'Consult.', icon: '◑', permission: 'consultation:read' },
   { href: '/rendez-vous', label: 'Rendez-vous', short: 'RDV', icon: '◷', permission: 'consultation:read' },
