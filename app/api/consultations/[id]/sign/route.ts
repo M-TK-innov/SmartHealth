@@ -1,6 +1,7 @@
 import { body, currentPractitioner, fail, ok } from '@/lib/api';
 import { apiRequire, assertSameOrganization, guarded } from '@/lib/auth/guard';
 import { getConsultation, getPrescriptions, signConsultation } from '@/lib/repo';
+import { facturerConsultation } from '@/lib/caisse/auto';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,6 +36,27 @@ export function POST(req: Request, routeCtx: Ctx) {
     }
 
     const signed = signConsultation(id, practitioner, report);
-    return ok({ consultation: signed });
+
+    // LA FACTURE SUIT LA SIGNATURE, ET SON ECHEC NE LA DEFAIT PAS. Un tarif
+    // absent du bareme ne doit pas retenir un compte rendu : le document a
+    // une valeur medico-legale, la ligne de caisse n'en a pas. On rend donc
+    // le refus a l'appelant pour qu'il l'affiche, sans toucher au resultat
+    // de la signature.
+    //
+    // Rejouer cet appel ne refacture rien : la ligne porte la source
+    // « consultation:<id> », et un index unique interdit la seconde.
+    const caisse = facturerConsultation(id, {
+      acteurId: authCtx.user.id,
+      organizationId: authCtx.user.organization_id,
+    });
+
+    return ok({
+      consultation: signed,
+      caisse: caisse.ok
+        ? 'deja' in caisse
+          ? { facture: true, deja: true }
+          : { facture: true, montant: caisse.montant }
+        : { facture: false, motif: caisse.motif, codeManquant: caisse.codeManquant },
+    });
   });
 }

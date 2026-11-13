@@ -222,6 +222,23 @@ INSERT INTO resultat_examen (id, demande_id, valeur_num, valeur_texte, unite, in
 -- Un rendez-vous a distance NON ENCORE CONSENTI, pour que la demonstration
 -- montre la demande d'accord : le consentement se recueille avant d'ouvrir
 -- la video, pas en meme temps.
+
+-- tarif (9)
+--
+-- Le bareme de l'etablissement. Sans lui, la facturation automatique
+-- REFUSE au lieu de facturer a zero, et l'ecran de caisse nomme le code
+-- manquant. La kaliemie n'y figure pas EXPRES : la demonstration doit
+-- montrer ce refus, qui est le comportement voulu.
+INSERT INTO tarif (id, organization_id, code, libelle, montant, actif, cree_le) VALUES ('bdeb3bd6-87f4-4f70-98a2-2631c38f0c2c', '175965d8-d5ec-4197-a368-898138d55e60', 'consultation-externe', 'Consultation externe', 1000, 1, '{{T+0}}');
+INSERT INTO tarif (id, organization_id, code, libelle, montant, actif, cree_le) VALUES ('d30ad3f2-3308-49bc-a203-b41218fe9bac', '175965d8-d5ec-4197-a368-898138d55e60', 'consultation-urgence', 'Consultation d urgence', 2000, 1, '{{T+0}}');
+INSERT INTO tarif (id, organization_id, code, libelle, montant, actif, cree_le) VALUES ('748046c5-884f-4a50-b5ec-b9744cef8cea', '175965d8-d5ec-4197-a368-898138d55e60', 'journee-hospitalisation', 'Journee d hospitalisation', 3500, 1, '{{T+0}}');
+INSERT INTO tarif (id, organization_id, code, libelle, montant, actif, cree_le) VALUES ('966beaf1-795c-4734-bd03-e9a90e5ddcdd', '175965d8-d5ec-4197-a368-898138d55e60', 'examen:2339-0', 'Glycemie', 1000, 1, '{{T+0}}');
+INSERT INTO tarif (id, organization_id, code, libelle, montant, actif, cree_le) VALUES ('e4d4c80a-d978-4c52-88fa-60e7b3bef922', '175965d8-d5ec-4197-a368-898138d55e60', 'examen:718-7', 'Hemoglobine', 2000, 1, '{{T+0}}');
+INSERT INTO tarif (id, organization_id, code, libelle, montant, actif, cree_le) VALUES ('602a8021-17c5-414f-9f1c-1d956a9af9dd', '175965d8-d5ec-4197-a368-898138d55e60', 'examen:32700-7', 'Goutte epaisse', 1500, 1, '{{T+0}}');
+INSERT INTO tarif (id, organization_id, code, libelle, montant, actif, cree_le) VALUES ('fa1f9258-4c39-4868-b20a-abec7d0201d3', '175965d8-d5ec-4197-a368-898138d55e60', 'examen:11525-3', 'Echographie obstetricale', 5000, 1, '{{T+0}}');
+INSERT INTO tarif (id, organization_id, code, libelle, montant, actif, cree_le) VALUES ('d5247c36-e263-4028-ac1d-79a141f20cf4', '175965d8-d5ec-4197-a368-898138d55e60', 'medicament:J01CA04', 'Amoxicilline 500 mg', 1500, 1, '{{T+0}}');
+INSERT INTO tarif (id, organization_id, code, libelle, montant, actif, cree_le) VALUES ('debaa041-279f-4581-9238-2f381e8ec40d', '175965d8-d5ec-4197-a368-898138d55e60', 'medicament:P01BD51', 'Sulfadoxine/pyrimethamine', 800, 1, '{{T+0}}');
+
 INSERT INTO rendez_vous (id, patient_id, practitioner_id, organization_id, mode, motif, debut, duree_min, etat, consultation_id, salle, consentement_le, annule_par, annule_motif, cree_par, cree_le) VALUES ('ebd17862-6c3e-49c7-9f08-c1915ea80b61', '2090d8ae-4408-4d86-9008-79f0b143fe5a', '8ade80a8-d1f7-429f-a9cc-9af2b2d9f54d', '175965d8-d5ec-4197-a368-898138d55e60', 'distance', 'Suivi a distance', '{{T+10}}', 20, 'confirme', NULL, '1a08cbfca033d294973abc9f713e6790', '{{T-60}}', NULL, NULL, NULL, '{{T-120}}');
 INSERT INTO rendez_vous (id, patient_id, practitioner_id, organization_id, mode, motif, debut, duree_min, etat, consultation_id, salle, consentement_le, annule_par, annule_motif, cree_par, cree_le) VALUES ('2887d1fc-5db3-4325-9464-9d11b37d953e', '2090d8ae-4408-4d86-9008-79f0b143fe5a', '8ade80a8-d1f7-429f-a9cc-9af2b2d9f54d', '175965d8-d5ec-4197-a368-898138d55e60', 'distance', 'Controle post-operatoire', '{{D+2}} 09:30:00', 20, 'confirme', NULL, '5482afc55055e43f9c40e4c7f574ebb9', NULL, NULL, NULL, NULL, '{{T+0}}');
 INSERT INTO rendez_vous (id, patient_id, practitioner_id, organization_id, mode, motif, debut, duree_min, etat, consultation_id, salle, consentement_le, annule_par, annule_motif, cree_par, cree_le) VALUES ('1e57716d-bef6-4008-9dd9-baeb170cf942', '2090d8ae-4408-4d86-9008-79f0b143fe5a', '8ade80a8-d1f7-429f-a9cc-9af2b2d9f54d', '175965d8-d5ec-4197-a368-898138d55e60', 'presentiel', 'Retrait des fils', '{{D+7}} 11:00:00', 15, 'confirme', NULL, NULL, NULL, NULL, NULL, NULL, '{{T+0}}');

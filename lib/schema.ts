@@ -323,9 +323,48 @@ CREATE TABLE IF NOT EXISTS facture_ligne (
   -- vitale | urgente | programmable : decide si un impaye peut bloquer l acte
   urgence     TEXT NOT NULL DEFAULT 'programmable',
   acteur_id   TEXT,
+  -- CE QUI A PRODUIT CETTE LIGNE, quand elle n'a pas ete saisie a la main :
+  -- « consultation:<id> », « examen:<id> », « dispensation:<id> ».
+  --
+  -- C'est la clef qui empeche de facturer deux fois. Signer une consultation
+  -- deux fois, recharger la page, rejouer un appel : sans cette colonne et
+  -- son index, chaque tentative ajoutait une ligne, et le patient payait
+  -- autant de fois qu'on avait clique.
+  source      TEXT,
   created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_fligne_facture ON facture_ligne(facture_id);
+-- Une source ne produit qu'une ligne par facture. Les lignes saisies a la
+-- main portent une source nulle et ne sont pas concernees : on peut facturer
+-- deux consultations externes le meme jour si on les a vraiment faites.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_fligne_source
+  ON facture_ligne(facture_id, source) WHERE source IS NOT NULL;
+
+-- ------------------------------------------------------------------ Tarifs
+--
+-- POURQUOI UNE TABLE ET PAS DES PRIX DANS LE CODE. Les montants varient d'un
+-- centre a l'autre et changent dans le temps. Un prix ecrit dans le code
+-- serait faux des le deuxieme etablissement, et sa correction demanderait une
+-- livraison.
+--
+-- UN ACTE SANS TARIF N'EST PAS FACTURE A ZERO. La facturation automatique
+-- refuse et le dit : une ligne a zero ressemble a une gratuite decidee, et
+-- personne ne la corrige jamais.
+CREATE TABLE IF NOT EXISTS tarif (
+  id              TEXT PRIMARY KEY,
+  organization_id TEXT,
+  -- Ce que l'acte est : « consultation-externe », « examen:<code LOINC> »,
+  -- « medicament:<code ATC> ». Le code dit la famille, le libelle dit le reste.
+  code            TEXT NOT NULL,
+  libelle         TEXT NOT NULL,
+  -- Francs CFA entiers. Pas de centimes : il n'en circule pas.
+  montant         INTEGER NOT NULL,
+  actif           INTEGER NOT NULL DEFAULT 1,
+  cree_le         TEXT NOT NULL DEFAULT (datetime('now'))
+);
+-- Un seul tarif actif par code et par etablissement.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tarif_code
+  ON tarif(organization_id, code) WHERE actif = 1;
 
 -- Un paiement ne se modifie pas et ne se supprime pas : il s annule par un
 -- autre mouvement. Une caisse dont les lignes s editent ne prouve rien.
