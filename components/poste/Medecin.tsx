@@ -4,6 +4,7 @@ import { organizationFilter } from '@/lib/auth/guard';
 import { critiquesNonTransmises } from '@/lib/hopital/plateau-store';
 import { journeeDe } from '@/lib/rdv/store';
 import Link from 'next/link';
+import { enAttenteDansLEtablissement } from '@/lib/parcours/store';
 import { Chiffre, Entete, Gestes, Ligne, Pile, aujourdhui, heure } from './elements';
 
 /**
@@ -32,8 +33,26 @@ interface LigneConsultation {
   mrn: string | null;
 }
 
+/**
+ * La couleur dit QUI doit agir, pas la gravite.
+ *
+ * Rouge pour ce qui attend un soignant sur un resultat, ambre pour ce qui
+ * attend une decision medicale, neutre pour ce qui attend un guichet. Un
+ * ecran ou tout est rouge ne hierarchise plus rien.
+ */
+const MARQUE_SUITE: Record<string, string> = {
+  resultat: 'bg-danger-soft text-danger',
+  consultation: 'bg-warn-soft text-warn',
+  ordonnance: 'bg-warn-soft text-warn',
+  examen: 'bg-warn-soft text-warn',
+  lit: 'bg-warn-soft text-warn',
+};
+
 export async function PosteMedecin({ ctx }: { ctx: AuthContext }) {
   const scoped = organizationFilter(ctx);
+
+  // Ce que chaque module sait des patients, rassemble en une vue.
+  const attentes = enAttenteDansLEtablissement(scoped).filter((a) => a.suite.qui === 'medecin');
   const ou = scoped ? '(c.organization_id = ? OR c.organization_id IS NULL)' : '1 = 1';
   const args: unknown[] = scoped ? [scoped] : [];
 
@@ -173,6 +192,23 @@ export async function PosteMedecin({ ctx }: { ctx: AuthContext }) {
           Choisir un patient
         </Link>
       </section>
+
+      <Pile
+        titre="Les patients qui vous attendent"
+        compte={attentes.length}
+        vide="Aucun patient n attend un geste de votre part."
+        tout={{ libelle: 'Les dossiers', href: '/patients' }}
+      >
+        {attentes.map((a) => (
+          <Ligne
+            key={a.patientId}
+            href={`/patients/${a.patientId}`}
+            titre={a.nom}
+            sous={a.suite.pourquoi || a.suite.libelle}
+            marque={{ texte: a.suite.libelle, classe: MARQUE_SUITE[a.suite.etape] ?? '' }}
+          />
+        ))}
+      </Pile>
     </div>
   );
 }

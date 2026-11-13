@@ -4,6 +4,7 @@ import { organizationFilter } from '@/lib/auth/guard';
 import { tableauTension } from '@/lib/hopital/flux-store';
 import { tableauOccupation } from '@/lib/hopital/store';
 import { demandesEnCours } from '@/lib/hopital/plateau-store';
+import { enAttenteDansLEtablissement } from '@/lib/parcours/store';
 import { Chiffre, Entete, Gestes, Ligne, Pile } from './elements';
 
 /**
@@ -18,8 +19,26 @@ import { Chiffre, Entete, Gestes, Ligne, Pile } from './elements';
  * quelqu'un n'y est pas alle. Les fondre ensemble ferait annoncer des places
  * qui n'existent pas encore.
  */
+/**
+ * La couleur dit QUI doit agir, pas la gravite.
+ *
+ * Rouge pour ce qui attend un soignant sur un resultat, ambre pour ce qui
+ * attend une decision medicale, neutre pour ce qui attend un guichet. Un
+ * ecran ou tout est rouge ne hierarchise plus rien.
+ */
+const MARQUE_SUITE: Record<string, string> = {
+  resultat: 'bg-danger-soft text-danger',
+  consultation: 'bg-warn-soft text-warn',
+  ordonnance: 'bg-warn-soft text-warn',
+  examen: 'bg-warn-soft text-warn',
+  lit: 'bg-warn-soft text-warn',
+};
+
 export async function PosteInfirmier({ ctx }: { ctx: AuthContext }) {
   const scoped = organizationFilter(ctx);
+
+  // Ce que chaque module sait des patients, rassemble en une vue.
+  const attentes = enAttenteDansLEtablissement(scoped);
 
   const tension = tableauTension(scoped);
   const unites = tableauOccupation(scoped);
@@ -171,6 +190,23 @@ export async function PosteInfirmier({ ctx }: { ctx: AuthContext }) {
           explique ce decoupage.
         </p>
       </section>
+
+      <Pile
+        titre="Les patients qui attendent quelque chose"
+        compte={attentes.length}
+        vide="Aucun patient n attend quoi que ce soit."
+        tout={{ libelle: 'Les dossiers', href: '/patients' }}
+      >
+        {attentes.map((a) => (
+          <Ligne
+            key={a.patientId}
+            href={`/patients/${a.patientId}`}
+            titre={a.nom}
+            sous={a.suite.pourquoi || a.suite.libelle}
+            marque={{ texte: a.suite.libelle, classe: MARQUE_SUITE[a.suite.etape] ?? '' }}
+          />
+        ))}
+      </Pile>
     </div>
   );
 }
