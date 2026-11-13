@@ -2,11 +2,14 @@ import { randomUUID } from 'node:crypto';
 import { all, audit, get, insert, run, tx } from '../db.ts';
 import {
   codeConsultation,
+  codeExamen,
+  codeMedicament,
   tarifer,
   type ActeAFacturer,
   type Tarif,
   type Urgence,
 } from './tarification.ts';
+import { appliquerAFacture, type Convention } from './convention.ts';
 
 /**
  * La facture se remplit des actes, au fil du sejour.
@@ -149,6 +152,12 @@ export function facturerActe(
         automatique: true,
       },
     });
+    // LA PART DE L'ASSURANCE SE RECALCULE A CHAQUE ACTE, dans la meme
+    // transaction. Une facture qui grossit voit sa part de tiers grossir avec
+    // elle, et un plafond ne se constate qu'une fois le total connu. La figer
+    // a l'ouverture ferait payer au patient des actes que son regime couvre.
+    appliquerConvention(facture.id, ctx);
+
     return { ok: true as const, ligneId: id, montant: d.ligne.montant * d.ligne.quantite };
   });
 }
@@ -255,4 +264,243 @@ export function actesNonTarifes(
     }
   }
   return manquants;
+}
+
+
+/**
+ * Facture un examen dont le resultat a ete valide.
+ *
+ * VALIDE, ET NON RENDU. Un resultat rendu peut encore etre corrige — les
+ * donnees de demonstration en portent un exemple, une kaliemie passee de 4,2
+ * a 6,8 apres inversion de tube. Facturer a la sortie de l'automate
+ * facturerait aussi les examens qu'on refait pour cette raison.
+ */
+export function facturerExamen(demandeId: string, ctx: Contexte): Facturation {
+  const d = get<{
+    id: string;
+    sejour_id: string | null;
+    examen: string;
+    loinc_code: string | null;
+    etat: string;
+    priorite: string;
+  }>(
+    'SELECT id, sejour_id, examen, loinc_code, etat, priorite FROM demande_examen WHERE id = ?',
+    [demandeId],
+  );
+  if (!d) return { ok: false, motif: 'Demande d examen introuvable.', codeManquant: null };
+  if (d.etat !== 'validee') {
+    return {
+      ok: false,
+      motif: 'Un examen se facture a la validation du resultat, pas avant.',
+      codeManquant: null,
+    };
+  }
+  if (!d.sejour_id) {
+    return {
+      ok: false,
+      motif: 'Examen sans sejour rattache : il se facture a la main.',
+      codeManquant: null,
+    };
+  }
+
+  return facturerActe(
+    d.sejour_id,
+    {
+      code: codeExamen(d.loinc_code, d.examen),
+      libelle: d.examen,
+      quantite: 1,
+      urgence: d.priorite === 'vitale' ? 'vitale' : d.priorite === 'urgente' ? 'urgente' : 'programmable',
+      source: `examen:${demandeId}`,
+    },
+    ctx,
+  );
+}
+
+/**
+ * Facture ce qui a ete reellement dispense.
+ *
+ * UNE LIGNE PAR MEDICAMENT SERVI, et la quantite est celle SORTIE DU RAYON,
+ * pas celle prescrite. Une ordonnance de 21 comprimes servie a 7 faute de
+ * stock ne se facture pas 21 : le patient paierait ce qu'il n'a pas recu, et
+ * c'est le genre d'ecart qu'on ne retrouve jamais apres coup.
+ */
+export function facturerDispensation(dispensationId: string, ctx: Contexte): Facturation[] {
+  const d = get<{ id: string; sejour_id: string | null }>(
+    'SELECT id, sejour_id FROM dispensation WHERE id = ?',
+    [dispensationId],
+  );
+  if (!d) {
+    return [{ ok: false, motif: 'Dispensation introuvable.', codeManquant: null }];
+  }
+  if (!d.sejour_id) {
+    return [
+      { ok: false, motif: 'Dispensation sans sejour rattache : elle se facture a la main.', codeManquant: null },
+    ];
+  }
+
+  const lignes = all<{ id: string; quantite: number; dci: string; atc: string | null }>(
+    `SELECT dl.id, dl.quantite, a.dci, a.atc_code AS atc
+       FROM dispensation_ligne dl JOIN article a ON a.id = dl.article_id
+      WHERE dl.dispensation_id = ?`,
+    [dispensationId],
+  );
+  if (lignes.length === 0) {
+    return [{ ok: false, motif: 'Dispensation sans ligne servie.', codeManquant: null }];
+  }
+
+  return lignes.map((l) =>
+    facturerActe(
+      d.sejour_id!,
+      {
+        code: codeMedicament(l.atc, l.dci),
+        libelle: l.dci,
+        quantite: l.quantite,
+        urgence: 'programmable',
+        // La source descend jusqu'a LA LIGNE : deux medicaments d'une meme
+        // dispensation sont deux actes, et une seule source pour les deux en
+        // ferait disparaitre un.
+        source: `dispensation-ligne:${l.id}`,
+      },
+      ctx,
+    ),
+  );
+}
+
+/** Les conventions d'assurance de l'etablissement. */
+export function conventionsDe(organizationId: string | null): Convention[] {
+  return all<Convention>(
+    `SELECT regime, code, taux, plafond FROM convention
+      WHERE actif = 1 AND (organization_id = ? OR organization_id IS NULL)`,
+    [organizationId],
+  );
+}
+
+export interface PriseEnChargeAppliquee {
+  partTiers: number;
+  resteACharge: number;
+  regime: string | null;
+  motif: string;
+  /** Vrai quand la facture a ete mise a jour. */
+  ecrite: boolean;
+}
+
+/**
+ * Applique la convention d'assurance a une facture ouverte.
+ *
+ * RECALCULEE A CHAQUE ACTE, et non une fois pour toutes a l'ouverture : une
+ * facture qui grossit voit sa part de tiers grossir avec elle, et un plafond
+ * ne se constate qu'une fois le total connu.
+ *
+ * ELLE N'ECRIT QUE SUR UNE FACTURE OUVERTE. Une facture close porte une
+ * somme que quelqu'un a payee : la recalculer apres coup ferait varier un
+ * reste a charge deja regle.
+ */
+export function appliquerConvention(factureId: string, ctx: Contexte): PriseEnChargeAppliquee {
+  const f = get<{ id: string; close: number; sejour_id: string; part_tiers: number }>(
+    'SELECT id, close, sejour_id, part_tiers FROM facture WHERE id = ?',
+    [factureId],
+  );
+  if (!f) {
+    return { partTiers: 0, resteACharge: 0, regime: null, motif: 'Facture introuvable.', ecrite: false };
+  }
+  if (f.close === 1) {
+    return {
+      partTiers: f.part_tiers,
+      resteACharge: 0,
+      regime: null,
+      motif: 'Facture close : la prise en charge n est plus recalculee.',
+      ecrite: false,
+    };
+  }
+
+  // UNE AUTOMATISATION N'EFFACE PAS LE CHIFFRE D'UN HUMAIN parce qu'elle
+  // n'en sait pas plus. Une facture qui porte un tiers nomme vient d'une
+  // convention convenue hors du systeme — une mutuelle qui a donne son
+  // accord par telephone, un fonds d'urgence. Si le dossier du patient ne
+  // nomme aucun regime, ce calcul n'a RIEN a dire, et mettre zero
+  // transformerait une prise en charge acquise en dette.
+  const dejaConvenue = get<{ tiers_nom: string | null }>(
+    'SELECT tiers_nom FROM facture WHERE id = ?',
+    [factureId],
+  )?.tiers_nom;
+
+  const patient = get<{ insurance_scheme: string | null }>(
+    `SELECT p.insurance_scheme FROM patient p
+       JOIN sejour s ON s.patient_id = p.id
+      WHERE s.id = ?`,
+    [f.sejour_id],
+  );
+
+  // Les lignes portent un libelle, pas leur code au bareme : on retrouve le
+  // code par la source quand elle existe, et on retombe sur « * » sinon. Une
+  // ligne saisie a la main n'a pas de code, et la regle generale est la seule
+  // qui puisse s'y appliquer.
+  const lignes = all<{ libelle: string; montant: number; quantite: number; source: string | null }>(
+    'SELECT libelle, montant, quantite, source FROM facture_ligne WHERE facture_id = ?',
+    [factureId],
+  ).map((l) => ({
+    code: codeDeLaSource(l.source),
+    montant: l.montant * l.quantite,
+  }));
+
+  const regime = patient?.insurance_scheme ?? null;
+
+  if (!regime && dejaConvenue) {
+    return {
+      partTiers: f.part_tiers,
+      resteACharge: 0,
+      regime: null,
+      motif: `Prise en charge convenue avec « ${dejaConvenue} », conservee : aucun regime n est enregistre au dossier du patient.`,
+      ecrite: false,
+    };
+  }
+
+  const p = appliquerAFacture(lignes, conventionsDe(ctx.organizationId ?? null), regime);
+
+  // Meme prudence a l'arrivee : un calcul qui rendrait zero sur une facture
+  // deja prise en charge se tait plutot que d'effacer.
+  if (p.partTiers === 0 && f.part_tiers > 0 && dejaConvenue) {
+    return {
+      partTiers: f.part_tiers,
+      resteACharge: 0,
+      regime: null,
+      motif: `La convention « ${regime} » ne couvre rien ici, mais « ${dejaConvenue} » avait ete convenu : le montant est conserve.`,
+      ecrite: false,
+    };
+  }
+
+  if (p.partTiers === f.part_tiers) {
+    return { ...p, ecrite: false };
+  }
+
+  run("UPDATE facture SET part_tiers = ?, updated_at = datetime('now') WHERE id = ?", [
+    p.partTiers,
+    factureId,
+  ]);
+  audit({
+    action: 'update',
+    entity: 'facture',
+    entityId: factureId,
+    actorId: ctx.acteurId ?? undefined,
+    detail: { part_tiers: p.partTiers, regime: p.regime, automatique: true },
+  });
+
+  return { ...p, ecrite: true };
+}
+
+/**
+ * Le code au bareme que porte une source de ligne.
+ *
+ * `consultation:<id>` ne dit pas si la consultation etait externe ou
+ * urgente : on retombe alors sur la regle generale. C'est volontairement
+ * approximatif — l'alternative serait de stocker le code sur la ligne, ce qui
+ * dupliquerait une information que le bareme porte deja.
+ */
+function codeDeLaSource(source: string | null): string {
+  if (!source) return '*';
+  const [famille, reste] = source.split(':');
+  if (famille === 'examen') return '*';
+  if (famille === 'dispensation-ligne') return '*';
+  if (famille === 'consultation') return '*';
+  return reste ? `${famille}:${reste}` : '*';
 }

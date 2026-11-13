@@ -366,6 +366,35 @@ CREATE TABLE IF NOT EXISTS tarif (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_tarif_code
   ON tarif(organization_id, code) WHERE actif = 1;
 
+-- ------------------------------------------------------------- Conventions
+--
+-- Ce qu'un regime d'assurance prend en charge, acte par acte.
+--
+-- SANS LIGNE ICI, RIEN N'EST PRIS EN CHARGE. Pas « au taux habituel » : un
+-- patient couvert dont la convention n'est pas enregistree paie tout, l'ecran
+-- le dit, et quelqu'un va la saisir. Inventer un taux produirait un reste a
+-- charge qu'aucune des deux parties ne reconnait, decouvert a la caisse,
+-- devant le patient.
+CREATE TABLE IF NOT EXISTS convention (
+  id              TEXT PRIMARY KEY,
+  organization_id TEXT,
+  -- Le regime, tel qu'il est inscrit au dossier du patient : « ARCH »,
+  -- « mutuelle-oueme ».
+  regime          TEXT NOT NULL,
+  -- Le code au bareme couvert, ou « * » pour tout acte. Une regle sur le
+  -- code exact l'emporte sur la regle generale.
+  code            TEXT NOT NULL,
+  -- Pourcentage entier, de 0 a 100.
+  taux            INTEGER NOT NULL,
+  -- Plafond en francs sur cet acte, ou NULL. Un plafond a zero n'est pas
+  -- « pas de plafond » : c'est « rien n'est couvert ».
+  plafond         INTEGER,
+  actif           INTEGER NOT NULL DEFAULT 1,
+  cree_le         TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_convention_regle
+  ON convention(organization_id, regime, code) WHERE actif = 1;
+
 -- Un paiement ne se modifie pas et ne se supprime pas : il s annule par un
 -- autre mouvement. Une caisse dont les lignes s editent ne prouve rien.
 CREATE TABLE IF NOT EXISTS paiement (

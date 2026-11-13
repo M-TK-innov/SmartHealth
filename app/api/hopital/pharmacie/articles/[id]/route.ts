@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { facturerDispensation } from '@/lib/caisse/auto';
 import { body } from '@/lib/api';
 import { apiRequire, guarded } from '@/lib/auth/guard';
 import {
@@ -72,20 +73,30 @@ export function POST(req: Request, ctxParam: Ctx) {
       if (!data.patientId || typeof data.quantite !== 'number') {
         return NextResponse.json({ error: 'Patient et quantite sont requis.' }, { status: 400 });
       }
-      return reponse(
-        servir(
-          {
-            patientId: data.patientId,
-            sejourId: data.sejourId ?? null,
-            prescriptionId: data.prescriptionId ?? null,
-            articleId: id,
-            quantite: data.quantite,
-            accepterPartiel: data.accepterPartiel === true,
-          },
-          contexte(auth),
-        ),
-        201,
+      const dispense = servir(
+        {
+          patientId: data.patientId,
+          sejourId: data.sejourId ?? null,
+          prescriptionId: data.prescriptionId ?? null,
+          articleId: id,
+          quantite: data.quantite,
+          accepterPartiel: data.accepterPartiel === true,
+        },
+        contexte(auth),
       );
+
+      // ON FACTURE CE QUI EST SORTI DU RAYON, pas ce qui etait prescrit. Une
+      // ordonnance de 21 comprimes servie a 7 faute de stock ne se facture
+      // pas 21 : le patient paierait ce qu'il n'a pas recu, et c'est l'ecart
+      // qu'on ne retrouve jamais apres coup.
+      if (dispense.ok) {
+        facturerDispensation(dispense.resultat.dispensationId, {
+          acteurId: auth.user.id,
+          organizationId: auth.user.organization_id,
+        });
+      }
+
+      return reponse(dispense, 201);
     }
 
     if (data.type === 'destruction') {

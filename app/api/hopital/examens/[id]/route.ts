@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { facturerExamen } from '@/lib/caisse/auto';
 import { body } from '@/lib/api';
 import { apiRequire, guarded } from '@/lib/auth/guard';
 import {
@@ -75,18 +76,28 @@ export function POST(req: Request, ctxParam: Ctx) {
 
     if (data.type === 'resultat') {
       const auth = await apiRequire('plateau:write');
-      return reponse(
-        saisirResultat(
-          id,
-          {
-            valeurNum: typeof data.valeurNum === 'number' ? data.valeurNum : null,
-            valeurTexte: data.valeurTexte ?? null,
-            unite: data.unite ?? null,
-          },
-          contexte(auth),
-        ),
-        201,
+      const saisie = saisirResultat(
+        id,
+        {
+          valeurNum: typeof data.valeurNum === 'number' ? data.valeurNum : null,
+          valeurTexte: data.valeurTexte ?? null,
+          unite: data.unite ?? null,
+        },
+        contexte(auth),
       );
+
+      // LA FACTURATION SUIT LA SAISIE, ET NE PEUT PAS LA DEFAIRE. Elle refuse
+      // d'elle-meme tant que l'examen n'est pas valide : le garde-fou vit
+      // dans la regle, pas dans l'appelant, qui ne peut donc pas l'oublier.
+      // Un examen non tarife n'empeche pas de rendre un resultat.
+      if (saisie.ok) {
+        facturerExamen(id, {
+          acteurId: auth.user.id,
+          organizationId: auth.user.organization_id,
+        });
+      }
+
+      return reponse(saisie, 201);
     }
 
     if (data.type === 'acquittement') {
@@ -94,15 +105,25 @@ export function POST(req: Request, ctxParam: Ctx) {
       if (!data.resultatId) {
         return NextResponse.json({ error: 'Resultat non precise.' }, { status: 400 });
       }
-      return reponse(
-        acquitterCritique(
-          data.resultatId,
-          data.transmisA ?? '',
-          contexte(auth),
-          data.commentaire ?? null,
-        ),
-        200,
+      const acquittement = acquitterCritique(
+        data.resultatId,
+        data.transmisA ?? '',
+        contexte(auth),
+        data.commentaire ?? null,
       );
+
+      // Une valeur critique passe souvent a « validee » a son acquittement :
+      // c'est le second moment ou l'examen devient facturable. L'appel est
+      // sans effet si ce n'est pas le cas, et sans effet non plus s'il a deja
+      // ete facture.
+      if (acquittement.ok) {
+        facturerExamen(id, {
+          acteurId: auth.user.id,
+          organizationId: auth.user.organization_id,
+        });
+      }
+
+      return reponse(acquittement, 200);
     }
 
     if (data.type === 'correction') {

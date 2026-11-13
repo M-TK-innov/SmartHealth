@@ -44,6 +44,19 @@ export async function PosteEtablissement({ ctx }: { ctx: AuthContext }) {
   // nombre d'interventions, toutes salles confondues.
   const interventions = bloc.reduce((n, s) => n + s.interventions.length, 0);
 
+  // LES RENDEZ-VOUS QUE PERSONNE N'A HONORES. Un creneau passe encore
+  // marque « confirme » est un patient qui n'est pas venu et que personne
+  // n'a rappele. C'est le chiffre qu'aucun rapport ne remonte, parce qu'il
+  // ne correspond a aucun acte : il n'existe que par ce qui n'a pas eu lieu.
+  const nonHonores =
+    get<{ n: number }>(
+      `SELECT COUNT(*) n FROM rendez_vous
+        WHERE etat IN ('confirme', 'propose')
+          AND debut < datetime('now')
+          AND (? IS NULL OR organization_id = ?)`,
+      [scoped, scoped],
+    )?.n ?? 0;
+
   const aValider =
     get<{ n: number }>(
       `SELECT COUNT(*) n FROM user_account
@@ -72,7 +85,7 @@ export async function PosteEtablissement({ ctx }: { ctx: AuthContext }) {
         urgent={urgent}
       />
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Chiffre valeur={enAttente} libelle="En attente" href="/hopital" alerte={enAttente >= 10} />
         <Chiffre valeur={libres} libelle="Lits libres" href="/hopital" alerte={libres === 0} />
         <Chiffre
@@ -80,6 +93,12 @@ export async function PosteEtablissement({ ctx }: { ctx: AuthContext }) {
           libelle="Produits en rupture"
           href="/hopital/pharmacie"
           alerte={ruptures.length > 0}
+        />
+        <Chiffre
+          valeur={nonHonores}
+          libelle="Rendez-vous non honores"
+          href="/rendez-vous"
+          alerte={nonHonores > 0}
         />
         <Chiffre valeur={aValider} libelle="Comptes a valider" href="/admin/comptes" alerte={aValider > 0} />
       </section>
