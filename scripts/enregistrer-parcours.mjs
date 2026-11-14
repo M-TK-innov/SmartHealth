@@ -128,7 +128,7 @@ const ACTEURS = [
     resume:
       "Consulte, dicte, signe, prescrit. N'encaisse pas, ne dispense pas, ne saisit aucun resultat.",
     vues: [
-      { chemin: '/', titre: 'Tableau de bord', note: 'Le medecin parle, le dossier s ecrit.', defile: 520 },
+      { chemin: '/', titre: 'Son poste de travail', note: 'Ce qui attend sa signature, ses rendez-vous. Une valeur critique non acquittee passe devant tout.', defile: 560, tenir: 2600 },
       { chemin: '/patients', titre: 'Patients', note: 'Recherche par numero de dossier, NPI ou telephone.', defile: 360 },
       { clic: 'a[href^="/patients/"]', titre: 'Dossier patient', note: 'Ressource FHIR et journal d acces a portee de clic.', defile: 480 },
       { chemin: '/consultations', titre: 'Consultations', note: 'En cours, a signer, signees.', defile: 320 },
@@ -140,6 +140,7 @@ const ACTEURS = [
       { chemin: '/hopital/bloc', titre: 'Bloc operatoire', note: 'Programme et liste de verification avant incision.', defile: 440 },
       { chemin: '/interop', titre: 'Interoperabilite', note: 'FHIR R4, HL7 v2, DHIS2, sans ressaisie.', defile: 440 },
       { chemin: '/interop/rapport-mensuel?a=2026&m=11', titre: 'Rapport mensuel', note: 'Se dit incomplet tant que le mois court, et motive chaque cas ecarte.', defile: 460, tenir: 2400 },
+      { titre: 'Les patients qui l attendent', note: 'Le laboratoire a rendu, et le dossier le dit a son poste. Personne n a eu a aller voir.', defile: 420, tenir: 2800 },
       { chemin: '/rendez-vous', titre: 'Son planning', note: 'Les consultations a distance ne s ouvrent que si le patient a donne son accord.', defile: 420, tenir: 2300 },
       { chemin: '/corrections', titre: 'Corrections apprises', note: 'Ce que le praticien a corrige, et que le modele retient.', defile: 380 },
       { chemin: '/compte', titre: 'Mon compte', note: 'Sessions ouvertes et changement de mot de passe.', defile: 340 },
@@ -151,7 +152,7 @@ const ACTEURS = [
     resume:
       "Recoit, enregistre, oriente, assigne un lit, preleve et saisit les resultats. Ne signe ni compte rendu ni ordonnance.",
     vues: [
-      { chemin: '/', titre: 'Tableau de bord', note: "Le poste qui voit le patient avant et apres le medecin.", defile: 440 },
+      { chemin: '/', titre: 'Son poste de travail', note: 'Qui attend, les lits, les prelevements. L ecran de l accueil regarde dehors, pas dedans.', defile: 520, tenir: 2600 },
       { chemin: '/patients', titre: 'Enregistrement du patient', note: "C'est ici que commence le parcours : un dossier, pas un carnet.", defile: 380 },
       { clic: 'a[href^="/patients/"]', titre: 'Dossier patient', note: 'Il cree et met a jour le dossier. Il ne signe aucun compte rendu.', defile: 460 },
       { chemin: '/consultations', titre: 'Consultations', note: 'Il lit pour savoir pourquoi le patient est la. Il n ecrit pas la consultation.', defile: 320 },
@@ -167,7 +168,7 @@ const ACTEURS = [
     compte: 'direction@csc.bj',
     resume: 'Tous les modules hospitaliers, et la gestion des comptes de ses soignants.',
     vues: [
-      { chemin: '/', titre: 'Tableau de bord', note: "L activite de l etablissement, pas celle d un praticien.", defile: 460 },
+      { chemin: '/', titre: 'Son poste de travail', note: 'Ce qui demande une decision : ruptures, peremptions, lits hors service, rendez-vous non honores.', defile: 520, tenir: 2600 },
       { chemin: '/hopital', titre: 'Lits et files', note: 'Tension des postes et orientation des patients.', defile: 480 },
       { chemin: '/hopital/pharmacie', titre: 'Pharmacie', note: 'Stock, ruptures, peremptions a venir. Elle dispense et gere les lots.', defile: 480 },
       { chemin: '/hopital/plateau', titre: 'Laboratoire', note: 'Valeurs critiques et acquittement nominatif.', defile: 420 },
@@ -187,7 +188,7 @@ const ACTEURS = [
     resume:
       'Indicateurs agreges et surveillance epidemiologique. Aucun dossier nominatif ne lui est accessible.',
     vues: [
-      { chemin: '/', titre: 'Tableau de bord', note: 'Des agregats, pas des personnes.', defile: 440 },
+      { chemin: '/', titre: 'Son poste de travail', note: 'Des agregats, et pas un seul nom de patient. La regle se verifie en essayant d ouvrir les dossiers.', defile: 460, tenir: 2400 },
       { chemin: '/interop', titre: 'Interoperabilite', note: 'Exports de surveillance vers DHIS2.', defile: 420 },
       { chemin: '/interop/rapport-mensuel?a=2026&m=11', titre: 'Surveillance mensuelle', note: 'Ce qui n est pas compte est nomme, et le mois en cours se declare incomplet.', defile: 460, tenir: 2400 },
       { chemin: '/admin/organisations', titre: 'Organisations', note: 'La carte des etablissements, sans leurs dossiers.', defile: 380 },

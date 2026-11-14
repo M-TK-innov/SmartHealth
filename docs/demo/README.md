@@ -1,14 +1,20 @@
 # Parcours vidéo de la plateforme
 
-`parcours-smarthealth.webm` — 7 chapitres, 61 vues, 3 min 51 s, 1280x720.
+`parcours-smarthealth.webm` — 7 chapitres, 62 vues, 4 min 22 s, 1280x720.
 
 Un acteur par chapitre, et pour chacun **uniquement les interfaces qui lui sont
 destinées**. Le film ne montre jamais quelqu'un se cogner à une porte fermée :
 il montre sept postes de travail.
 
+Chaque chapitre ouvre sur le poste de son acteur, pas sur un tableau de bord
+commun : le médecin voit ce qui attend sa signature, l'accueil voit qui
+attend, la direction voit ce qui demande une décision. On y voit aussi les
+modules se parler — un résultat de laboratoire remonte jusqu'à l'écran du
+praticien sans que personne n'aille le chercher.
+
 | Chapitre | Compte | Vues |
 |---|---|---|
-| Médecin | `a.sossou@example.bj` | 15 |
+| Médecin | `a.sossou@example.bj` | 16 |
 | Infirmier / Accueil | `accueil@csc.bj` | 9 |
 | Établissement | `direction@csc.bj` | 12 |
 | Ministère | `ministere@sante.bj` | 5 |
